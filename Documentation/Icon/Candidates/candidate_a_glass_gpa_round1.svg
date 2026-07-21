@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#102B49"/><stop offset="1" stop-color="#061323"/></linearGradient>
+    <linearGradient id="glass" x2="1" y2="1"><stop stop-color="#DDF4FF" stop-opacity=".35"/><stop offset="1" stop-color="#78BDE0" stop-opacity=".10"/></linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="26" stdDeviation="26" flood-opacity=".28"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="220" fill="url(#bg)"/>
+  <circle cx="820" cy="160" r="230" fill="#70C7F4" opacity=".14"/><circle cx="180" cy="850" r="260" fill="#E0AC48" opacity=".16"/>
+  <rect x="178" y="224" width="668" height="576" rx="146" fill="url(#glass)" stroke="#E9FAFF" stroke-opacity=".45" stroke-width="6" filter="url(#shadow)"/>
+  <path d="M290 650 L410 565 L510 610 L650 438 L746 360" fill="none" stroke="#E4B14E" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="746" cy="360" r="26" fill="#55C97B"/>
+  <text x="512" y="550" text-anchor="middle" font-family="SF Pro Rounded, Arial Rounded MT Bold, sans-serif" font-size="210" font-weight="750" fill="#FFF9EB">GPA</text>
+</svg>
