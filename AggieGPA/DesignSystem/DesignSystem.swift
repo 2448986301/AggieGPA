@@ -1,0 +1,93 @@
+import SwiftUI
+
+enum DesignSystem {
+    enum ColorToken {
+        static let navy = Color(red: 0.035, green: 0.102, blue: 0.20)
+        static let navyRaised = Color(red: 0.07, green: 0.16, blue: 0.28)
+        static let gold = Color(red: 0.87, green: 0.65, blue: 0.22)
+        static let ice = Color(red: 0.52, green: 0.83, blue: 0.98)
+        static let success = Color.green
+        static let warning = Color.orange
+        static let error = Color.red
+    }
+
+    enum Spacing {
+        static let xSmall: CGFloat = 6
+        static let small: CGFloat = 10
+        static let medium: CGFloat = 16
+        static let large: CGFloat = 24
+        static let xLarge: CGFloat = 32
+    }
+
+    enum Radius {
+        static let compact: CGFloat = 12
+        static let card: CGFloat = 20
+        static let hero: CGFloat = 28
+    }
+
+    enum Motion {
+        static let quick = 0.18
+        static let standard = 0.32
+        static let spring = Animation.spring(duration: 0.42, bounce: 0.16)
+    }
+
+    static let softShadow = Color.black.opacity(0.12)
+}
+
+struct CampusBackground: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    var body: some View {
+        LinearGradient(
+            colors: colorScheme == .dark
+                ? [DesignSystem.ColorToken.navy, Color.black]
+                : [Color(.systemGroupedBackground), DesignSystem.ColorToken.ice.opacity(0.20)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .overlay(alignment: .topTrailing) {
+            Circle()
+                .fill(DesignSystem.ColorToken.gold.opacity(reduceTransparency ? 0.04 : 0.12))
+                .frame(width: 280, height: 280)
+                .blur(radius: reduceTransparency ? 0 : 70)
+                .offset(x: 100, y: -100)
+        }
+        .ignoresSafeArea()
+    }
+}
+
+struct GlassCardModifier: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    var tint: Color?
+    var interactive: Bool
+
+    func body(content: Content) -> some View {
+        if reduceTransparency {
+            content
+                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card))
+        } else {
+            content.glassEffect(
+                .regular.tint(tint?.opacity(0.16)).interactive(interactive),
+                in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card)
+            )
+        }
+    }
+}
+
+extension View {
+    func glassCard(tint: Color? = nil, interactive: Bool = false) -> some View {
+        modifier(GlassCardModifier(tint: tint, interactive: interactive))
+    }
+}
+
+struct DisclaimerBanner: View {
+    var body: some View {
+        Label("Unofficial student tool. Not affiliated with UC Davis.", systemImage: "info.circle")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel("Unofficial student tool. Not affiliated with U C Davis.")
+    }
+}
+
