@@ -23,7 +23,7 @@ Aggie GPA 是一个供 UC Davis 学生个人使用的非官方、完全离线的
 - 应用内支持“跟随系统 / English / 简体中文”即时切换；课程代码和用户录入内容保持原样。
 - iOS 27 原生 `glassEffect` / Glass button style；长列表和表单不过度玻璃化。
 - 三套原创图标候选、第二轮正式方案、6 个独立 SVG 图层与系统模式预览。
-- 39 个 Unit Tests 和 10 个 UI Tests。
+- 41 个 Unit Tests 和 10 个 UI Tests。
 
 ## 开发环境
 

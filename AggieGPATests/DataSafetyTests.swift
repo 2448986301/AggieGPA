@@ -77,6 +77,31 @@ final class DataSafetyTests: XCTestCase {
         XCTAssertNotNil(service.errorMessage)
     }
 
+    func testImmediatePrivacyLockDoesNotAuthenticateRepeatedlyWhileActive() async {
+        let authenticator = CountingAuthenticator()
+        let service = PrivacyLockService(authenticator: authenticator)
+        let preferences = UserPreferences(privacyLockEnabled: true, privacyLockDelay: .immediately)
+
+        await service.handleForeground(preferences: preferences)
+        await service.handleForeground(preferences: preferences)
+
+        XCTAssertEqual(authenticator.attemptCount, 1)
+        XCTAssertFalse(service.isLocked)
+    }
+
+    func testImmediatePrivacyLockAuthenticatesOnceAfterEachBackground() async {
+        let authenticator = CountingAuthenticator()
+        let service = PrivacyLockService(authenticator: authenticator)
+        let preferences = UserPreferences(privacyLockEnabled: true, privacyLockDelay: .immediately)
+
+        await service.handleForeground(preferences: preferences)
+        service.prepareForBackground()
+        await service.handleForeground(preferences: preferences)
+        await service.handleForeground(preferences: preferences)
+
+        XCTAssertEqual(authenticator.attemptCount, 2)
+    }
+
     func testDemoDataCanBeFullyCleared() throws {
         let schema = Schema([AcademicTerm.self, CourseRecord.self, PlannerScenario.self,
                              SimulatedCourse.self, GradeCategory.self, CourseGradePlan.self,
@@ -98,4 +123,14 @@ final class DataSafetyTests: XCTestCase {
 @MainActor
 private struct FailingAuthenticator: DeviceAuthenticating {
     func authenticate(reason: String) async -> Bool { false }
+}
+
+@MainActor
+private final class CountingAuthenticator: DeviceAuthenticating {
+    private(set) var attemptCount = 0
+
+    func authenticate(reason: String) async -> Bool {
+        attemptCount += 1
+        return true
+    }
 }

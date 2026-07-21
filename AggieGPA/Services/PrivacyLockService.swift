@@ -22,8 +22,10 @@ struct LocalDeviceAuthenticator: DeviceAuthenticating {
 @Observable
 final class PrivacyLockService {
     private(set) var isLocked = false
+    private(set) var isAuthenticating = false
     private(set) var errorMessage: String?
     private var backgroundedAt: Date?
+    private var hasEvaluatedInitialForeground = false
     private let authenticator: any DeviceAuthenticating
 
     init(authenticator: any DeviceAuthenticating = LocalDeviceAuthenticator()) {
@@ -37,18 +39,36 @@ final class PrivacyLockService {
     func handleForeground(preferences: UserPreferences?) async {
         guard let preferences, preferences.privacyLockEnabled else {
             isLocked = false
+            isAuthenticating = false
+            backgroundedAt = nil
+            hasEvaluatedInitialForeground = false
             return
         }
-        let elapsed = backgroundedAt.map { Date.now.timeIntervalSince($0) } ?? .infinity
-        if elapsed >= preferences.privacyLockDelay.seconds {
-            isLocked = true
-            await authenticate()
+        guard !isAuthenticating else { return }
+
+        let shouldAuthenticate: Bool
+        if let backgroundedAt {
+            let elapsed = Date.now.timeIntervalSince(backgroundedAt)
+            self.backgroundedAt = nil
+            shouldAuthenticate = elapsed >= preferences.privacyLockDelay.seconds
+        } else {
+            shouldAuthenticate = !hasEvaluatedInitialForeground
         }
+
+        hasEvaluatedInitialForeground = true
+        guard shouldAuthenticate else { return }
+        isLocked = true
+        await authenticate()
     }
 
     func lockNow() { isLocked = true }
 
     func authenticate() async {
+        guard !isAuthenticating else { return }
+        isAuthenticating = true
+        hasEvaluatedInitialForeground = true
+        defer { isAuthenticating = false }
+
         let success = await authenticator.authenticate(reason: "Unlock your private GPA records")
         if success {
             isLocked = false

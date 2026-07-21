@@ -10,6 +10,8 @@
 - 加入 LocalAuthentication 隐私锁、Light/Dark 和无障碍 fallback。
 - 加入跟随系统、English 与简体中文的应用内即时语言切换。
 - 创建三套原创 Liquid Glass 图标方向、第二轮正式方案和完整分层 SVG。
-- 添加 39 个 unit tests 与 10 个 UI tests。
+- 添加 41 个 unit tests 与 10 个 UI tests。
+- 修复 App Icon 未绑定到 target 导致真机图标缺失的问题。
+- 修复“立即”隐私锁在 Face ID 完成后因 scene 再次 active 而循环验证的问题。
 - 在 iOS 27 iPhone 17 Pro 和 iPhone 17e 模拟器完成构建、测试与视觉截图。
 - 使用免费 Personal Team 在 iOS 27 真机完成签名、安装、启动和运行进程验证。
