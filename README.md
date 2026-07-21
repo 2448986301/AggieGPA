@@ -58,6 +58,7 @@ Xcode 27 SDK 实际提供的 API 名称是 `glassEffect(_:in:)`、`GlassEffectCo
 5. 如果 `com.easonzhou.aggiegpa` 已被占用，把 Bundle Identifier 改成只属于你的值，例如 `com.你的名字.aggiegpa`。
 6. 在 Xcode 顶部运行设备菜单选择已连接的 iPhone，按 `⌘R`。
 7. 若手机要求 Developer Mode：Settings > Privacy & Security > Developer Mode > On，按提示重启并在重启后确认。
+8. 第一次打开免费签名 App 时，如 iOS 要求信任开发者：Settings > General > VPN & Device Management > Developer App，选择对应 Apple Account 并点 Trust。
 8. 若手机提示开发者不受信任：Settings > General > VPN & Device Management，选择你的 Apple Account 对应开发者并点 Trust（只有系统确实显示时才做）。
 
 免费 Personal Team 签名通常有较短有效期；到期后把 iPhone 重新连接 Xcode，再次选择同一 Team 并按 `⌘R` 重新安装/签名即可。本项目不会上传 App Store Connect，也不会创建付费证书。
@@ -154,6 +155,7 @@ Aggie GPA 不会直接宣称 Good Standing、Probation、Subject to Dismissal �
 - iOS 27.0 iPhone 17e：较小屏幕 Dashboard。
 - 实际截图位于 `Documentation/Screenshots`，均来自当前项目在 Simulator 中运行后的 `simctl` 截图，不是设计稿。
 - 项目已在 Xcode GUI 中打开并通过 Run 运行到 iPhone 17e；`xcode_run_onboarding_iphone17e.png` 是该次运行的首次启动画面。
+- 项目也已使用免费 Personal Team 在连接的 iOS 27 真机成功编译、安装和启动；设备进程列表确认 `com.easonzhou.aggiegpa` 正在运行。
 
 ## 其他文档
 

@@ -12,3 +12,4 @@
 - 创建三套原创 Liquid Glass 图标方向、第二轮正式方案和完整分层 SVG。
 - 添加 39 个 unit tests 与 10 个 UI tests。
 - 在 iOS 27 iPhone 17 Pro 和 iPhone 17e 模拟器完成构建、测试与视觉截图。
+- 使用免费 Personal Team 在 iOS 27 真机完成签名、安装、启动和运行进程验证。

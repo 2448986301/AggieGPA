@@ -27,7 +27,7 @@ Aggie GPA 是个人使用、完全离线、非官方的 UC Davis GPA 记录与�
 6. JSON/CSV、快照、Face ID、Settings。
 7. 三个图标方向、分层 SVG、正式图标与预览。
 8. 编译、单元测试、UI 测试、模拟器视觉与无障碍检查。
-9. 真机免费签名安装（需要用户本人完成账号、Team、Developer Mode 授权）。
+9. 真机免费签名安装（已完成：Personal Team 签名、安装、启动和进程验证）。
 10. 文档与最终交付核验。
 
 ## 已知环境状态
@@ -39,4 +39,4 @@ Aggie GPA 是个人使用、完全离线、非官方的 UC Davis GPA 记录与�
 - Icon Composer：已随 Xcode 安装
 - iOS 27.0 Simulator Runtime 已安装；iPhone 17 Pro 与 iPhone 17e 均已实际运行和截图。
 - 最终 clean build、39 个单元测试和 10 个 UI 测试已通过。
-- 真机免费签名安装仍取决于已连接 iPhone、Apple Account 与 Personal Team，由设备所有者本人确认。
+- 真机免费签名安装已在连接的 iOS 27 iPhone 上完成；iPhone Mirroring 的逐页视觉检查仍需手机锁定后连接。
