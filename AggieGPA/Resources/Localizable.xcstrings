@@ -1,31 +1,1675 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "Today" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "今天" } } } },
-    "Courses" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "课程" } } } },
-    "GPA" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "GPA" } } } },
-    "Settings" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置" } } } },
-    "Upcoming" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "近期任务" } } } },
-    "My Courses" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "我的课程" } } } },
-    "GPA Summary" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "GPA 摘要" } } } },
-    "+ Add" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "+ 添加" } } } },
-    "Add" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加" } } } },
-    "Add Assignment" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加作业" } } } },
-    "Add Exam" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加考试" } } } },
-    "Add Course" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加课程" } } } },
-    "Record Score" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "录入分数" } } } },
-    "Import Syllabus" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "导入课程大纲" } } } },
-    "Assignments & Exams" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "作业与考试" } } } },
-    "Grade Breakdown" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "成绩构成" } } } },
-    "What Do I Need?" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "我还需要多少分" } } } },
-    "Current Course Grade" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "当前课程成绩" } } } },
-    "Based on graded work" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "根据目前已评分的内容计算" } } } },
-    "Graded so far" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已完成评分" } } } },
-    "Next up" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "下一项任务" } } } },
-    "I want to finish with" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "我希望最终获得" } } } },
-    "Set target" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置目标" } } } },
-    "Projected GPA" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "预测 GPA" } } } },
-    "Cumulative GPA" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正式累计 GPA" } } } }
+    "%" : {
+
+    },
+    "%@" : {
+
+    },
+    "%@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "%@ graded progress" : {
+
+    },
+    "%@ of %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ of %2$@"
+          }
+        }
+      }
+    },
+    "%@ possible points" : {
+
+    },
+    "%@ units" : {
+
+    },
+    "%@, calculated current grade %@, official grade %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, calculated current grade %2$@, official grade %3$@"
+          }
+        }
+      }
+    },
+    "%@%%" : {
+
+    },
+    "%@%% graded" : {
+
+    },
+    "%lld" : {
+
+    },
+    "%lld graded · %lld ungraded" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld graded · %2$lld ungraded"
+          }
+        }
+      }
+    },
+    "%lld percent" : {
+
+    },
+    "%lld quarters, %lld courses, and %lld scenarios. Potential duplicates: %lld quarters and %lld courses." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld quarters, %2$lld courses, and %3$lld scenarios. Potential duplicates: %4$lld quarters and %5$lld courses."
+          }
+        }
+      }
+    },
+    "%lld%%" : {
+
+    },
+    "• %@" : {
+
+    },
+    "+ Add" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+ 添加"
+          }
+        }
+      }
+    },
+    "+ Add Assignment" : {
+
+    },
+    "+ Add Exam" : {
+
+    },
+    "1 day before" : {
+
+    },
+    "1 week before" : {
+
+    },
+    "2" : {
+
+    },
+    "3" : {
+      "comment" : "A value for the number of decimal places in a GPA.",
+      "isCommentAutoGenerated" : true
+    },
+    "3 days before" : {
+
+    },
+    "4" : {
+
+    },
+    "A 93%" : {
+
+    },
+    "A draft is ready. Confirm it in Aggie GPA before it is saved." : {
+
+    },
+    "A grade-entry draft is ready. Confirm it in Aggie GPA before the score changes." : {
+
+    },
+    "A- 90%" : {
+
+    },
+    "About" : {
+
+    },
+    "Academic Term" : {
+
+    },
+    "Academic year" : {
+
+    },
+    "Academic Year %@" : {
+
+    },
+    "Academic year, e.g. 2026–2027" : {
+
+    },
+    "Access" : {
+
+    },
+    "Across %@ future units, you would need an average GPA of %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Across %1$@ future units, you would need an average GPA of %2$@."
+          }
+        }
+      }
+    },
+    "Action" : {
+      "comment" : "The label for the action of the Siri draft.",
+      "isCommentAutoGenerated" : true
+    },
+    "Add" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加"
+          }
+        }
+      }
+    },
+    "Add a course first" : {
+
+    },
+    "Add a quarter and your first letter-graded course." : {
+
+    },
+    "Add a term first" : {
+
+    },
+    "Add an assignment or exam when something is due." : {
+
+    },
+    "Add another quarter to see a trend line" : {
+
+    },
+    "Add Assignment" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加作业"
+          }
+        }
+      }
+    },
+    "Add Category" : {
+
+    },
+    "Add Course" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加课程"
+          }
+        }
+      }
+    },
+    "Add Exam" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加考试"
+          }
+        }
+      }
+    },
+    "Add Grade Item" : {
+
+    },
+    "Add grading categories and scores first." : {
+
+    },
+    "Add planned course" : {
+
+    },
+    "Add Quarter" : {
+
+    },
+    "Add the first course for this quarter." : {
+
+    },
+    "Add your first item to start tracking scores." : {
+
+    },
+    "Add Your First Term" : {
+
+    },
+    "Additional units at 4.0 needed" : {
+
+    },
+    "Aggie GPA Backup" : {
+
+    },
+    "Aggie GPA does not assume an official grading scale. Check your syllabus and enter your professor's category weights and letter-grade boundaries." : {
+
+    },
+    "Aggie GPA is locked" : {
+
+    },
+    "Aggie GPA never receives or stores biometric data. Authentication is performed by iOS." : {
+
+    },
+    "All" : {
+      "comment" : "A year displayed in a list of academic years.",
+      "isCommentAutoGenerated" : true
+    },
+    "All courses here are Planning Only and never enter official records automatically." : {
+
+    },
+    "Allow Assignment Summaries" : {
+
+    },
+    "Allow Creating Drafts" : {
+      "comment" : "A toggle that allows users to create drafts using Siri.",
+      "isCommentAutoGenerated" : true
+    },
+    "Allow Detailed Scores" : {
+
+    },
+    "Allow GPA Responses" : {
+
+    },
+    "An exam draft is ready for confirmation in Aggie GPA." : {
+
+    },
+    "App icon appearance" : {
+
+    },
+    "Appearance" : {
+
+    },
+    "Apply Changes" : {
+
+    },
+    "Apply this scenario to official records?" : {
+
+    },
+    "Assignment" : {
+
+    },
+    "Assignment & Exam Reminders" : {
+
+    },
+    "Assignment Draft" : {
+
+    },
+    "Assignment name" : {
+
+    },
+    "Assignments & Exams" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "作业与考试"
+          }
+        }
+      }
+    },
+    "Assume %lld%% on remaining work" : {
+
+    },
+    "Assumed grades" : {
+
+    },
+    "Attempt number: %lld" : {
+
+    },
+    "Attention Needed" : {
+
+    },
+    "Available Commands" : {
+
+    },
+    "B+ 87%" : {
+
+    },
+    "Based on graded work" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据目前已评分的内容计算"
+          }
+        }
+      }
+    },
+    "Best case" : {
+
+    },
+    "Best possible" : {
+      "comment" : "A label that displays the best possible final exam score.",
+      "isCommentAutoGenerated" : true
+    },
+    "Calculate Required Final Score" : {
+
+    },
+    "Calculate what ${course} needs for ${targetPercentage} percent" : {
+
+    },
+    "Calculation" : {
+
+    },
+    "Calculation Details" : {
+
+    },
+    "Cancel" : {
+
+    },
+    "Categories" : {
+
+    },
+    "Category" : {
+
+    },
+    "Changing a due date updates its reminder. Deleting an item cancels it. If permission is denied, the gradebook continues to work normally." : {
+      "comment" : "A description of how notifications are used in the app.",
+      "isCommentAutoGenerated" : true
+    },
+    "Check Course Settings before relying on predictions." : {
+
+    },
+    "Check the course setup first." : {
+
+    },
+    "Choose a simple starting point. You can adjust details later in Course Settings." : {
+      "comment" : "A description of the grade breakdown setup screen.",
+      "isCommentAutoGenerated" : true
+    },
+    "Choose PDF or Image" : {
+
+    },
+    "Choose the course percentage you want, and we’ll show what you need on remaining work." : {
+
+    },
+    "Clear Demo Data" : {
+
+    },
+    "Compare saved grade plans" : {
+      "comment" : "Text for a button that opens a view that allows the user to compare saved grade plans.",
+      "isCommentAutoGenerated" : true
+    },
+    "Completed weight" : {
+
+    },
+    "Confidence" : {
+
+    },
+    "Confirm and Save" : {
+
+    },
+    "Confirm and Save Rules" : {
+
+    },
+    "Confirm Siri Draft" : {
+
+    },
+    "Confirmed grading rules saved." : {
+
+    },
+    "Conservative" : {
+
+    },
+    "Continue" : {
+
+    },
+    "Couldn’t complete that action" : {
+
+    },
+    "Count missing as zero" : {
+      "comment" : "A button that counts missing work as zero.",
+      "isCommentAutoGenerated" : true
+    },
+    "Course" : {
+
+    },
+    "Course code" : {
+
+    },
+    "Course code, e.g. CHE 002A" : {
+
+    },
+    "Course deleted" : {
+
+    },
+    "Course detail" : {
+      "comment" : "The title of a picker that lets the user select which section of the course details to view.",
+      "isCommentAutoGenerated" : true
+    },
+    "Course Grade" : {
+
+    },
+    "Course grade calculator" : {
+
+    },
+    "Course name" : {
+      "comment" : "A label for the user to enter the name of the course.",
+      "isCommentAutoGenerated" : true
+    },
+    "Course Settings" : {
+      "comment" : "A menu that appears when tapping the ellipsis icon in the navigation bar.",
+      "isCommentAutoGenerated" : true
+    },
+    "Course title" : {
+
+    },
+    "Course, title, or quarter" : {
+
+    },
+    "Courses" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "课程"
+          }
+        }
+      }
+    },
+    "Create a course before adding work or scores." : {
+
+    },
+    "Create a quarter, then add courses and grades." : {
+
+    },
+    "Create Assignment Draft" : {
+      "comment" : "Title of an intent that creates an assignment draft.",
+      "isCommentAutoGenerated" : true
+    },
+    "Create Exam Draft" : {
+
+    },
+    "Create Snapshot and Reset" : {
+
+    },
+    "Create the term for this course, then add your course." : {
+
+    },
+    "Cumulative GPA" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正式累计 GPA"
+          }
+        }
+      }
+    },
+    "Cumulative GPA %@" : {
+
+    },
+    "Current %@%%" : {
+
+    },
+    "Current Course Grade" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前课程成绩"
+          }
+        }
+      }
+    },
+    "Current percentage" : {
+
+    },
+    "Current Quarter" : {
+
+    },
+    "Current quarter %@, cumulative %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Current quarter %1$@, cumulative %2$@"
+          }
+        }
+      }
+    },
+    "Custom" : {
+
+    },
+    "Custom / manual review" : {
+
+    },
+    "Custom display name (optional)" : {
+
+    },
+    "Danger Zone" : {
+
+    },
+    "Data" : {
+
+    },
+    "Data & Backups" : {
+
+    },
+    "Date" : {
+
+    },
+    "Default grading basis" : {
+      "comment" : "A label for the user to select the default grading basis.",
+      "isCommentAutoGenerated" : true
+    },
+    "Default, Dark, Clear, Tinted, and Monochrome appearances are selected by the iOS Home Screen. Aggie GPA does not pretend to switch unsupported system icon modes at runtime." : {
+
+    },
+    "Delete" : {
+      "comment" : "The text of a button that deletes a course.",
+      "isCommentAutoGenerated" : true
+    },
+    "Delete Quarter" : {
+
+    },
+    "Delete this quarter and all of its courses?" : {
+
+    },
+    "Details" : {
+
+    },
+    "Discard" : {
+
+    },
+    "Disclaimer" : {
+
+    },
+    "Disclaimer details" : {
+
+    },
+    "Display" : {
+
+    },
+    "Done" : {
+
+    },
+    "Draft ${titleText} for ${course} due ${dueDate}" : {
+
+    },
+    "Drop lowest: %lld" : {
+      "comment" : "A stepper that lets the user select the number of lowest items to drop when calculating a category. The argument is the number of items to drop.",
+      "isCommentAutoGenerated" : true
+    },
+    "Dropped" : {
+
+    },
+    "Due" : {
+
+    },
+    "Due date" : {
+
+    },
+    "Due Date" : {
+
+    },
+    "Duplicate" : {
+
+    },
+    "Earned" : {
+
+    },
+    "Earned points" : {
+
+    },
+    "Earned Points" : {
+
+    },
+    "Earned points (optional)" : {
+
+    },
+    "Edit" : {
+
+    },
+    "Edit Category" : {
+
+    },
+    "Edit Course" : {
+
+    },
+    "Edit Grade Item" : {
+
+    },
+    "Enable Siri Access" : {
+
+    },
+    "Enter non-negative points and weights from 0 to 100." : {
+      "comment" : "A description of the error that occurs when the user enters an invalid value in the final grade calculator.",
+      "isCommentAutoGenerated" : true
+    },
+    "Enter valid GPA values from 0 to 4 and future units greater than 0." : {
+
+    },
+    "Equal items" : {
+
+    },
+    "Estimate" : {
+
+    },
+    "Estimated only. Verify with your official transcript or academic advisor." : {
+
+    },
+    "Estimated quarter" : {
+      "comment" : "A section header for the estimated quarter's GPA and notes.",
+      "isCommentAutoGenerated" : true
+    },
+    "Exam" : {
+
+    },
+    "Exam date" : {
+
+    },
+    "Exam Draft" : {
+
+    },
+    "Exam name" : {
+      "comment" : "A label for the name of an exam.",
+      "isCommentAutoGenerated" : true
+    },
+    "Exam Name" : {
+      "comment" : "The name of the exam.",
+      "isCommentAutoGenerated" : true
+    },
+    "Exclude until graded" : {
+
+    },
+    "Excluded" : {
+
+    },
+    "Excused" : {
+
+    },
+    "Existing matching courses will receive the simulated grades. New planned courses will be added to the most recent quarter." : {
+      "comment" : "A description of the changes that will be made when applying a scenario.",
+      "isCommentAutoGenerated" : true
+    },
+    "Expected" : {
+
+    },
+    "Expected GPA" : {
+
+    },
+    "Expected grade" : {
+
+    },
+    "Expected Scenario" : {
+
+    },
+    "Expected units" : {
+
+    },
+    "Explore" : {
+
+    },
+    "Export" : {
+
+    },
+    "Export CSV" : {
+
+    },
+    "Export JSON Backup" : {
+
+    },
+    "Extra credit" : {
+
+    },
+    "Extra-credit category" : {
+
+    },
+    "Extract Rules" : {
+
+    },
+    "Final exam weight" : {
+
+    },
+    "Final Grade" : {
+
+    },
+    "Final recorded grade: %@" : {
+
+    },
+    "Final score needed" : {
+
+    },
+    "Final Score Needed" : {
+
+    },
+    "Finals goal" : {
+
+    },
+    "Find the future average you need" : {
+
+    },
+    "First academic year" : {
+
+    },
+    "Forecast Scenario" : {
+
+    },
+    "Formula and assumptions" : {
+
+    },
+    "Future Quarter" : {
+      "comment" : "The title of the Future Quarter Planner screen.",
+      "isCommentAutoGenerated" : true
+    },
+    "Future terms" : {
+      "comment" : "Title of a link in the planner view that opens a view for planning future terms.",
+      "isCommentAutoGenerated" : true
+    },
+    "Get Attention Items" : {
+      "comment" : "Intent name for a task that retrieves and reports on assignments that are overdue.",
+      "isCommentAutoGenerated" : true
+    },
+    "Get Course Grade" : {
+      "comment" : "Title of an intent that retrieves the grade for a specific course.",
+      "isCommentAutoGenerated" : true
+    },
+    "Get GPA Overview" : {
+
+    },
+    "Get official GPA for ${term}" : {
+
+    },
+    "Get Quarter GPA" : {
+      "comment" : "Title of an intent that retrieves the GPA for a specific academic term.",
+      "isCommentAutoGenerated" : true
+    },
+    "Get the grade for ${course}" : {
+
+    },
+    "Get Upcoming Assignments" : {
+
+    },
+    "Get Upcoming Exams" : {
+
+    },
+    "Goal estimate unavailable" : {
+
+    },
+    "GPA" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPA"
+          }
+        }
+      }
+    },
+    "GPA decimal places" : {
+      "comment" : "A label for the number of decimal places to display in GPAs.",
+      "isCommentAutoGenerated" : true
+    },
+    "GPA Overview" : {
+
+    },
+    "GPA Rules" : {
+
+    },
+    "GPA rules details" : {
+
+    },
+    "GPA Summary" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPA 摘要"
+          }
+        }
+      }
+    },
+    "GPA Trend" : {
+
+    },
+    "Grade" : {
+
+    },
+    "Grade Breakdown" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "成绩构成"
+          }
+        }
+      }
+    },
+    "Grade Item" : {
+      "comment" : "A section for editing the grade item's details.",
+      "isCommentAutoGenerated" : true
+    },
+    "Grade item deleted" : {
+
+    },
+    "Grade Scenario" : {
+
+    },
+    "Graded so far" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已完成评分"
+          }
+        }
+      }
+    },
+    "Grading basis" : {
+
+    },
+    "Grading Policy" : {
+
+    },
+    "Grading policy checked" : {
+
+    },
+    "Handling" : {
+
+    },
+    "Haptics" : {
+
+    },
+    "Has due date" : {
+      "comment" : "A toggle that allows users to indicate whether a grade item has a due date.",
+      "isCommentAutoGenerated" : true
+    },
+    "Highest possible final GPA" : {
+
+    },
+    "How is this course graded?" : {
+
+    },
+    "Hybrid" : {
+
+    },
+    "I confirm missing items should count as zero" : {
+
+    },
+    "I want to finish with" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我希望最终获得"
+          }
+        }
+      }
+    },
+    "Import" : {
+
+    },
+    "Import a syllabus, choose a template, or set it up manually." : {
+
+    },
+    "Import backup" : {
+
+    },
+    "Import Grading Policy" : {
+
+    },
+    "Import JSON Backup" : {
+
+    },
+    "Import Syllabus" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入课程大纲"
+          }
+        }
+      }
+    },
+    "Import, Export & Backups" : {
+
+    },
+    "Include" : {
+
+    },
+    "Include in cumulative GPA" : {
+
+    },
+    "Include in GPA estimate" : {
+      "comment" : "A toggle that lets the user decide whether a course should be included in their GPA.",
+      "isCommentAutoGenerated" : true
+    },
+    "Included" : {
+
+    },
+    "Inputs" : {
+
+    },
+    "Institution" : {
+
+    },
+    "iOS will ask for notification permission when you save an enabled reminder." : {
+
+    },
+    "Item calculation" : {
+
+    },
+    "Keep planned courses separate" : {
+
+    },
+    "Language" : {
+
+    },
+    "Lead time" : {
+
+    },
+    "Letter Prediction" : {
+
+    },
+    "Lists assignments due in the next seven calendar days when allowed in Aggie GPA Settings." : {
+
+    },
+    "Load clearly labeled demo data" : {
+      "comment" : "A toggle that allows users to load demo data.",
+      "isCommentAutoGenerated" : true
+    },
+    "Load Demo Data" : {
+
+    },
+    "Local snapshots" : {
+
+    },
+    "Lock delay" : {
+      "comment" : "A label for the delay between the user's last activity and the time they're locked out.",
+      "isCommentAutoGenerated" : true
+    },
+    "Major" : {
+      "comment" : "A label for the user's major.",
+      "isCommentAutoGenerated" : true
+    },
+    "Major course" : {
+
+    },
+    "Major GPA" : {
+
+    },
+    "Make it yours" : {
+
+    },
+    "Manual letter only" : {
+
+    },
+    "Manual review required" : {
+
+    },
+    "Manual Review Required" : {
+
+    },
+    "Maximum future GPA is assumed to be 4.0. No intermediate value is rounded. Grade combinations are examples, not unique answers." : {
+
+    },
+    "Merge" : {
+
+    },
+    "Method" : {
+
+    },
+    "Missing score" : {
+
+    },
+    "More Options" : {
+
+    },
+    "Multiple grade items match this title. Open the course and choose one manually." : {
+
+    },
+    "My Courses" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的课程"
+          }
+        }
+      }
+    },
+    "Name" : {
+
+    },
+    "Name or nickname" : {
+
+    },
+    "Name or nickname (optional)" : {
+
+    },
+    "New Category" : {
+
+    },
+    "New Course" : {
+
+    },
+    "New Grade Item" : {
+
+    },
+    "New Quarter" : {
+
+    },
+    "Next up" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下一项任务"
+          }
+        }
+      }
+    },
+    "No account, no ads, no server, and no tracking." : {
+
+    },
+    "No assignments or exams" : {
+
+    },
+    "No assignments or exams yet" : {
+
+    },
+    "No automatic snapshots yet" : {
+
+    },
+    "No breakdown yet" : {
+
+    },
+    "No courses" : {
+
+    },
+    "No courses yet" : {
+
+    },
+    "No matching quarters" : {
+
+    },
+    "No quarters yet" : {
+
+    },
+    "No saved scenarios" : {
+
+    },
+    "No scores" : {
+
+    },
+    "Non-UC coursework, AP/IB, and most transfer work normally do not enter the UC GPA. Keep this enabled only for personal planning." : {
+
+    },
+    "Normalize current grade over graded work" : {
+      "comment" : "A toggle that allows users to choose whether to normalize their current grade based on the graded work.",
+      "isCommentAutoGenerated" : true
+    },
+    "Notes" : {
+
+    },
+    "Nothing has been written yet. Review this summary, then confirm or discard the draft." : {
+
+    },
+    "Notifications" : {
+
+    },
+    "Official %@" : {
+
+    },
+    "Offline backup from Aggie GPA" : {
+
+    },
+    "OK" : {
+
+    },
+    "Open Assignment" : {
+      "comment" : "Title of an intent that opens an assignment.",
+      "isCommentAutoGenerated" : true
+    },
+    "Open Course" : {
+
+    },
+    "Open Exam" : {
+
+    },
+    "Open Grade Scenario" : {
+      "comment" : "Title of the intent to open a grade scenario.",
+      "isCommentAutoGenerated" : true
+    },
+    "Open Shortcuts" : {
+
+    },
+    "Opening %@ in Aggie GPA." : {
+
+    },
+    "Optional notes" : {
+
+    },
+    "Optional. The syllabus stays on this device; deterministic checks and your confirmation still apply." : {
+
+    },
+    "Original Text" : {
+
+    },
+    "Paste syllabus grading rules here" : {
+      "comment" : "A placeholder text for the text editor in the syllabus import view.",
+      "isCommentAutoGenerated" : true
+    },
+    "Permission" : {
+      "comment" : "A section of the notification settings view that displays the user's notification permission status and a button to request permission.",
+      "isCommentAutoGenerated" : true
+    },
+    "Plan" : {
+      "comment" : "A section in the Future Quarter Planner where the user can see and delete their planned courses.",
+      "isCommentAutoGenerated" : true
+    },
+    "Plan before grades arrive" : {
+
+    },
+    "Please verify these rules against your syllabus." : {
+
+    },
+    "Possible points" : {
+
+    },
+    "Possible Points" : {
+      "comment" : "The title of a parameter for a grade record intent.",
+      "isCommentAutoGenerated" : true
+    },
+    "Preset" : {
+
+    },
+    "Preview" : {
+
+    },
+    "Privacy" : {
+      "comment" : "A link to the app's privacy policy",
+      "isCommentAutoGenerated" : true
+    },
+    "Privacy details" : {
+
+    },
+    "Privacy Lock" : {
+
+    },
+    "Private intents require local device authentication. Draft intents never change scores until you confirm inside Aggie GPA." : {
+
+    },
+    "Profile" : {
+
+    },
+    "Projected %@" : {
+      "comment" : "A label displaying the projected letter grade for a course.",
+      "isCommentAutoGenerated" : true
+    },
+    "Projected Cumulative" : {
+
+    },
+    "Projected Current Quarter" : {
+
+    },
+    "Projected GPA" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预测 GPA"
+          }
+        }
+      }
+    },
+    "Quarter" : {
+
+    },
+    "Quarter GPA" : {
+
+    },
+    "Quarter GPA trend" : {
+
+    },
+    "Quarters" : {
+
+    },
+    "Quarters, courses, scenarios, and grade plans will be removed. Your profile settings remain." : {
+
+    },
+    "Reading syllabus on this device…" : {
+
+    },
+    "Ready when you are" : {
+
+    },
+    "Recognition confidence" : {
+      "comment" : "A label for the confidence of a recognition result.",
+      "isCommentAutoGenerated" : true
+    },
+    "Recognition Preview" : {
+
+    },
+    "Record courses, units, grades, and GPA trends in one place." : {
+
+    },
+    "Record Grade Draft" : {
+
+    },
+    "Record Score" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录入分数"
+          }
+        }
+      }
+    },
+    "Records or updates this score" : {
+
+    },
+    "Refine with On-Device Model" : {
+
+    },
+    "Remaining weight" : {
+
+    },
+    "Remind me" : {
+
+    },
+    "Reminder" : {
+      "comment" : "A section that allows users to configure reminders for their grade items.",
+      "isCommentAutoGenerated" : true
+    },
+    "Reminder date" : {
+
+    },
+    "Reminders" : {
+
+    },
+    "Reminders are local to this device and can be enabled per grade item." : {
+
+    },
+    "Repeat" : {
+
+    },
+    "Repeat course" : {
+
+    },
+    "Replace Current Data" : {
+
+    },
+    "Request Notification Permission" : {
+
+    },
+    "Require Face ID, Touch ID, or passcode" : {
+
+    },
+    "Required" : {
+
+    },
+    "Required future GPA = (target × (current units + future units) − current GPA × current units) ÷ future units." : {
+
+    },
+    "Reset All Academic Data" : {
+
+    },
+    "Reset all academic data?" : {
+      "comment" : "A confirmation dialog that asks the user if they want to reset all their academic data.",
+      "isCommentAutoGenerated" : true
+    },
+    "Reset Scenario" : {
+
+    },
+    "Result" : {
+
+    },
+    "Save" : {
+
+    },
+    "Save and add another" : {
+
+    },
+    "Save one from What-If or Future Quarter Planner." : {
+
+    },
+    "Save Planning Scenario" : {
+
+    },
+    "Save Scenario" : {
+
+    },
+    "Save to Records" : {
+      "comment" : "A button that saves the current What-If scenario to the user's records.",
+      "isCommentAutoGenerated" : true
+    },
+    "Scan" : {
+
+    },
+    "Scenario" : {
+
+    },
+    "Scenario GPA %@ · %lld courses" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Scenario GPA %1$@ · %2$lld courses"
+          }
+        }
+      }
+    },
+    "Scenario name" : {
+
+    },
+    "Scenarios" : {
+      "comment" : "The title of the screen that lists saved scenarios.",
+      "isCommentAutoGenerated" : true
+    },
+    "Score" : {
+
+    },
+    "See how your current course grades affect this term" : {
+
+    },
+    "See more" : {
+
+    },
+    "Set a target" : {
+
+    },
+    "Set It Up Manually" : {
+      "comment" : "A button that lets the user set up a course manually.",
+      "isCommentAutoGenerated" : true
+    },
+    "Set target" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置目标"
+          }
+        }
+      }
+    },
+    "Settings" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置"
+          }
+        }
+      }
+    },
+    "Share latest JSON backup" : {
+
+    },
+    "Show extracted text" : {
+
+    },
+    "Show Major GPA" : {
+
+    },
+    "Show repeat summary" : {
+
+    },
+    "Show Upper-Division GPA" : {
+
+    },
+    "Simulated courses" : {
+
+    },
+    "Siri & Shortcuts" : {
+
+    },
+    "Siri & Shortcuts Access" : {
+
+    },
+    "Siri access is off by default. Each category of private data must be enabled explicitly." : {
+      "comment" : "A description of Siri access in the settings.",
+      "isCommentAutoGenerated" : true
+    },
+    "Siri Draft" : {
+      "comment" : "The title of the Siri Draft section in the Siri Draft confirmation view.",
+      "isCommentAutoGenerated" : true
+    },
+    "Source" : {
+
+    },
+    "Start using Aggie GPA" : {
+
+    },
+    "Starting academic year" : {
+
+    },
+    "Status" : {
+
+    },
+    "Suggested method" : {
+
+    },
+    "Target" : {
+
+    },
+    "Target course percentage" : {
+
+    },
+    "Target GPA" : {
+
+    },
+    "Target Grade" : {
+
+    },
+    "Target overall percentage" : {
+
+    },
+    "Target Percentage" : {
+
+    },
+    "Target percentage (optional)" : {
+
+    },
+    "Term" : {
+
+    },
+    "The common scale is only a starting template. Confirm it matches this syllabus before relying on letter predictions." : {
+      "comment" : "A description of the common grading scale.",
+      "isCommentAutoGenerated" : true
+    },
+    "The matching grade item no longer exists." : {
+
+    },
+    "The selected target is not reachable under these assumptions." : {
+
+    },
+    "This action cannot be undone from this screen. Export a backup first if needed." : {
+
+    },
+    "This course already has categories. To avoid silently overwriting entered work, merge the recognized rules manually." : {
+
+    },
+    "This is a repeat attempt" : {
+
+    },
+    "This is an estimate based on your setup and recorded scores. It is not an official final grade." : {
+
+    },
+    "This scenario is stored locally and can be changed without altering entered scores." : {
+
+    },
+    "This target is not mathematically reachable within the selected number of future units if the maximum future GPA is 4.0." : {
+
+    },
+    "Title" : {
+      "comment" : "Title of a parameter for a CreateAssignmentDraftIntent.",
+      "isCommentAutoGenerated" : true
+    },
+    "Today" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天"
+          }
+        }
+      }
+    },
+    "Total" : {
+
+    },
+    "Total points" : {
+
+    },
+    "Track every quarter" : {
+
+    },
+    "Transfer course" : {
+
+    },
+    "Try a course calculation without changing your records" : {
+      "comment" : "Text displayed in a navigation link that opens a view for calculating a course grade.",
+      "isCommentAutoGenerated" : true
+    },
+    "Try a different search or academic year." : {
+      "comment" : "A description of the second button in a confirmation dialog.",
+      "isCommentAutoGenerated" : true
+    },
+    "Try: “What assignments are due this week?”, “What is my course grade?”, or “Draft an assignment.”" : {
+
+    },
+    "Type" : {
+
+    },
+    "Unassigned" : {
+
+    },
+    "Undo" : {
+
+    },
+    "Ungraded and missing work" : {
+
+    },
+    "Units" : {
+      "comment" : "A label for the number of units for a course.",
+      "isCommentAutoGenerated" : true
+    },
+    "Unlock" : {
+      "comment" : "A button that unlocks a user's Aggie GPA.",
+      "isCommentAutoGenerated" : true
+    },
+    "Unofficial student tool. Not affiliated with U C Davis." : {
+
+    },
+    "Unofficial student tool. Not affiliated with UC Davis." : {
+
+    },
+    "Up to five small JSON snapshots are retained on this device. A snapshot is created before imports and resets." : {
+
+    },
+    "Upcoming" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "近期任务"
+          }
+        }
+      }
+    },
+    "Upcoming Assignments" : {
+
+    },
+    "Upcoming Exams" : {
+
+    },
+    "Upper-Division" : {
+
+    },
+    "Upper-division course" : {
+      "comment" : "A toggle that lets the user indicate whether a course is an upper-division course.",
+      "isCommentAutoGenerated" : true
+    },
+    "Use a Template" : {
+
+    },
+    "Use common scale template" : {
+
+    },
+    "Use my records" : {
+
+    },
+    "Use This Template" : {
+
+    },
+    "Use What-If scenarios and target calculations without changing official records." : {
+      "comment" : "A description of the second onboarding page.",
+      "isCommentAutoGenerated" : true
+    },
+    "Uses selected course forecast scenarios only where no official grade exists. Official GPA above is unchanged." : {
+
+    },
+    "Version" : {
+
+    },
+    "Weight" : {
+
+    },
+    "Weight %" : {
+
+    },
+    "Weight percent" : {
+
+    },
+    "Weighted categories" : {
+
+    },
+    "Weights do not total 100%. This is a partial setup, so final results may be misleading." : {
+      "comment" : "A warning that appears when the sum of category weights is not 100%.",
+      "isCommentAutoGenerated" : true
+    },
+    "What Do I Need?" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我还需要多少分"
+          }
+        }
+      }
+    },
+    "What-If changes stay separate until you explicitly choose Save to Records." : {
+
+    },
+    "What-If GPA" : {
+
+    },
+    "Which course?" : {
+
+    },
+    "Worst possible" : {
+      "comment" : "The text for the worst possible final grade.",
+      "isCommentAutoGenerated" : true
+    },
+    "Worth %@ of course" : {
+
+    },
+    "You can enable Face ID later in Settings." : {
+
+    },
+    "You’re all caught up." : {
+
+    },
+    "Your data needs attention" : {
+
+    },
+    "Your data stays on this iPhone" : {
+
+    },
+    "Your GPA" : {
+
+    }
   },
-  "version" : "1.0"
+  "version" : "1.1"
 }
