@@ -25,6 +25,7 @@ struct CourseDetailView: View {
     @State private var showItemEditor = false
     @State private var showPolicyEditor = false
     @State private var showForecastEditor = false
+    @State private var editingForecast: ForecastScenario?
     @State private var deletedItem: DeletedGradeItem?
 
     private var policy: CourseGradingPolicy? { policies.first { $0.course?.id == course.id } }
@@ -33,7 +34,14 @@ struct CourseDetailView: View {
     }
     private var courseItems: [GradeItem] { items.filter { $0.course?.id == course.id } }
     private var scale: GradeScale? { scales.first { $0.course?.id == course.id } }
-    private var forecast: ForecastScenario? { forecasts.first { $0.course?.id == course.id && $0.kind == .expected } ?? forecasts.first { $0.course?.id == course.id } }
+    private var courseForecasts: [ForecastScenario] {
+        forecasts.filter { $0.course?.id == course.id }.sorted { $0.createdAt < $1.createdAt }
+    }
+    private var forecast: ForecastScenario? {
+        courseForecasts.first(where: \.isSelectedForGPAForecast)
+            ?? courseForecasts.first { $0.kind == .expected }
+            ?? courseForecasts.first
+    }
     private var result: CourseGradeCalculationResult {
         CourseGradeCalculationEngine.calculate(CourseGradeSnapshotBuilder.makeInput(
             course: course, policy: policy, categories: courseCategories, items: courseItems,
@@ -82,7 +90,7 @@ struct CourseDetailView: View {
             GradingPolicyEditorView(course: course, policy: policy, scale: scale)
         }
         .sheet(isPresented: $showForecastEditor) {
-            ForecastEditorView(course: course, policy: policy, forecast: forecast)
+            ForecastEditorView(course: course, policy: policy, forecast: editingForecast)
         }
         .safeAreaInset(edge: .bottom) {
             if deletedItem != nil {
@@ -261,8 +269,25 @@ struct CourseDetailView: View {
             HStack {
                 Text("Forecast").font(.title2.bold())
                 Spacer()
-                Button(forecast == nil ? "Create" : "Edit", systemImage: "slider.horizontal.3") { showForecastEditor = true }
+                if forecast != nil {
+                    Button("Edit", systemImage: "slider.horizontal.3") { editingForecast = forecast; showForecastEditor = true }
+                }
+                Button("New", systemImage: "plus") { editingForecast = nil; showForecastEditor = true }
                     .buttonStyle(.borderedProminent)
+            }
+            if courseForecasts.count > 1 {
+                ScrollView(.horizontal) {
+                    HStack {
+                        ForEach(courseForecasts) { scenario in
+                            Button {
+                                select(scenario)
+                            } label: {
+                                Label(scenario.name, systemImage: scenario.id == forecast?.id ? "checkmark.circle.fill" : "circle")
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                }.scrollIndicators(.hidden)
             }
             if result.requiresManualReview {
                 ContentUnavailableView("Forecast unavailable", systemImage: "exclamationmark.triangle", description: Text("Fix the grading-policy checks shown in Breakdown first."))
@@ -297,6 +322,11 @@ struct CourseDetailView: View {
     private func delete(_ item: GradeItem) {
         deletedItem = DeletedGradeItem(item)
         modelContext.delete(item)
+        try? modelContext.save()
+    }
+
+    private func select(_ scenario: ForecastScenario) {
+        for candidate in courseForecasts { candidate.isSelectedForGPAForecast = candidate.id == scenario.id }
         try? modelContext.save()
     }
 

@@ -264,15 +264,20 @@ struct GradingPolicyEditorView: View {
 struct ForecastEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Query private var allForecasts: [ForecastScenario]
     let course: CourseRecord
     let policy: CourseGradingPolicy?
     let forecast: ForecastScenario?
+    @State private var name: String
+    @State private var kind: ForecastScenarioKind
     @State private var assumption: Double
     @State private var targetText: String
     @State private var validation: String?
 
     init(course: CourseRecord, policy: CourseGradingPolicy?, forecast: ForecastScenario?) {
         self.course = course; self.policy = policy; self.forecast = forecast
+        _name = State(initialValue: forecast?.name ?? "Expected")
+        _kind = State(initialValue: forecast?.kind ?? .expected)
         _assumption = State(initialValue: forecast.map { decimalDouble($0.assumedRemainingPercentage) } ?? 85)
         _targetText = State(initialValue: policy?.targetPercentage.map(compact) ?? "90")
     }
@@ -281,6 +286,14 @@ struct ForecastEditorView: View {
         NavigationStack {
             Form {
                 Section("Expected Scenario") {
+                    TextField("Scenario name", text: $name)
+                    Picker("Preset", selection: $kind) {
+                        Text("Best case").tag(ForecastScenarioKind.bestCase)
+                        Text("Expected").tag(ForecastScenarioKind.expected)
+                        Text("Conservative").tag(ForecastScenarioKind.conservative)
+                        Text("Finals goal").tag(ForecastScenarioKind.finalsGoal)
+                        Text("Custom").tag(ForecastScenarioKind.custom)
+                    }
                     Text("Assume \(Int(assumption.rounded()))% on remaining work").font(.headline)
                     Slider(value: $assumption, in: 0...100, step: 1)
                     TextField("Target course percentage", text: $targetText).keyboardType(.decimalPad)
@@ -294,17 +307,33 @@ struct ForecastEditorView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.accessibilityIdentifier("saveForecastButton") }
             }
+            .onChange(of: kind) { _, newValue in
+                switch newValue {
+                case .bestCase: assumption = 100
+                case .expected: assumption = 85
+                case .conservative: assumption = 70
+                case .finalsGoal, .custom: break
+                }
+            }
         }.presentationDetents([.medium])
     }
 
     private func save() {
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanName.isEmpty else { validation = "Enter a scenario name."; return }
         guard let target = DecimalFormatters.decimal(from: targetText), target >= 0, target <= 100 else { validation = "Enter a target from 0 to 100."; return }
         let savedPolicy = policy ?? CourseGradingPolicy(course: course)
         if policy == nil { modelContext.insert(savedPolicy) }
         savedPolicy.targetPercentage = target; savedPolicy.updatedAt = .now
-        let savedForecast = forecast ?? ForecastScenario(course: course, name: "Expected", kind: .expected)
+        let savedForecast = forecast ?? ForecastScenario(course: course, name: cleanName, kind: kind)
         if forecast == nil { modelContext.insert(savedForecast) }
+        savedForecast.name = cleanName
+        savedForecast.kind = kind
         savedForecast.assumedRemainingPercentage = Decimal(Int(assumption.rounded()))
+        for candidate in allForecasts where candidate.course?.id == course.id {
+            candidate.isSelectedForGPAForecast = candidate.id == savedForecast.id
+        }
+        savedForecast.isSelectedForGPAForecast = true
         savedForecast.updatedAt = .now
         try? modelContext.save(); dismiss()
     }
