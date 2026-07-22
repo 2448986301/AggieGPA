@@ -34,6 +34,9 @@ struct DashboardView: View {
             return includedTermIDs.contains(term.id)
         }
     }
+    private var liveCourseModelIDs: Set<PersistentIdentifier> {
+        Set(courses.map(\.persistentModelID))
+    }
     private var livePolicies: [CourseGradingPolicy] {
         policies.filter { !$0.isDeleted && isAttachedToLiveCourse($0.course) }
     }
@@ -401,8 +404,7 @@ struct DashboardView: View {
     }
 
     private func isAttachedToLiveCourse(_ course: CourseRecord?) -> Bool {
-        guard let course else { return false }
-        return !course.isDeleted
+        course.map { liveCourseModelIDs.contains($0.persistentModelID) } ?? false
     }
 
     private func belongsToCourse(_ relatedCourse: CourseRecord?, _ course: CourseRecord) -> Bool {

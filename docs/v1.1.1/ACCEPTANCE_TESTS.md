@@ -17,4 +17,4 @@
 
 - The iPhone 17 Pro Simulator smoke check covers English and zh-Hans Today and Settings, including the persisted picker values for grading basis and appearance. Complete the visual matrix for grade breakdown, GPA, empty and error states whenever those screens change.
 - Dynamic Type and light/dark visual audit remain required for Today, course detail, grade breakdown, GPA, Settings, empty states, and errors.
-- The same bundle identity was installed over v1.1.0 on a connected iPhone 17 Pro and launched successfully as v1.1.1 (build 3). The latest debug update is installed, but iOS currently requires the device owner to re-trust the development profile before a new physical walkthrough can run. A manual on-device walkthrough remains the final visual release check.
+- The same bundle identity was installed over v1.1.0 on a connected iPhone 17 Pro and launched successfully as v1.1.1 (build 3). The latest debug update launches successfully to the existing privacy-lock screen; continuing the physical walkthrough requires the device owner's Touch ID or passcode. A manual on-device walkthrough remains the final visual release check.
