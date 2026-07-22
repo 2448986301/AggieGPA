@@ -263,15 +263,20 @@ struct DashboardView: View {
                 Text("No courses yet").foregroundStyle(.secondary)
             } else {
                 ForEach(courses.sorted(by: { $0.updatedAt > $1.updatedAt }).prefix(4)) { course in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(course.courseCode).font(.headline)
-                            Text(course.courseTitle.isEmpty ? course.term?.displayName ?? "Course" : course.courseTitle)
-                                .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    NavigationLink {
+                        CourseDetailView(course: course, preferences: preferences)
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(course.courseCode).font(.headline)
+                                Text(course.courseTitle.isEmpty ? course.term?.displayName ?? "Course" : course.courseTitle)
+                                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                            }
+                            Spacer()
+                            Text(course.grade.rawValue).font(.headline)
                         }
-                        Spacer()
-                        Text(course.grade.rawValue).font(.headline)
                     }
+                    .buttonStyle(.plain)
                     .accessibilityElement(children: .combine)
                     if course.id != courses.sorted(by: { $0.updatedAt > $1.updatedAt }).prefix(4).last?.id { Divider() }
                 }
