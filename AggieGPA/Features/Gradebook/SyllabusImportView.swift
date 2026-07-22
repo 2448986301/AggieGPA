@@ -95,6 +95,8 @@ struct SyllabusImportView: View {
                         Spacer()
                         Text("\(Int((parsed.categories[index].confidence * 100).rounded()))%")
                             .font(.caption).foregroundStyle(.secondary)
+                            .accessibilityLabel("Recognition confidence")
+                            .accessibilityValue("\(Int((parsed.categories[index].confidence * 100).rounded())) percent")
                     }
                     Text(parsed.categories[index].sourceLine).font(.caption2).foregroundStyle(.secondary)
                 }.padding(.vertical, 4)
@@ -104,6 +106,8 @@ struct SyllabusImportView: View {
             Section("Manual Review Required") {
                 ForEach(parsed.manualReviewReasons, id: \.self) { Label($0, systemImage: "exclamationmark.triangle") }
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Manual review required")
         }
         Section("Original Text") {
             DisclosureGroup("Show extracted text") { Text(parsed.sourceText).font(.caption).textSelection(.enabled) }

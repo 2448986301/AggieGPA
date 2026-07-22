@@ -76,6 +76,43 @@ final class DataSafetyTests: XCTestCase {
     XCTAssertNil(decoded.gradeItems)
   }
 
+  func testReplaceImportRestoresV11RelationshipsAndRemovesPreviousAcademicData() throws {
+    let sourceTerm = AcademicTerm(academicYear: "2027–2028", termType: .winter)
+    let sourceCourse = CourseRecord(courseCode: "BIS 002A", units: 5, grade: .inProgress, term: sourceTerm)
+    sourceTerm.courses = [sourceCourse]
+    let policy = CourseGradingPolicy(course: sourceCourse, targetPercentage: 92)
+    let category = GradingCategory(course: sourceCourse, name: "Exams", categoryType: .midterm, weight: 100)
+    let item = GradeItem(course: sourceCourse, category: category, title: "Midterm", earnedPoints: 88,
+                         possiblePoints: 100, status: .graded, reminderEnabled: true)
+    let forecast = ForecastScenario(course: sourceCourse, name: "Expected", kind: .expected,
+                                    assumedRemainingPercentage: 90, isSelectedForGPAForecast: true)
+    let envelope = BackupService.makeEnvelope(
+      terms: [sourceTerm], scenarios: [], preferences: UserPreferences(displayName: "Imported"),
+      policies: [policy], categories: [category], items: [item], forecasts: [forecast])
+
+    let container = PersistentStoreService.makeContainer(inMemory: true).container
+    let context = ModelContext(container)
+    let oldTerm = AcademicTerm(academicYear: "2026–2027", termType: .fall)
+    let oldCourse = CourseRecord(courseCode: "OLD 001", units: 4, grade: .a, term: oldTerm)
+    oldTerm.courses = [oldCourse]
+    let destinationPreferences = UserPreferences(displayName: "Before")
+    context.insert(oldTerm)
+    context.insert(oldCourse)
+    context.insert(destinationPreferences)
+    try context.save()
+
+    try BackupService.apply(envelope, mode: .replace, context: context,
+                            existingTerms: [oldTerm], existingScenarios: [], preferences: destinationPreferences)
+
+    let importedCourses = try context.fetch(FetchDescriptor<CourseRecord>())
+    let importedItems = try context.fetch(FetchDescriptor<GradeItem>())
+    XCTAssertEqual(importedCourses.map(\.courseCode), ["BIS 002A"])
+    XCTAssertEqual(importedItems.first?.course?.id, sourceCourse.id)
+    XCTAssertEqual(importedItems.first?.category?.id, category.id)
+    XCTAssertEqual(try context.fetch(FetchDescriptor<ForecastScenario>()).first?.course?.id, sourceCourse.id)
+    XCTAssertEqual(destinationPreferences.displayName, "Imported")
+  }
+
   func testCorruptedJSONDoesNotMutateExistingData() {
     let term = AcademicTerm(academicYear: "2026–2027", termType: .fall)
     let before = [term]

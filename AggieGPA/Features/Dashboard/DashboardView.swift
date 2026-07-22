@@ -166,7 +166,11 @@ struct DashboardView: View {
             }
             Text("Uses selected course forecast scenarios only where no official grade exists. Official GPA above is unchanged.")
                 .font(.caption).foregroundStyle(.secondary)
-        }.padding().glassCard(tint: DesignSystem.ColorToken.gold)
+        }
+        .padding().glassCard(tint: DesignSystem.ColorToken.gold)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Projected GPA")
+        .accessibilityValue("Current quarter \(DecimalFormatters.string(projectedQuarter.projected.gpa, precision: preferences.decimalPrecision)), cumulative \(DecimalFormatters.string(projectedCumulative.projected.gpa, precision: preferences.decimalPrecision))")
     }
 
     private var upcomingSection: some View {

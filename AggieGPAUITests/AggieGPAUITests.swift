@@ -43,6 +43,33 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["courseDetailSectionPicker"].exists)
     }
 
+    func testSyllabusRecognitionRequiresReviewBeforeSaving() {
+        let app = makeApp()
+        completeOnboarding(app: app, loadDemo: true)
+        openDemoGradebook(app: app)
+        app.buttons["Gradebook actions"].tap()
+        app.buttons["Import Grading Policy"].tap()
+        let editor = app.textViews["syllabusTextEditor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        editor.tap()
+        editor.typeText("Homework 30%\nMidterm 30%\nFinal 40%")
+        app.buttons["parseSyllabusButton"].tap()
+        XCTAssertTrue(app.staticTexts["Recognition Preview"].waitForExistence(timeout: 5))
+        let confirm = app.buttons["confirmSyllabusRulesButton"]
+        scrollTo(confirm, in: app)
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+    }
+
+    func testGradebookRemainsReachableAtLargestAccessibilityTextSize() {
+        let app = makeApp(extraArguments: [
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityExtraExtraExtraLarge",
+        ])
+        completeOnboarding(app: app, loadDemo: true)
+        openDemoGradebook(app: app)
+        XCTAssertTrue(app.descendants(matching: .any)["courseGradeHero"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["courseDetailSectionPicker"].exists)
+    }
+
     func testDeleteAndUndo() {
         let app = makeApp()
         completeOnboarding(app: app, loadDemo: true)
@@ -102,11 +129,29 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(privacyToggle.exists)
     }
 
-    private func makeApp() -> XCUIApplication {
+    func testSiriAccessDefaultsOff() {
+        let app = makeApp()
+        completeOnboarding(app: app)
+        app.tabBars.buttons["Settings"].tap()
+        let siriLink = app.buttons["Siri & Shortcuts Access"]
+        scrollTo(siriLink, in: app)
+        siriLink.tap()
+        let siriToggle = app.switches["Enable Siri Access"]
+        XCTAssertTrue(siriToggle.waitForExistence(timeout: 5))
+        XCTAssertEqual(siriToggle.value as? String, "0")
+    }
+
+    private func makeApp(extraArguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitest-in-memory"]
+        app.launchArguments = ["--uitest-in-memory"] + extraArguments
         app.launch()
         return app
+    }
+
+    private func openDemoGradebook(app: XCUIApplication) {
+        app.tabBars.buttons["Quarters"].tap()
+        app.staticTexts["Fall 2026"].tap()
+        app.staticTexts["CHE 002A"].tap()
     }
 
     private func completeOnboarding(app: XCUIApplication, loadDemo: Bool = false) {

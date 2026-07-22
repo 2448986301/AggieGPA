@@ -145,6 +145,8 @@ struct CourseDetailView: View {
         .padding(DesignSystem.Spacing.large)
         .glassCard(tint: DesignSystem.ColorToken.navy)
         .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(course.courseCode), calculated current grade \(percent(result.calculatedCurrentPercentage)), official grade \(course.grade.rawValue)")
+        .accessibilityValue(result.requiresManualReview ? "Manual review required" : "Grading policy checked")
         .accessibilityIdentifier("courseGradeHero")
     }
 
@@ -231,6 +233,9 @@ struct CourseDetailView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(itemAccessibilityLabel(item))
+        .accessibilityHint("Opens this grade item for editing")
         .contextMenu {
             Button("Edit", systemImage: "pencil") { editingItem = item; showItemEditor = true }
             Button("Delete", systemImage: "trash", role: .destructive) { delete(item) }
@@ -251,6 +256,8 @@ struct CourseDetailView: View {
                         Text(percent(category.average)).font(.headline.monospacedDigit())
                     }
                     ProgressView(value: decimalDouble(category.gradedFraction))
+                        .accessibilityLabel("\(category.name) graded progress")
+                        .accessibilityValue(percent(category.gradedFraction * 100))
                     HStack {
                         Text("\(category.gradedItems) graded · \(category.remainingItems) remaining")
                         Spacer()
@@ -353,6 +360,16 @@ struct CourseDetailView: View {
         if let override = item.percentageOverride { return "\(percent(override)) override" }
         guard let earned = item.earnedPoints else { return "— / \(compact(item.possiblePoints))" }
         return "\(compact(earned)) / \(compact(item.possiblePoints))"
+    }
+
+    private func itemAccessibilityLabel(_ item: GradeItem) -> String {
+        var parts = [item.title, item.status.displayName, score(item)]
+        if let dueDate = item.dueDate {
+            parts.append("due \(dueDate.formatted(date: .long, time: .shortened))")
+        }
+        if item.isDropped { parts.append("dropped") }
+        if item.isExcused { parts.append("excused") }
+        return parts.joined(separator: ", ")
     }
 }
 
