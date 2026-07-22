@@ -1,12 +1,12 @@
 # Acceptance Criteria
 
-> Implementation status (2026-07-22): implemented. Automated criteria are covered by 83 unit tests and 13 UI tests; device-only notification authorization, Siri speech recognition, and in-place data inspection remain manual checks.
+> Implementation status (2026-07-22): implemented. Automated coverage includes 84 unit tests and 18 UI tests. The iPhone-mirror smoke check verified that each existing Fall 2026 term opens and returns to the list without crashing after the stale-relationship repair. Notification authorization and Siri speech recognition remain device-only manual checks.
 
 ## Data and identity
 
 - The existing project, bundle identifier `com.easonzhou.aggiegpa`, signing team, navigation, and icon remain intact.
 - A v1.0 store upgrades without losing terms, courses, official grades, GPA inputs, settings, scenarios, privacy state, or backup metadata; failure is recoverable.
-- `MARKETING_VERSION` is 1.1.0 and build number is greater than 1.
+- `MARKETING_VERSION` is 1.1.1 and build number is 3.
 
 ## Gradebook and prediction
 
