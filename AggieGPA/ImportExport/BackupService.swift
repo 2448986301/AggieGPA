@@ -198,6 +198,7 @@ enum BackupService {
       let existingScales = try context.fetch(FetchDescriptor<GradeScale>())
       let existingForecasts = try context.fetch(FetchDescriptor<ForecastScenario>())
       let existingSiri = try context.fetch(FetchDescriptor<SiriAccessSettings>())
+      let replacedNotificationIdentifiers = mode == .replace ? existingItems.map(\.notificationIdentifier) : []
       if mode == .replace {
         existingItems.forEach(context.delete)
         existingCategories.forEach(context.delete)
@@ -270,19 +271,21 @@ enum BackupService {
         categoriesByID[dto.id] = category
       }
       let itemIDs = mode == .merge ? Set(existingItems.map(\.id)) : []
+      var importedReminderSnapshots: [GradeItemReminderSnapshot] = []
       for dto in envelope.gradeItems ?? [] where !itemIDs.contains(dto.id) {
         guard let course = coursesByID[dto.courseID] else { continue }
-        context.insert(
-          GradeItem(
-            id: dto.id, course: course, category: dto.categoryID.flatMap { categoriesByID[$0] },
-            title: dto.title, dueDate: dto.dueDate, earnedPoints: dto.earnedPoints,
-            possiblePoints: dto.possiblePoints, percentageOverride: dto.percentageOverride,
-            status: dto.status, isIncluded: dto.isIncluded, isExtraCredit: dto.isExtraCredit,
-            isDropped: dto.isDropped, isExcused: dto.isExcused, multiplier: dto.multiplier,
-            notes: dto.notes, reminderEnabled: dto.reminderEnabled,
-            reminderLeadTime: dto.reminderLeadTime, customReminderDate: dto.customReminderDate,
-            notificationIdentifier: dto.notificationIdentifier, createdAt: dto.createdAt,
-            updatedAt: dto.updatedAt))
+        let item = GradeItem(
+          id: dto.id, course: course, category: dto.categoryID.flatMap { categoriesByID[$0] },
+          title: dto.title, dueDate: dto.dueDate, earnedPoints: dto.earnedPoints,
+          possiblePoints: dto.possiblePoints, percentageOverride: dto.percentageOverride,
+          status: dto.status, isIncluded: dto.isIncluded, isExtraCredit: dto.isExtraCredit,
+          isDropped: dto.isDropped, isExcused: dto.isExcused, multiplier: dto.multiplier,
+          notes: dto.notes, reminderEnabled: dto.reminderEnabled,
+          reminderLeadTime: dto.reminderLeadTime, customReminderDate: dto.customReminderDate,
+          notificationIdentifier: dto.notificationIdentifier, createdAt: dto.createdAt,
+          updatedAt: dto.updatedAt)
+        context.insert(item)
+        if item.reminderEnabled { importedReminderSnapshots.append(GradeItemReminderSnapshot(item)) }
       }
       let scaleIDs = mode == .merge ? Set(existingScales.map(\.id)) : []
       for dto in envelope.gradeScales ?? [] where !scaleIDs.contains(dto.id) {
@@ -345,6 +348,14 @@ enum BackupService {
       preferences.showRepeatSummary = envelope.preferences.showRepeatSummary
       preferences.defaultGradingBasis = envelope.preferences.defaultGradingBasis
       try context.save()
+      replacedNotificationIdentifiers.forEach { GradeItemNotificationService.cancel(identifier: $0) }
+      if !importedReminderSnapshots.isEmpty {
+        Task {
+          for reminder in importedReminderSnapshots {
+            try? await GradeItemNotificationService.sync(reminder)
+          }
+        }
+      }
     } catch {
       context.rollback()
       throw error

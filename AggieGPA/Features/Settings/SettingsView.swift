@@ -309,13 +309,23 @@ struct DataManagementView: View {
     private func resetAllData() {
         do {
             try SnapshotService.create(envelope: envelope, reason: "Before reset", context: modelContext, existing: snapshots)
+            let notificationIdentifiers = gradeItems.map(\.notificationIdentifier)
+            gradeItems.forEach(modelContext.delete)
+            gradingCategories.forEach(modelContext.delete)
+            gradingPolicies.forEach(modelContext.delete)
+            gradeScales.forEach(modelContext.delete)
+            forecasts.forEach(modelContext.delete)
             scenarios.forEach(modelContext.delete)
             gradePlans.forEach(modelContext.delete)
             terms.forEach(modelContext.delete)
             preferences.demoDataLoaded = false
             try modelContext.save()
+            notificationIdentifiers.forEach { GradeItemNotificationService.cancel(identifier: $0) }
             statusMessage = "Academic data reset. A local snapshot was created first."
-        } catch { errorMessage = "Reset could not be completed. Your existing data was preserved." }
+        } catch {
+            modelContext.rollback()
+            errorMessage = "Reset could not be completed. Your existing data was preserved."
+        }
     }
 }
 

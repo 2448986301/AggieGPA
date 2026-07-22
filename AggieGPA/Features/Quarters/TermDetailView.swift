@@ -2,6 +2,7 @@ import SwiftData
 import SwiftUI
 
 private struct DeletedCourseSnapshot {
+    let id: UUID
     let code: String
     let title: String
     let units: Decimal
@@ -13,11 +14,21 @@ private struct DeletedCourseSnapshot {
     let included: Bool
     let transfer: Bool
     let notes: String
+    let policies: [CourseGradingPolicy]
+    let categories: [GradingCategory]
+    let items: [GradeItem]
+    let scales: [GradeScale]
+    let forecasts: [ForecastScenario]
 }
 
 struct TermDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.locale) private var locale
+    @Query private var policies: [CourseGradingPolicy]
+    @Query private var categories: [GradingCategory]
+    @Query private var items: [GradeItem]
+    @Query private var scales: [GradeScale]
+    @Query private var forecasts: [ForecastScenario]
     let term: AcademicTerm
     let preferences: UserPreferences
     @State private var showAdd = false
@@ -88,27 +99,56 @@ struct TermDetailView: View {
                 .padding(.horizontal)
             }
         }
+        .onDisappear { finalizePendingDelete() }
     }
 
     private func remove(_ course: CourseRecord) {
-        deleted = DeletedCourseSnapshot(code: course.courseCode, title: course.courseTitle,
+        deleted = DeletedCourseSnapshot(id: course.id, code: course.courseCode, title: course.courseTitle,
                                         units: course.units, grade: course.grade, gradingBasis: course.gradingBasis,
                                         institution: course.institution, isMajor: course.isMajorCourse,
                                         isUpper: course.isUpperDivision, included: course.isIncludedInGPA,
-                                        transfer: course.isTransferCourse, notes: course.notes)
+                                        transfer: course.isTransferCourse, notes: course.notes,
+                                        policies: policies.filter { $0.course?.id == course.id },
+                                        categories: categories.filter { $0.course?.id == course.id },
+                                        items: items.filter { $0.course?.id == course.id },
+                                        scales: scales.filter { $0.course?.id == course.id },
+                                        forecasts: forecasts.filter { $0.course?.id == course.id })
         modelContext.delete(course)
         try? modelContext.save()
     }
 
     private func undoDelete() {
         guard let deleted else { return }
-        modelContext.insert(CourseRecord(courseCode: deleted.code, courseTitle: deleted.title,
-                                         units: deleted.units, grade: deleted.grade, gradingBasis: deleted.gradingBasis,
-                                         institution: deleted.institution, term: term, isMajorCourse: deleted.isMajor,
-                                         isUpperDivision: deleted.isUpper, isIncludedInGPA: deleted.included,
-                                         isTransferCourse: deleted.transfer, notes: deleted.notes))
+        let restored = CourseRecord(id: deleted.id, courseCode: deleted.code, courseTitle: deleted.title,
+                                    units: deleted.units, grade: deleted.grade, gradingBasis: deleted.gradingBasis,
+                                    institution: deleted.institution, term: term, isMajorCourse: deleted.isMajor,
+                                    isUpperDivision: deleted.isUpper, isIncludedInGPA: deleted.included,
+                                    isTransferCourse: deleted.transfer, notes: deleted.notes)
+        modelContext.insert(restored)
+        deleted.policies.forEach { $0.course = restored }
+        deleted.categories.forEach { $0.course = restored }
+        deleted.items.forEach { $0.course = restored }
+        deleted.scales.forEach { $0.course = restored }
+        deleted.forecasts.forEach { $0.course = restored }
         self.deleted = nil
         try? modelContext.save()
+    }
+
+    private func finalizePendingDelete() {
+        guard let deleted else { return }
+        let notificationIdentifiers = deleted.items.map(\.notificationIdentifier)
+        deleted.items.forEach(modelContext.delete)
+        deleted.categories.forEach(modelContext.delete)
+        deleted.policies.forEach(modelContext.delete)
+        deleted.scales.forEach(modelContext.delete)
+        deleted.forecasts.forEach(modelContext.delete)
+        do {
+            try modelContext.save()
+            notificationIdentifiers.forEach { GradeItemNotificationService.cancel(identifier: $0) }
+            self.deleted = nil
+        } catch {
+            modelContext.rollback()
+        }
     }
 
     private func duplicate(_ course: CourseRecord) {

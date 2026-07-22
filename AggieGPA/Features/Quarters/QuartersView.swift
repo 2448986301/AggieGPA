@@ -5,6 +5,11 @@ struct QuartersView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.locale) private var locale
     @Query(sort: \AcademicTerm.sortOrder) private var terms: [AcademicTerm]
+    @Query private var policies: [CourseGradingPolicy]
+    @Query private var categories: [GradingCategory]
+    @Query private var items: [GradeItem]
+    @Query private var scales: [GradeScale]
+    @Query private var forecasts: [ForecastScenario]
     let preferences: UserPreferences
     @State private var searchText = ""
     @State private var selectedYear = "All"
@@ -76,7 +81,7 @@ struct QuartersView: View {
                 get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }
             ), titleVisibility: .visible) {
                 Button("Delete Quarter", role: .destructive) {
-                    if let pendingDelete { modelContext.delete(pendingDelete); try? modelContext.save() }
+                    if let pendingDelete { delete(pendingDelete) }
                     pendingDelete = nil
                 }
                 Button("Cancel", role: .cancel) { pendingDelete = nil }
@@ -99,6 +104,24 @@ struct QuartersView: View {
                                              isTransferCourse: course.isTransferCourse, notes: course.notes))
         }
         try? modelContext.save()
+    }
+
+    private func delete(_ term: AcademicTerm) {
+        let courseIDs = Set(term.courses.map(\.id))
+        let deletedItems = items.filter { item in item.course.map { courseIDs.contains($0.id) } ?? false }
+        let notificationIdentifiers = deletedItems.map(\.notificationIdentifier)
+        deletedItems.forEach(modelContext.delete)
+        categories.filter { category in category.course.map { courseIDs.contains($0.id) } ?? false }.forEach(modelContext.delete)
+        policies.filter { policy in policy.course.map { courseIDs.contains($0.id) } ?? false }.forEach(modelContext.delete)
+        scales.filter { scale in scale.course.map { courseIDs.contains($0.id) } ?? false }.forEach(modelContext.delete)
+        forecasts.filter { forecast in forecast.course.map { courseIDs.contains($0.id) } ?? false }.forEach(modelContext.delete)
+        modelContext.delete(term)
+        do {
+            try modelContext.save()
+            notificationIdentifiers.forEach { GradeItemNotificationService.cancel(identifier: $0) }
+        } catch {
+            modelContext.rollback()
+        }
     }
 
     private func move(year: String, from source: IndexSet, to destination: Int) {
