@@ -84,7 +84,13 @@ struct DashboardView: View {
                     VStack(spacing: DesignSystem.Spacing.medium) {
                         ContentUnavailableView("Add a term first", systemImage: "calendar.badge.plus",
                                                description: Text("Create the term for this course, then add your course."))
-                        Button("Add Your First Term") { showAddCourse = false; showNewTerm = true }
+                        Button("Add Your First Term") {
+                            showAddCourse = false
+                            Task { @MainActor in
+                                try? await Task.sleep(for: .milliseconds(300))
+                                showNewTerm = true
+                            }
+                        }
                             .buttonStyle(.borderedProminent)
                     }
                         .presentationDetents([.medium])
