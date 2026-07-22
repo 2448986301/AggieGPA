@@ -17,7 +17,9 @@ struct SiriDraftConfirmationView: View {
     }
 
     private var course: CourseRecord? { UUID(uuidString: draft.courseID).flatMap { id in courses.first { $0.id == id } } }
-    private var matchingItems: [GradeItem] { items.filter { $0.course?.id == course?.id && $0.title.caseInsensitiveCompare(draft.title) == .orderedSame } }
+    private var matchingItems: [GradeItem] {
+        items.filter { $0.course?.persistentModelID == course?.persistentModelID && $0.title.caseInsensitiveCompare(draft.title) == .orderedSame }
+    }
 
     var body: some View {
         NavigationStack {
@@ -63,7 +65,7 @@ struct SiriDraftConfirmationView: View {
         switch draft.kind {
         case .assignment, .exam:
             let desiredType: GradeCategoryType = draft.kind == .exam ? .midterm : .homework
-            let category = categories.first { $0.course?.id == course.id && $0.categoryType == desiredType }
+            let category = categories.first { $0.course?.persistentModelID == course.persistentModelID && $0.categoryType == desiredType }
             modelContext.insert(GradeItem(course: course, category: category, title: draft.title, dueDate: draft.dueDate,
                                           possiblePoints: possible, status: .upcoming))
         case .recordGrade:

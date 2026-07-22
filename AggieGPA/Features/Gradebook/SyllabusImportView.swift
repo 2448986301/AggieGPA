@@ -21,7 +21,7 @@ struct SyllabusImportView: View {
     @State private var didSave = false
     @State private var modelStatus = OnDeviceSyllabusParser.availability()
 
-    private var courseCategories: [GradingCategory] { existingCategories.filter { $0.course?.id == course.id } }
+    private var courseCategories: [GradingCategory] { existingCategories.filter { $0.course?.persistentModelID == course.persistentModelID } }
 
     var body: some View {
         NavigationStack {
@@ -165,7 +165,7 @@ struct SyllabusImportView: View {
 
     private func confirm() {
         guard let result, courseCategories.isEmpty else { return }
-        let policy = policies.first { $0.course?.id == course.id } ?? CourseGradingPolicy(course: course)
+        let policy = policies.first { $0.course?.persistentModelID == course.persistentModelID } ?? CourseGradingPolicy(course: course)
         if policy.modelContext == nil { modelContext.insert(policy) }
         policy.gradingMethod = result.suggestedMethod
         policy.syllabusImportSource = source
@@ -182,7 +182,7 @@ struct SyllabusImportView: View {
             modelContext.insert(category)
         }
         if !result.gradeBoundaries.isEmpty {
-            let scale = scales.first { $0.course?.id == course.id } ?? GradeScale(course: course)
+            let scale = scales.first { $0.course?.persistentModelID == course.persistentModelID } ?? GradeScale(course: course)
             if scale.modelContext == nil { modelContext.insert(scale) }
             scale.name = "Syllabus Scale"; scale.boundaries = result.gradeBoundaries
             scale.isCommonTemplate = false; scale.requiresManualReview = result.requiresManualReview

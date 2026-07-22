@@ -82,6 +82,22 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["CHE 002A"].exists)
     }
 
+    func testFinalizeCourseDeletionKeepsQuarterAndDashboardUsable() {
+        let app = makeApp()
+        completeOnboarding(app: app, loadDemo: true)
+        app.tabBars.buttons["Courses"].tap()
+        app.staticTexts["Fall 2026"].tap()
+        let course = app.staticTexts["CHE 002A"]
+        XCTAssertTrue(course.waitForExistence(timeout: 5))
+        course.swipeLeft()
+        app.buttons["Delete"].tap()
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.staticTexts["Fall 2026"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Today"].tap()
+        XCTAssertTrue(app.buttons["todayAddButton"].waitForExistence(timeout: 5))
+    }
+
     func testClearDemoDataKeepsDashboardUsable() {
         let app = makeApp()
         completeOnboarding(app: app, loadDemo: true)

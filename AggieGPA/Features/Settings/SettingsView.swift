@@ -183,6 +183,7 @@ private struct DecimalPreferenceField: View {
 struct DataManagementView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \AcademicTerm.sortOrder) private var terms: [AcademicTerm]
+    @Query private var courses: [CourseRecord]
     @Query(sort: \PlannerScenario.sortOrder) private var scenarios: [PlannerScenario]
     @Query(sort: \BackupSnapshot.createdAt, order: .reverse) private var snapshots: [BackupSnapshot]
     @Query private var gradePlans: [CourseGradePlan]
@@ -250,7 +251,7 @@ struct DataManagementView: View {
                 defer { if accessed { url.stopAccessingSecurityScopedResource() } }
                 let data = try Data(contentsOf: url)
                 let envelope = try BackupService.decode(data)
-                importPreview = BackupService.preview(envelope, existingTerms: terms)
+                importPreview = BackupService.preview(envelope, existingTerms: terms, existingCourses: courses)
             } catch {
                 errorMessage = (error as? LocalizedError)?.errorDescription ?? "The backup could not be read. Your current data was not changed."
             }
@@ -276,7 +277,7 @@ struct DataManagementView: View {
     }
 
     private var envelope: BackupEnvelope {
-        BackupService.makeEnvelope(terms: terms, scenarios: scenarios, preferences: preferences,
+        BackupService.makeEnvelope(terms: terms, courses: courses, scenarios: scenarios, preferences: preferences,
                                    policies: gradingPolicies, categories: gradingCategories, items: gradeItems,
                                    scales: gradeScales, forecasts: forecasts, siriSettings: siriSettings.first)
     }
@@ -287,7 +288,7 @@ struct DataManagementView: View {
     }
 
     private func prepareCSVExport() {
-        csvDocument = CSVExportDocument(text: CSVService.export(terms: terms)); exportingCSV = true
+        csvDocument = CSVExportDocument(text: CSVService.export(terms: terms, courses: courses)); exportingCSV = true
     }
 
     private func prepareShareFile() {

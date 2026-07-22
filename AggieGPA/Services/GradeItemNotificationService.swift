@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import UserNotifications
 
 nonisolated struct GradeItemReminderSnapshot: Equatable, Sendable {
@@ -20,7 +21,14 @@ nonisolated struct GradeItemReminderSnapshot: Equatable, Sendable {
     }
 
     @MainActor init(_ item: GradeItem) {
-        id = item.id; courseID = item.course?.id ?? UUID(); courseCode = item.course?.courseCode ?? "Course"
+        id = item.id
+        if let course = item.course, !course.isDeleted {
+            courseID = course.id
+            courseCode = course.courseCode
+        } else {
+            courseID = UUID()
+            courseCode = "Course"
+        }
         title = item.title; dueDate = item.dueDate; enabled = item.reminderEnabled
         leadTime = item.reminderLeadTime; customDate = item.customReminderDate
         notificationIdentifier = item.notificationIdentifier

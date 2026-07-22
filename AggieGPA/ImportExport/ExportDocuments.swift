@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import UniformTypeIdentifiers
 
 struct JSONBackupDocument: FileDocument {
@@ -29,10 +30,13 @@ struct CSVExportDocument: FileDocument {
 enum CSVService {
     static let headers = ["Academic Year", "Quarter", "Course Code", "Course Title", "Units", "Grade", "Grade Points", "Major Course", "Upper Division", "Repeat", "Included in GPA", "Institution", "Notes"]
 
-    static func export(terms: [AcademicTerm]) -> String {
+    static func export(terms: [AcademicTerm], courses: [CourseRecord]? = nil) -> String {
         var rows = [headers.map(escape).joined(separator: ",")]
         for term in terms.sorted(by: { $0.sortOrder < $1.sortOrder }) {
-            for course in term.courses.sorted(by: { $0.courseCode < $1.courseCode }) {
+            let termCourses = (courses ?? term.courses)
+                .filter { $0.term?.persistentModelID == term.persistentModelID }
+                .sorted(by: { $0.courseCode < $1.courseCode })
+            for course in termCourses {
                 let gradePoints = course.grade.gradePointValue.map { $0 * course.units }
                 let values = [term.academicYear, term.displayName, course.courseCode, course.courseTitle,
                               DecimalFormatters.compact(course.units), course.grade.rawValue,
@@ -49,4 +53,3 @@ enum CSVService {
         "\"" + value.replacingOccurrences(of: "\"", with: "\"\"") + "\""
     }
 }
-

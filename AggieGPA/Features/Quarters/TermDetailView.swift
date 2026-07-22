@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 
 private struct DeletedCourseSnapshot {
-    let id: UUID
+    let modelID: PersistentIdentifier
     let code: String
     let title: String
     let units: Decimal
@@ -24,6 +24,7 @@ private struct DeletedCourseSnapshot {
 struct TermDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.locale) private var locale
+    @Query private var courses: [CourseRecord]
     @Query private var policies: [CourseGradingPolicy]
     @Query private var categories: [GradingCategory]
     @Query private var items: [GradeItem]
@@ -35,9 +36,12 @@ struct TermDetailView: View {
     @State private var editingCourse: CourseRecord?
     @State private var deleted: DeletedCourseSnapshot?
 
-    private var result: GPAResult { GPAService.quarter(term.courses.map(CourseCalculationInput.init), termID: term.id) }
-    private var sortedCourses: [CourseRecord] { term.courses.sorted { $0.courseCode < $1.courseCode } }
-    private var visibleCourses: [CourseRecord] { sortedCourses.filter { $0.id != deleted?.id } }
+    private var termCourses: [CourseRecord] {
+        courses.filter { !$0.isDeleted && $0.term?.persistentModelID == term.persistentModelID }
+    }
+    private var result: GPAResult { GPAService.quarter(termCourses.map(CourseCalculationInput.init), termID: term.id) }
+    private var sortedCourses: [CourseRecord] { termCourses.sorted { $0.courseCode < $1.courseCode } }
+    private var visibleCourses: [CourseRecord] { sortedCourses.filter { $0.persistentModelID != deleted?.modelID } }
 
     var body: some View {
         List {
@@ -104,16 +108,20 @@ struct TermDetailView: View {
     }
 
     private func remove(_ course: CourseRecord) {
-        deleted = DeletedCourseSnapshot(id: course.id, code: course.courseCode, title: course.courseTitle,
+        let courseModelID = course.persistentModelID
+        func belongsToCourse(_ relatedCourse: CourseRecord?) -> Bool {
+            relatedCourse?.persistentModelID == courseModelID
+        }
+        deleted = DeletedCourseSnapshot(modelID: courseModelID, code: course.courseCode, title: course.courseTitle,
                                         units: course.units, grade: course.grade, gradingBasis: course.gradingBasis,
                                         institution: course.institution, isMajor: course.isMajorCourse,
                                         isUpper: course.isUpperDivision, included: course.isIncludedInGPA,
                                         transfer: course.isTransferCourse, notes: course.notes,
-                                        policies: policies.filter { $0.course?.id == course.id },
-                                        categories: categories.filter { $0.course?.id == course.id },
-                                        items: items.filter { $0.course?.id == course.id },
-                                        scales: scales.filter { $0.course?.id == course.id },
-                                        forecasts: forecasts.filter { $0.course?.id == course.id })
+                                        policies: policies.filter { belongsToCourse($0.course) },
+                                        categories: categories.filter { belongsToCourse($0.course) },
+                                        items: items.filter { belongsToCourse($0.course) },
+                                        scales: scales.filter { belongsToCourse($0.course) },
+                                        forecasts: forecasts.filter { belongsToCourse($0.course) })
     }
 
     private func undoDelete() {
@@ -129,7 +137,10 @@ struct TermDetailView: View {
         deleted.policies.forEach(modelContext.delete)
         deleted.scales.forEach(modelContext.delete)
         deleted.forecasts.forEach(modelContext.delete)
-        if let course = term.courses.first(where: { $0.id == deleted.id }) { modelContext.delete(course) }
+        if let course = termCourses.first(where: { $0.persistentModelID == deleted.modelID }) {
+            course.term = nil
+            modelContext.delete(course)
+        }
         do {
             try modelContext.save()
             notificationIdentifiers.forEach { GradeItemNotificationService.cancel(identifier: $0) }
@@ -156,12 +167,24 @@ private struct CourseRow: View {
     @Query private var items: [GradeItem]
     @Query private var scales: [GradeScale]
     @Query private var forecasts: [ForecastScenario]
+    @Query private var allCourses: [CourseRecord]
     let course: CourseRecord
+    private var liveCourseModelIDs: Set<PersistentIdentifier> {
+        Set(allCourses.filter { !$0.isDeleted }.map(\.persistentModelID))
+    }
+    private func belongsToCourse(_ relatedCourse: CourseRecord?) -> Bool {
+        relatedCourse?.persistentModelID == course.persistentModelID
+    }
+    private func isAttachedToLiveCourse(_ relatedCourse: CourseRecord?) -> Bool {
+        relatedCourse.map { liveCourseModelIDs.contains($0.persistentModelID) } ?? false
+    }
     private var gradeResult: CourseGradeCalculationResult {
-        let forecast = forecasts.first { $0.course?.id == course.id && $0.isSelectedForGPAForecast }
+        let liveCategories = categories.filter { isAttachedToLiveCourse($0.course) }
+        let liveItems = items.filter { isAttachedToLiveCourse($0.course) }
+        let forecast = forecasts.first { isAttachedToLiveCourse($0.course) && belongsToCourse($0.course) && $0.isSelectedForGPAForecast }
         return CourseGradeCalculationEngine.calculate(CourseGradeSnapshotBuilder.makeInput(
-            course: course, policy: policies.first { $0.course?.id == course.id }, categories: categories,
-            items: items, gradeScale: scales.first { $0.course?.id == course.id }, forecast: forecast
+            course: course, policy: policies.first { isAttachedToLiveCourse($0.course) && belongsToCourse($0.course) }, categories: liveCategories,
+            items: liveItems, gradeScale: scales.first { isAttachedToLiveCourse($0.course) && belongsToCourse($0.course) }, forecast: forecast
         ))
     }
     var body: some View {

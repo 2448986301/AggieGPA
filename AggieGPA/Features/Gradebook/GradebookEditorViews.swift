@@ -368,7 +368,7 @@ struct ForecastEditorView: View {
         savedForecast.name = cleanName
         savedForecast.kind = kind
         savedForecast.assumedRemainingPercentage = Decimal(Int(assumption.rounded()))
-        for candidate in allForecasts where candidate.course?.id == course.id {
+        for candidate in allForecasts where candidate.course?.persistentModelID == course.persistentModelID {
             candidate.isSelectedForGPAForecast = candidate.id == savedForecast.id
         }
         savedForecast.isSelectedForGPAForecast = true

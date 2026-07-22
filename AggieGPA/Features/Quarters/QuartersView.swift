@@ -5,6 +5,7 @@ struct QuartersView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.locale) private var locale
     @Query(sort: \AcademicTerm.sortOrder) private var terms: [AcademicTerm]
+    @Query private var courses: [CourseRecord]
     @Query private var policies: [CourseGradingPolicy]
     @Query private var categories: [GradingCategory]
     @Query private var items: [GradeItem]
@@ -16,12 +17,19 @@ struct QuartersView: View {
     @State private var showNewTerm = false
     @State private var pendingDelete: AcademicTerm?
 
-    private var years: [String] { ["All"] + Array(Set(terms.map(\.academicYear))).sorted() }
+    private var liveTerms: [AcademicTerm] { terms.filter { !$0.isDeleted } }
+    private var years: [String] { ["All"] + Array(Set(liveTerms.map(\.academicYear))).sorted() }
     private var filtered: [AcademicTerm] {
-        terms.filter { term in
+        liveTerms.filter { term in
             (selectedYear == "All" || term.academicYear == selectedYear) &&
             (searchText.isEmpty || term.displayName.localizedCaseInsensitiveContains(searchText) ||
-             term.courses.contains { $0.courseCode.localizedCaseInsensitiveContains(searchText) || $0.courseTitle.localizedCaseInsensitiveContains(searchText) })
+             courses(for: term).contains { $0.courseCode.localizedCaseInsensitiveContains(searchText) || $0.courseTitle.localizedCaseInsensitiveContains(searchText) })
+        }
+    }
+
+    private func courses(for term: AcademicTerm) -> [CourseRecord] {
+        courses.filter { course in
+            !course.isDeleted && course.term?.persistentModelID == term.persistentModelID
         }
     }
 
@@ -30,16 +38,16 @@ struct QuartersView: View {
             Group {
                 if filtered.isEmpty {
                     ContentUnavailableView(
-                        terms.isEmpty ? "No quarters yet" : "No matching quarters",
-                        systemImage: terms.isEmpty ? "calendar.badge.plus" : "magnifyingglass",
-                        description: terms.isEmpty ? Text("Create a quarter, then add courses and grades.") : Text("Try a different search or academic year.")
+                        liveTerms.isEmpty ? "No quarters yet" : "No matching quarters",
+                        systemImage: liveTerms.isEmpty ? "calendar.badge.plus" : "magnifyingglass",
+                        description: liveTerms.isEmpty ? Text("Create a quarter, then add courses and grades.") : Text("Try a different search or academic year.")
                     )
                 } else {
                     List {
                         ForEach(Dictionary(grouping: filtered, by: \.academicYear).keys.sorted(), id: \.self) { year in
                             Section("Academic Year \(year)") {
                                 ForEach(filtered.filter { $0.academicYear == year }) { term in
-                                    NavigationLink(value: term) { TermRow(term: term, precision: preferences.decimalPrecision) }
+                                    NavigationLink(value: term) { TermRow(term: term, courses: courses(for: term), precision: preferences.decimalPrecision) }
                                         .contextMenu {
                                             Button("Duplicate", systemImage: "plus.square.on.square") { duplicate(term) }
                                             Button("Delete", systemImage: "trash", role: .destructive) { pendingDelete = term }
@@ -96,7 +104,7 @@ struct QuartersView: View {
                                 displayName: term.displayName + " Copy", notes: term.notes,
                                 sortOrder: (terms.map(\.sortOrder).max() ?? 0) + 1)
         modelContext.insert(copy)
-        for course in term.courses {
+        for course in courses(for: term) {
             modelContext.insert(CourseRecord(courseCode: course.courseCode, courseTitle: course.courseTitle,
                                              units: course.units, grade: course.grade, gradingBasis: course.gradingBasis,
                                              institution: course.institution, term: copy, isMajorCourse: course.isMajorCourse,
@@ -107,14 +115,22 @@ struct QuartersView: View {
     }
 
     private func delete(_ term: AcademicTerm) {
-        let courseIDs = Set(term.courses.map(\.id))
-        let deletedItems = items.filter { item in item.course.map { courseIDs.contains($0.id) } ?? false }
+        let termCourses = courses(for: term)
+        let courseModelIDs = Set(termCourses.map(\.persistentModelID))
+        func belongsToDeletedCourse(_ course: CourseRecord?) -> Bool {
+            course.map { courseModelIDs.contains($0.persistentModelID) } ?? false
+        }
+        let deletedItems = items.filter { belongsToDeletedCourse($0.course) }
         let notificationIdentifiers = deletedItems.map(\.notificationIdentifier)
         deletedItems.forEach(modelContext.delete)
-        categories.filter { category in category.course.map { courseIDs.contains($0.id) } ?? false }.forEach(modelContext.delete)
-        policies.filter { policy in policy.course.map { courseIDs.contains($0.id) } ?? false }.forEach(modelContext.delete)
-        scales.filter { scale in scale.course.map { courseIDs.contains($0.id) } ?? false }.forEach(modelContext.delete)
-        forecasts.filter { forecast in forecast.course.map { courseIDs.contains($0.id) } ?? false }.forEach(modelContext.delete)
+        categories.filter { belongsToDeletedCourse($0.course) }.forEach(modelContext.delete)
+        policies.filter { belongsToDeletedCourse($0.course) }.forEach(modelContext.delete)
+        scales.filter { belongsToDeletedCourse($0.course) }.forEach(modelContext.delete)
+        forecasts.filter { belongsToDeletedCourse($0.course) }.forEach(modelContext.delete)
+        termCourses.forEach { course in
+            course.term = nil
+            modelContext.delete(course)
+        }
         modelContext.delete(term)
         do {
             try modelContext.save()
@@ -125,7 +141,7 @@ struct QuartersView: View {
     }
 
     private func move(year: String, from source: IndexSet, to destination: Int) {
-        var yearTerms = terms.filter { $0.academicYear == year }
+        var yearTerms = liveTerms.filter { $0.academicYear == year }
         yearTerms.move(fromOffsets: source, toOffset: destination)
         for (index, term) in yearTerms.enumerated() { term.sortOrder = index; term.updatedAt = .now }
         try? modelContext.save()
@@ -135,17 +151,18 @@ struct QuartersView: View {
 private struct TermRow: View {
     @Environment(\.locale) private var locale
     let term: AcademicTerm
+    let courses: [CourseRecord]
     let precision: Int
-    private var result: GPAResult { GPAService.quarter(term.courses.map(CourseCalculationInput.init), termID: term.id) }
+    private var result: GPAResult { GPAService.quarter(courses.map(CourseCalculationInput.init), termID: term.id) }
 
     var body: some View {
         HStack(spacing: DesignSystem.Spacing.medium) {
-            Image(systemName: term.courses.contains(where: { $0.grade.isPending }) ? "calendar.badge.exclamationmark" : "calendar")
+            Image(systemName: courses.contains(where: { $0.grade.isPending }) ? "calendar.badge.exclamationmark" : "calendar")
                 .foregroundStyle(DesignSystem.ColorToken.gold)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 Text(term.displayName).font(.headline)
-                Text(verbatim: AppCopy.termSummary(units: result.attemptedUnits, courseCount: term.courses.count, locale: locale))
+                Text(verbatim: AppCopy.termSummary(units: result.attemptedUnits, courseCount: courses.count, locale: locale))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()

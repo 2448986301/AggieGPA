@@ -36,14 +36,17 @@ struct CourseDetailView: View {
     @State private var deletedItem: DeletedGradeItem?
     @State private var showScoreUpdate = false
 
-    private var policy: CourseGradingPolicy? { policies.first { $0.course?.id == course.id } }
-    private var courseCategories: [GradingCategory] {
-        categories.filter { $0.course?.id == course.id }.sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
+    private func belongsToCourse(_ relatedCourse: CourseRecord?) -> Bool {
+        relatedCourse?.persistentModelID == course.persistentModelID
     }
-    private var courseItems: [GradeItem] { items.filter { $0.course?.id == course.id } }
-    private var scale: GradeScale? { scales.first { $0.course?.id == course.id } }
+    private var policy: CourseGradingPolicy? { policies.first { belongsToCourse($0.course) } }
+    private var courseCategories: [GradingCategory] {
+        categories.filter { belongsToCourse($0.course) }.sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
+    }
+    private var courseItems: [GradeItem] { items.filter { belongsToCourse($0.course) } }
+    private var scale: GradeScale? { scales.first { belongsToCourse($0.course) } }
     private var courseForecasts: [ForecastScenario] {
-        forecasts.filter { $0.course?.id == course.id }.sorted { $0.createdAt < $1.createdAt }
+        forecasts.filter { belongsToCourse($0.course) }.sorted { $0.createdAt < $1.createdAt }
     }
     private var forecast: ForecastScenario? {
         courseForecasts.first(where: \.isSelectedForGPAForecast)

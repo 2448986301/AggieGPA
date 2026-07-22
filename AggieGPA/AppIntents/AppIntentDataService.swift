@@ -63,8 +63,10 @@ final class AppIntentDataService {
 
     func scenarios(ids: [String]?) throws -> [GradeScenarioEntity] {
         let context = try permittedContext()
+        let courses = try context.fetch(FetchDescriptor<CourseRecord>())
+        let liveCourseModelIDs = Set(courses.filter { !$0.isDeleted }.map(\.persistentModelID))
         return try context.fetch(FetchDescriptor<ForecastScenario>()).filter { ids == nil || ids!.contains($0.id.uuidString) }.compactMap {
-            guard let course = $0.course else { return nil }
+            guard let course = $0.course, liveCourseModelIDs.contains(course.persistentModelID) else { return nil }
             return GradeScenarioEntity(id: $0.id.uuidString, courseID: course.id.uuidString, name: "\(course.courseCode): \($0.name)")
         }
     }
@@ -77,9 +79,10 @@ final class AppIntentDataService {
         let items = try context.fetch(FetchDescriptor<GradeItem>())
         let scales = try context.fetch(FetchDescriptor<GradeScale>())
         let forecasts = try context.fetch(FetchDescriptor<ForecastScenario>())
+        let courseModelID = course.persistentModelID
         let input = CourseGradeSnapshotBuilder.makeInput(
-            course: course, policy: policies.first { $0.course?.id == id }, categories: categories, items: items,
-            gradeScale: scales.first { $0.course?.id == id }, forecast: forecasts.first { $0.course?.id == id && $0.isSelectedForGPAForecast }
+            course: course, policy: policies.first { $0.course?.persistentModelID == courseModelID }, categories: categories, items: items,
+            gradeScale: scales.first { $0.course?.persistentModelID == courseModelID }, forecast: forecasts.first { $0.course?.persistentModelID == courseModelID && $0.isSelectedForGPAForecast }
         )
         let result = CourseGradeCalculationEngine.calculate(input)
         let official = course.grade.isPending ? "No official grade is recorded." : "Official grade: \(course.grade.rawValue)."
@@ -91,7 +94,10 @@ final class AppIntentDataService {
     func officialGPAOverview() throws -> String {
         let context = try permittedContext(gpa: true)
         let terms = try context.fetch(FetchDescriptor<AcademicTerm>())
-        let inputs = terms.filter(\.isIncludedInCumulativeGPA).flatMap(\.courses).map(CourseCalculationInput.init)
+        let includedTermModelIDs = Set(terms.filter { !$0.isDeleted && $0.isIncludedInCumulativeGPA }.map(\.persistentModelID))
+        let inputs = try context.fetch(FetchDescriptor<CourseRecord>()).filter {
+            !$0.isDeleted && $0.term.map { includedTermModelIDs.contains($0.persistentModelID) } ?? false
+        }.map(CourseCalculationInput.init)
         let result = GPAService.calculate(inputs)
         return "Official cumulative GPA: \(result.gpa.map(DecimalFormatters.compact) ?? "—"), based only on official grades."
     }
@@ -99,7 +105,11 @@ final class AppIntentDataService {
     func quarterGPA(_ term: AcademicTermEntity) throws -> String {
         let context = try permittedContext(gpa: true)
         guard let id = UUID(uuidString: term.id), let record = try context.fetch(FetchDescriptor<AcademicTerm>()).first(where: { $0.id == id }) else { throw ServiceError.deletedEntity }
-        let result = GPAService.quarter(record.courses.map(CourseCalculationInput.init), termID: id)
+        let recordModelID = record.persistentModelID
+        let termCourses = try context.fetch(FetchDescriptor<CourseRecord>()).filter {
+            !$0.isDeleted && $0.term?.persistentModelID == recordModelID
+        }
+        let result = GPAService.quarter(termCourses.map(CourseCalculationInput.init), termID: id)
         return "\(record.displayName) official GPA: \(result.gpa.map(DecimalFormatters.compact) ?? "—"). Projected grades are not mixed into this result."
     }
 
@@ -111,9 +121,10 @@ final class AppIntentDataService {
         let items = try context.fetch(FetchDescriptor<GradeItem>())
         let scales = try context.fetch(FetchDescriptor<GradeScale>())
         let forecasts = try context.fetch(FetchDescriptor<ForecastScenario>())
-        let base = CourseGradeSnapshotBuilder.makeInput(course: course, policy: policies.first { $0.course?.id == id }, categories: categories,
-                                                        items: items, gradeScale: scales.first { $0.course?.id == id },
-                                                        forecast: forecasts.first { $0.course?.id == id && $0.isSelectedForGPAForecast })
+        let courseModelID = course.persistentModelID
+        let base = CourseGradeSnapshotBuilder.makeInput(course: course, policy: policies.first { $0.course?.persistentModelID == courseModelID }, categories: categories,
+                                                        items: items, gradeScale: scales.first { $0.course?.persistentModelID == courseModelID },
+                                                        forecast: forecasts.first { $0.course?.persistentModelID == courseModelID && $0.isSelectedForGPAForecast })
         let input = CourseGradeCalculationInput(gradingMethod: base.gradingMethod, normalizeCurrentGrade: base.normalizeCurrentGrade,
                                                 missingItemPolicy: base.missingItemPolicy, missingPolicyConfirmed: base.missingPolicyConfirmed,
                                                 categories: base.categories, unassignedItems: base.unassignedItems,

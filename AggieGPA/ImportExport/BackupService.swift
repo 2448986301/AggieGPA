@@ -20,12 +20,15 @@ enum BackupError: LocalizedError {
 @MainActor
 enum BackupService {
   static func makeEnvelope(
-    terms: [AcademicTerm], scenarios: [PlannerScenario], preferences: UserPreferences,
+    terms: [AcademicTerm], courses: [CourseRecord]? = nil, scenarios: [PlannerScenario], preferences: UserPreferences,
     policies: [CourseGradingPolicy] = [], categories: [GradingCategory] = [],
     items: [GradeItem] = [],
     scales: [GradeScale] = [], forecasts: [ForecastScenario] = [],
     siriSettings: SiriAccessSettings? = nil
   ) -> BackupEnvelope {
+    let liveCourses = (courses ?? terms.flatMap(\.courses)).filter { !$0.isDeleted }
+    let termIDsByModelID = Dictionary(uniqueKeysWithValues: terms.filter { !$0.isDeleted }.map { ($0.persistentModelID, $0.id) })
+    let liveCourseModelIDs = Set(liveCourses.map(\.persistentModelID))
     let termDTOs = terms.map {
       BackupEnvelope.TermDTO(
         id: $0.id, academicYear: $0.academicYear, termType: $0.termType,
@@ -33,9 +36,9 @@ enum BackupService {
         isIncludedInCumulativeGPA: $0.isIncludedInCumulativeGPA, notes: $0.notes,
         createdAt: $0.createdAt, updatedAt: $0.updatedAt, sortOrder: $0.sortOrder)
     }
-    let courseDTOs = terms.flatMap(\.courses).map {
+    let courseDTOs = liveCourses.map {
       BackupEnvelope.CourseDTO(
-        id: $0.id, termID: $0.term?.id, courseCode: $0.courseCode,
+        id: $0.id, termID: $0.term.flatMap { termIDsByModelID[$0.persistentModelID] }, courseCode: $0.courseCode,
         courseTitle: $0.courseTitle, units: $0.units, grade: $0.grade,
         gradingBasis: $0.gradingBasis, institution: $0.institution,
         isMajorCourse: $0.isMajorCourse, isUpperDivision: $0.isUpperDivision,
@@ -75,7 +78,8 @@ enum BackupService {
       terms: termDTOs, courses: courseDTOs,
       plannerScenarios: scenarioDTOs, preferences: preferenceDTO,
       gradingPolicies: policies.compactMap { policy in
-        guard let courseID = policy.course?.id else { return nil }
+        guard let course = policy.course, liveCourseModelIDs.contains(course.persistentModelID) else { return nil }
+        let courseID = course.id
         return .init(
           id: policy.id, courseID: courseID, gradingMethod: policy.gradingMethod,
           normalizeCurrentGrade: policy.normalizeCurrentGrade,
@@ -89,7 +93,8 @@ enum BackupService {
           updatedAt: policy.updatedAt)
       },
       gradingCategories: categories.compactMap { category in
-        guard let courseID = category.course?.id else { return nil }
+        guard let course = category.course, liveCourseModelIDs.contains(course.persistentModelID) else { return nil }
+        let courseID = course.id
         return .init(
           id: category.id, courseID: courseID, name: category.name,
           categoryType: category.categoryType,
@@ -99,7 +104,8 @@ enum BackupService {
           createdAt: category.createdAt, updatedAt: category.updatedAt)
       },
       gradeItems: items.compactMap { item in
-        guard let courseID = item.course?.id else { return nil }
+        guard let course = item.course, liveCourseModelIDs.contains(course.persistentModelID) else { return nil }
+        let courseID = course.id
         return .init(
           id: item.id, courseID: courseID, categoryID: item.category?.id, title: item.title,
           dueDate: item.dueDate, earnedPoints: item.earnedPoints,
@@ -113,7 +119,8 @@ enum BackupService {
           updatedAt: item.updatedAt)
       },
       gradeScales: scales.compactMap { scale in
-        guard let courseID = scale.course?.id else { return nil }
+        guard let course = scale.course, liveCourseModelIDs.contains(course.persistentModelID) else { return nil }
+        let courseID = course.id
         return .init(
           id: scale.id, courseID: courseID, name: scale.name, boundaries: scale.boundaries,
           isLetterPredictionEnabled: scale.isLetterPredictionEnabled,
@@ -122,7 +129,8 @@ enum BackupService {
           createdAt: scale.createdAt, updatedAt: scale.updatedAt)
       },
       forecastScenarios: forecasts.compactMap { forecast in
-        guard let courseID = forecast.course?.id else { return nil }
+        guard let course = forecast.course, liveCourseModelIDs.contains(course.persistentModelID) else { return nil }
+        let courseID = course.id
         return .init(
           id: forecast.id, courseID: courseID, name: forecast.name, kind: forecast.kind,
           assumedRemainingPercentage: forecast.assumedRemainingPercentage,
@@ -177,9 +185,9 @@ enum BackupService {
     }
   }
 
-  static func preview(_ envelope: BackupEnvelope, existingTerms: [AcademicTerm]) -> ImportPreview {
+  static func preview(_ envelope: BackupEnvelope, existingTerms: [AcademicTerm], existingCourses: [CourseRecord]? = nil) -> ImportPreview {
     let termIDs = Set(existingTerms.map(\.id))
-    let courseIDs = Set(existingTerms.flatMap(\.courses).map(\.id))
+    let courseIDs = Set((existingCourses ?? existingTerms.flatMap(\.courses)).filter { !$0.isDeleted }.map(\.id))
     return ImportPreview(
       envelope: envelope,
       duplicateTermCount: envelope.terms.filter { termIDs.contains($0.id) }.count,

@@ -28,10 +28,10 @@ struct DashboardView: View {
     /// that stale object during launch, because doing so traps before the view can
     /// update. The direct query contains only live course records.
     private var courses: [CourseRecord] {
-        let includedTermIDs = Set(includedTerms.map(\.id))
+        let includedTermModelIDs = Set(includedTerms.map(\.persistentModelID))
         return allCourses.filter { course in
             guard !course.isDeleted, let term = course.term, !term.isDeleted else { return false }
-            return includedTermIDs.contains(term.id)
+            return includedTermModelIDs.contains(term.persistentModelID)
         }
     }
     private var liveCourseModelIDs: Set<PersistentIdentifier> {
@@ -324,8 +324,9 @@ struct DashboardView: View {
     }
 
     private var trendData: [(String, Double)] {
-        terms.map { term in
-            let result = GPAService.quarter(term.courses.map(CourseCalculationInput.init), termID: term.id)
+        includedTerms.map { term in
+            let termCourses = courses.filter { $0.term?.persistentModelID == term.persistentModelID }
+            let result = GPAService.quarter(termCourses.map(CourseCalculationInput.init), termID: term.id)
             return (term.displayName, NSDecimalNumber(decimal: result.gpa ?? 0).doubleValue)
         }
     }
@@ -501,10 +502,14 @@ private struct QuickGradeItemDestination: View {
     let course: CourseRecord
     let isExam: Bool
 
+    private func belongsToCourse(_ relatedCourse: CourseRecord?) -> Bool {
+        relatedCourse?.persistentModelID == course.persistentModelID
+    }
+
     var body: some View {
         QuickGradeItemView(
             course: course,
-            categories: gradingCategories.filter { $0.course?.id == course.id }.sorted { $0.sortOrder < $1.sortOrder },
+            categories: gradingCategories.filter { belongsToCourse($0.course) }.sorted { $0.sortOrder < $1.sortOrder },
             isExam: isExam
         )
     }
@@ -513,10 +518,11 @@ private struct QuickGradeItemDestination: View {
 private struct ScorePickerView: View {
     @Query private var items: [GradeItem]
     let courses: [CourseRecord]
+    private var courseModelIDs: Set<PersistentIdentifier> { Set(courses.map(\.persistentModelID)) }
     var body: some View {
         NavigationStack {
             List {
-                ForEach(items.filter { $0.course.map { course in courses.contains(where: { $0.id == course.id }) } ?? false }) { item in
+                ForEach(items.filter { $0.course.map { courseModelIDs.contains($0.persistentModelID) } ?? false }) { item in
                     NavigationLink(item.title) { RecordScoreView(item: item) }
                 }
             }
