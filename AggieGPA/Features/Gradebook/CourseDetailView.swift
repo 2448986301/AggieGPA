@@ -2,9 +2,9 @@ import SwiftData
 import SwiftUI
 
 private enum CourseDetailSection: String, CaseIterable, Identifiable {
-    case gradebook = "Gradebook"
-    case breakdown = "Breakdown"
-    case forecast = "Forecast"
+    case gradebook = "Assignments & Exams"
+    case breakdown = "Grade Breakdown"
+    case forecast = "What Do I Need?"
     var id: String { rawValue }
 }
 
@@ -26,6 +26,10 @@ struct CourseDetailView: View {
     @State private var showPolicyEditor = false
     @State private var showForecastEditor = false
     @State private var showSyllabusImport = false
+    @State private var showSetup = false
+    @State private var showQuickAssignment = false
+    @State private var showQuickExam = false
+    @State private var scoringItem: GradeItem?
     @State private var editingForecast: ForecastScenario?
     @State private var deletedItem: DeletedGradeItem?
 
@@ -74,7 +78,7 @@ struct CourseDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Menu("Gradebook actions", systemImage: "ellipsis.circle") {
+                Menu("Course Settings", systemImage: "ellipsis.circle") {
                     Button("Grading Policy", systemImage: "slider.horizontal.3") { showPolicyEditor = true }
                     Button("Add Category", systemImage: "folder.badge.plus") { editingCategory = nil; showCategoryEditor = true }
                     Button("Add Grade Item", systemImage: "plus") { editingItem = nil; showItemEditor = true }
@@ -95,6 +99,10 @@ struct CourseDetailView: View {
         .sheet(isPresented: $showSyllabusImport) {
             SyllabusImportView(course: course)
         }
+        .sheet(isPresented: $showSetup) { GradeBreakdownSetupView(course: course) }
+        .sheet(isPresented: $showQuickAssignment) { QuickGradeItemView(course: course, categories: courseCategories, isExam: false) }
+        .sheet(isPresented: $showQuickExam) { QuickGradeItemView(course: course, categories: courseCategories, isExam: true) }
+        .sheet(item: $scoringItem) { item in RecordScoreView(item: item) }
         .sheet(isPresented: $showForecastEditor) {
             ForecastEditorView(course: course, policy: policy, forecast: editingForecast)
         }
@@ -116,9 +124,10 @@ struct CourseDetailView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(course.courseTitle.isEmpty ? course.courseCode : course.courseTitle)
+                    Text(course.courseCode).font(.title3.bold())
+                    Text(course.courseTitle.isEmpty ? "Course" : course.courseTitle)
                         .font(.headline)
-                    Text("Calculated current grade")
+                    Text("Current Course Grade")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -130,15 +139,17 @@ struct CourseDetailView: View {
                         .foregroundStyle(result.requiresManualReview ? DesignSystem.ColorToken.warning : DesignSystem.ColorToken.gold)
                 }
             }
+            Text("Based on graded work")
+                .font(.caption).foregroundStyle(.secondary)
             Divider()
             HStack {
-                Label("Official: \(course.grade.rawValue)", systemImage: "checkmark.seal")
+                Label("Final recorded grade: \(course.grade.rawValue)", systemImage: "checkmark.seal")
                 Spacer()
-                Label("\(percent(result.gradedWeight)) graded", systemImage: "chart.pie")
+                Label("\(percent(result.gradedWeight)) complete", systemImage: "chart.pie")
             }
             .font(.caption).foregroundStyle(.secondary)
             if result.requiresManualReview {
-                Label("Review the grading policy before relying on forecasts.", systemImage: "exclamationmark.triangle.fill")
+                Label("Check Course Settings before relying on predictions.", systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote).foregroundStyle(DesignSystem.ColorToken.warning)
             }
         }
@@ -153,26 +164,32 @@ struct CourseDetailView: View {
     @ViewBuilder private var gradebookContent: some View {
         if policy == nil {
             ContentUnavailableView {
-                Label("Gradebook not set up", systemImage: "list.clipboard")
+                Label("How is this course graded?", systemImage: "list.clipboard")
             } description: {
-                Text("Choose how this course is graded before adding scores.")
+                Text("Import a syllabus, choose a template, or set it up manually.")
             } actions: {
-                Button("Set Up Gradebook") { showPolicyEditor = true }.buttonStyle(.borderedProminent)
+                Button("Use a Template") { showSetup = true }.buttonStyle(.borderedProminent)
+                Button("Import Syllabus") { showSyllabusImport = true }
+                Button("Set It Up Manually") { showPolicyEditor = true }
             }
             .padding(.vertical, DesignSystem.Spacing.xLarge)
         } else {
             HStack {
-                Text("Grade Items").font(.title2.bold())
+                Text("Assignments & Exams").font(.title2.bold())
                 Spacer()
-                Button("Category", systemImage: "folder.badge.plus") { editingCategory = nil; showCategoryEditor = true }
-                Button("Item", systemImage: "plus") { editingItem = nil; showItemEditor = true }
+                Button("Add", systemImage: "plus") { showQuickAssignment = true }
                     .buttonStyle(.borderedProminent)
             }
+            HStack(spacing: DesignSystem.Spacing.small) {
+                Button("+ Add Assignment") { showQuickAssignment = true }
+                Button("+ Add Exam") { showQuickExam = true }
+            }
+            .buttonStyle(.glass)
             ForEach(courseCategories) { category in
                 categorySection(category)
             }
             if courseCategories.isEmpty && courseItems.isEmpty {
-                ContentUnavailableView("No grade items", systemImage: "tray", description: Text("Add a category or your first assignment."))
+                ContentUnavailableView("No assignments or exams", systemImage: "tray", description: Text("Add your first item to start tracking scores."))
                     .padding(.vertical, DesignSystem.Spacing.large)
             }
             let unassigned = courseItems.filter { $0.category == nil }
@@ -187,17 +204,14 @@ struct CourseDetailView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(category.name).font(.headline)
-                    Text("\(percent(category.weight)) weight · \(category.calculationMode.displayName)")
+                    Text("Worth \(percent(category.weight)) of course")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Edit \(category.name)", systemImage: "pencil") {
-                    editingCategory = category; showCategoryEditor = true
-                }.labelStyle(.iconOnly)
             }
             let categoryItems = courseItems.filter { $0.category?.id == category.id }.sorted(by: itemSort)
             if categoryItems.isEmpty {
-                Text("No items in this category").font(.footnote).foregroundStyle(.secondary).padding(.vertical, 6)
+                Text("No assignments or exams yet").font(.footnote).foregroundStyle(.secondary).padding(.vertical, 6)
             } else {
                 ForEach(categoryItems) { itemRow($0) }
             }
@@ -216,7 +230,7 @@ struct CourseDetailView: View {
 
     private func itemRow(_ item: GradeItem) -> some View {
         Button {
-            editingItem = item; showItemEditor = true
+            scoringItem = item
         } label: {
             HStack(spacing: DesignSystem.Spacing.small) {
                 Image(systemName: item.status.icon).foregroundStyle(item.status.tint)
@@ -235,16 +249,17 @@ struct CourseDetailView: View {
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(itemAccessibilityLabel(item))
-        .accessibilityHint("Opens this grade item for editing")
+        .accessibilityHint("Records or updates this score")
         .contextMenu {
-            Button("Edit", systemImage: "pencil") { editingItem = item; showItemEditor = true }
+            Button("Record Score", systemImage: "pencil") { scoringItem = item }
+            Button("Edit", systemImage: "slider.horizontal.3") { editingItem = item; showItemEditor = true }
             Button("Delete", systemImage: "trash", role: .destructive) { delete(item) }
         }
     }
 
     @ViewBuilder private var breakdownContent: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
-            Text("Category Breakdown").font(.title2.bold())
+            Text("Grade Breakdown").font(.title2.bold())
             if result.categoryBreakdown.isEmpty {
                 ContentUnavailableView("No breakdown yet", systemImage: "chart.bar.xaxis", description: Text("Add grading categories and scores first."))
             }
@@ -259,16 +274,16 @@ struct CourseDetailView: View {
                         .accessibilityLabel("\(category.name) graded progress")
                         .accessibilityValue(percent(category.gradedFraction * 100))
                     HStack {
-                        Text("\(category.gradedItems) graded · \(category.remainingItems) remaining")
+                        Text("\(category.gradedItems) graded · \(category.remainingItems) ungraded")
                         Spacer()
-                        Text("\(percent(category.contribution)) contribution")
+                        Text("Worth \(percent(category.weight)) of course")
                     }.font(.caption).foregroundStyle(.secondary)
                 }
                 .padding().glassCard()
             }
             if !result.issues.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Label("Checks", systemImage: "checklist") .font(.headline)
+                    Label("Calculation Details", systemImage: "checklist") .font(.headline)
                     ForEach(Array(result.issues.enumerated()), id: \.offset) { _, issue in
                         Text("• \(issue.message)").font(.footnote).foregroundStyle(.secondary)
                     }
@@ -280,7 +295,7 @@ struct CourseDetailView: View {
     @ViewBuilder private var forecastContent: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
             HStack {
-                Text("Forecast").font(.title2.bold())
+            Text("I want to finish with").font(.title2.bold())
                 Spacer()
                 if forecast != nil {
                     Button("Edit", systemImage: "slider.horizontal.3") { editingForecast = forecast; showForecastEditor = true }
@@ -303,9 +318,9 @@ struct CourseDetailView: View {
                 }.scrollIndicators(.hidden)
             }
             if result.requiresManualReview {
-                ContentUnavailableView("Forecast unavailable", systemImage: "exclamationmark.triangle", description: Text("Fix the grading-policy checks shown in Breakdown first."))
+                ContentUnavailableView("Goal estimate unavailable", systemImage: "exclamationmark.triangle", description: Text("Check the course setup first."))
             } else if forecast == nil {
-                ContentUnavailableView("No forecast scenario", systemImage: "chart.line.uptrend.xyaxis", description: Text("Choose an expected average for remaining work."))
+                ContentUnavailableView("Set a target", systemImage: "chart.line.uptrend.xyaxis", description: Text("Add a target course percentage to see what you need on remaining work."))
             } else {
                 forecastMetric("Projected final", value: percent(result.projectedFinalPercentage), detail: result.projectedLetterGrade?.rawValue ?? "No letter prediction")
                 HStack(spacing: DesignSystem.Spacing.medium) {
@@ -313,13 +328,13 @@ struct CourseDetailView: View {
                     forecastMetric("Floor", value: percent(result.worstPossiblePercentage), detail: "0% remaining")
                 }
                 if let required = result.requiredRemainingAverage {
-                    forecastMetric("Needed on remaining work", value: percent(required), detail: result.targetFeasibility.displayName)
+                    forecastMetric("You need on remaining work", value: percent(required), detail: result.targetFeasibility.displayName)
                 }
                 if let finalNeeded = result.finalExamNeeded {
-                    forecastMetric("Final exam needed", value: percent(finalNeeded), detail: "Only when one final remains")
+                    forecastMetric("You need on the final", value: percent(finalNeeded), detail: "Only when one final remains")
                 }
             }
-            Text("Forecasts are estimates from the grading policy and scores you entered, not official course grades.")
+            Text("This is an estimate based on your setup and recorded scores. It is not an official final grade.")
                 .font(.footnote).foregroundStyle(.secondary)
         }
     }

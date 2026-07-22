@@ -60,6 +60,38 @@ final class CourseGradeCalculationEngineTests: XCTestCase {
         XCTAssertEqual(result.remainingWeight, 100)
     }
 
+    func testStudentCoreFlowUpdatesCurrentGradeAndExcludesUngradedHomework() {
+        let homework = category("Homework", type: .homework, weight: 20, items: [
+            item("Homework 1", type: .homework, earned: 18, possible: 20, status: .graded),
+            item("Homework 2", type: .homework, earned: 19, possible: 20, status: .graded),
+            item("Homework 3", type: .homework, possible: 20, status: .upcoming)
+        ])
+        let labs = category("Labs", type: .lab, weight: 20, items: [
+            item("Lab 1", type: .lab, earned: 45, possible: 50, status: .graded)
+        ])
+        let midterms = category("Midterms", type: .midterm, weight: 30, items: [
+            item("Midterm 1", type: .midterm, earned: 84, possible: 100, status: .graded)
+        ])
+        let final = category("Final Exam", type: .finalExam, weight: 30, items: [
+            item("Final Exam", type: .finalExam, possible: 100, status: .upcoming)
+        ])
+
+        let before = calculate(.weightedCategories, categories: [homework, labs, midterms, final])
+        XCTAssertEqual(before.categoryBreakdown.first?.average, Decimal(string: "92.5"))
+        XCTAssertEqual(before.calculatedCurrentPercentage, Decimal(string: "87.684210526315789473684210526315789473"))
+        // Homework 3 reduces completion progress, but it is excluded from the 92.5% homework average.
+        XCTAssertEqual(before.gradedWeight, Decimal(string: "63.333333333333333333333333333333333333"))
+
+        let changedHomework = category("Homework", type: .homework, weight: 20, items: [
+            item("Homework 1", type: .homework, earned: 20, possible: 20, status: .graded),
+            item("Homework 2", type: .homework, earned: 19, possible: 20, status: .graded),
+            item("Homework 3", type: .homework, possible: 20, status: .upcoming)
+        ])
+        let after = calculate(.weightedCategories, categories: [changedHomework, labs, midterms, final])
+        XCTAssertGreaterThan(after.calculatedCurrentPercentage ?? 0, before.calculatedCurrentPercentage ?? 0)
+        XCTAssertEqual(after.gradedWeight, Decimal(string: "63.333333333333333333333333333333333333"))
+    }
+
     func testMissingCountsZeroOnlyAfterPolicyConfirmation() {
         let missing = item("Quiz", possible: 10, status: .missing)
         let category = category("Quizzes", weight: 100, items: [missing])
