@@ -8,6 +8,7 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var courses: [CourseRecord]
     let preferences: UserPreferences
+    @State private var dataError: String?
 
     var body: some View {
         @Bindable var preferences = preferences
@@ -62,7 +63,11 @@ struct SettingsView: View {
                 Section("Data") {
                     if preferences.demoDataLoaded {
                         Button("Clear Demo Data", role: .destructive) {
-                            DemoDataService.clear(from: modelContext, courses: courses, preferences: preferences)
+                            do {
+                                try DemoDataService.clear(from: modelContext, courses: courses, preferences: preferences)
+                            } catch {
+                                dataError = "Demo data could not be cleared. Your academic data was not changed."
+                            }
                         }
                     } else {
                         Button("Load Demo Data") { DemoDataService.load(into: modelContext, preferences: preferences) }
@@ -83,6 +88,11 @@ struct SettingsView: View {
             .onChange(of: preferences.appearanceRaw) { _, _ in save() }
             .onChange(of: preferences.languageRaw) { _, _ in save() }
             .onChange(of: preferences.decimalPrecision) { _, _ in save() }
+            .alert("Couldn’t clear demo data", isPresented: Binding(
+                get: { dataError != nil }, set: { if !$0 { dataError = nil } }
+            )) { Button("OK") { dataError = nil } } message: {
+                Text(LocalizedStringKey(dataError ?? ""))
+            }
         }
     }
 

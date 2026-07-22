@@ -197,6 +197,7 @@ enum BackupService {
       let existingItems = try context.fetch(FetchDescriptor<GradeItem>())
       let existingScales = try context.fetch(FetchDescriptor<GradeScale>())
       let existingForecasts = try context.fetch(FetchDescriptor<ForecastScenario>())
+      let existingCourses = try context.fetch(FetchDescriptor<CourseRecord>())
       let existingSiri = try context.fetch(FetchDescriptor<SiriAccessSettings>())
       let replacedNotificationIdentifiers = mode == .replace ? existingItems.map(\.notificationIdentifier) : []
       if mode == .replace {
@@ -206,11 +207,15 @@ enum BackupService {
         existingScales.forEach(context.delete)
         existingForecasts.forEach(context.delete)
         existingScenarios.forEach(context.delete)
+        for course in existingCourses {
+          course.term = nil
+          context.delete(course)
+        }
         existingTerms.forEach(context.delete)
       }
 
       let existingTermIDs = mode == .merge ? Set(existingTerms.map(\.id)) : []
-      let existingCourseIDs = mode == .merge ? Set(existingTerms.flatMap(\.courses).map(\.id)) : []
+      let existingCourseIDs = mode == .merge ? Set(existingCourses.map(\.id)) : []
       let existingScenarioIDs = mode == .merge ? Set(existingScenarios.map(\.id)) : []
       var termsByID = Dictionary(
         uniqueKeysWithValues: (mode == .merge ? existingTerms : []).map { ($0.id, $0) })

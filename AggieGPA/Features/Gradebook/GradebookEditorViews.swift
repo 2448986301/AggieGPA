@@ -118,7 +118,7 @@ struct GradeItemEditorView: View {
                         Text("Unassigned").tag(nil as UUID?)
                         ForEach(categories) { Text($0.name).tag(Optional($0.id)) }
                     }
-                    Picker("Status", selection: $status) { ForEach(GradeItemStatus.allCases) { Text($0.displayName).tag($0) } }
+                    Picker("Status", selection: $status) { ForEach(GradeItemStatus.allCases) { Text(LocalizedStringKey($0.localizedLabelKey)).tag($0) } }
                     Toggle("Has due date", isOn: $hasDueDate)
                     if hasDueDate { DatePicker("Due", selection: $dueDate, displayedComponents: [.date, .hourAndMinute]) }
                 }
@@ -378,9 +378,5 @@ struct ForecastEditorView: View {
 }
 
 private extension GradeCategoryType {
-    var displayName: String { rawValue.replacingOccurrences(of: "([a-z])([A-Z])", with: "$1 $2", options: .regularExpression).capitalized }
-}
-
-private extension GradeItemStatus {
     var displayName: String { rawValue.replacingOccurrences(of: "([a-z])([A-Z])", with: "$1 $2", options: .regularExpression).capitalized }
 }

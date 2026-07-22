@@ -82,6 +82,20 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["CHE 002A"].exists)
     }
 
+    func testClearDemoDataKeepsDashboardUsable() {
+        let app = makeApp()
+        completeOnboarding(app: app, loadDemo: true)
+        app.tabBars.buttons["Settings"].tap()
+        let clearDemoData = app.buttons["Clear Demo Data"]
+        scrollTo(clearDemoData, in: app)
+        XCTAssertTrue(clearDemoData.waitForExistence(timeout: 5))
+        clearDemoData.tap()
+        XCTAssertTrue(app.buttons["Load Demo Data"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Today"].tap()
+        XCTAssertTrue(app.staticTexts["No courses yet"].waitForExistence(timeout: 5))
+    }
+
     func testOpenWhatIfAndCreateScenario() {
         let app = makeApp()
         completeOnboarding(app: app, loadDemo: true)

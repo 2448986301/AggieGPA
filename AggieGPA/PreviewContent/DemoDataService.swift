@@ -53,9 +53,55 @@ enum DemoDataService {
         Calendar.autoupdatingCurrent.nextDate(after: .now, matching: DateComponents(weekday: 6), matchingPolicy: .nextTime) ?? .now
     }
 
-    static func clear(from context: ModelContext, courses: [CourseRecord], preferences: UserPreferences) {
-        courses.filter(\.isDemoData).forEach(context.delete)
-        preferences.demoDataLoaded = false
-        try? context.save()
+    static func clear(from context: ModelContext, courses: [CourseRecord], preferences: UserPreferences) throws {
+        let demoCourses = courses.filter(\.isDemoData)
+        let demoCourseModelIDs = Set(demoCourses.map(\.persistentModelID))
+
+        do {
+            let policies = try context.fetch(FetchDescriptor<CourseGradingPolicy>())
+            let categories = try context.fetch(FetchDescriptor<GradingCategory>())
+            let items = try context.fetch(FetchDescriptor<GradeItem>())
+            let scales = try context.fetch(FetchDescriptor<GradeScale>())
+            let forecasts = try context.fetch(FetchDescriptor<ForecastScenario>())
+            let notificationIdentifiers = items
+                .filter { isLinkedToDemoCourse($0.course, demoCourseModelIDs: demoCourseModelIDs) }
+                .map(\.notificationIdentifier)
+
+            // Delete dependents first, then detach the inverse relationship before
+            // deleting demo courses. This leaves no stale course reference for the
+            // next Dashboard or import refresh to dereference.
+            items.filter { isLinkedToDemoCourse($0.course, demoCourseModelIDs: demoCourseModelIDs) }.forEach(context.delete)
+            categories.filter { isLinkedToDemoCourse($0.course, demoCourseModelIDs: demoCourseModelIDs) }.forEach(context.delete)
+            policies.filter { isLinkedToDemoCourse($0.course, demoCourseModelIDs: demoCourseModelIDs) }.forEach(context.delete)
+            scales.filter { isLinkedToDemoCourse($0.course, demoCourseModelIDs: demoCourseModelIDs) }.forEach(context.delete)
+            forecasts.filter { isLinkedToDemoCourse($0.course, demoCourseModelIDs: demoCourseModelIDs) }.forEach(context.delete)
+
+            var demoTermsByModelID: [PersistentIdentifier: AcademicTerm] = [:]
+            for course in demoCourses {
+                if let term = course.term {
+                    demoTermsByModelID[term.persistentModelID] = term
+                }
+            }
+            let termsContainingOnlyDemoCourses = demoTermsByModelID.values.filter { term in
+                term.courses.allSatisfy { $0.isDemoData }
+            }
+            for course in demoCourses {
+                course.term = nil
+                context.delete(course)
+            }
+            termsContainingOnlyDemoCourses.forEach(context.delete)
+            preferences.demoDataLoaded = false
+            try context.save()
+            notificationIdentifiers.forEach { GradeItemNotificationService.cancel(identifier: $0) }
+        } catch {
+            context.rollback()
+            throw error
+        }
+    }
+
+    private static func isLinkedToDemoCourse(
+        _ course: CourseRecord?, demoCourseModelIDs: Set<PersistentIdentifier>
+    ) -> Bool {
+        course.map { demoCourseModelIDs.contains($0.persistentModelID) } ?? false
     }
 }

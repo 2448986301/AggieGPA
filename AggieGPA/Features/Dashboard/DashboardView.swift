@@ -6,6 +6,7 @@ struct DashboardView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.locale) private var locale
     @Query(sort: \AcademicTerm.sortOrder) private var terms: [AcademicTerm]
+    @Query private var allCourses: [CourseRecord]
     @Query private var policies: [CourseGradingPolicy]
     @Query private var gradingCategories: [GradingCategory]
     @Query private var gradeItems: [GradeItem]
@@ -17,8 +18,37 @@ struct DashboardView: View {
     @State private var showAddMenu = false
     @State private var addAction: TodayAddAction?
 
-    private var includedTerms: [AcademicTerm] { terms.filter(\.isIncludedInCumulativeGPA) }
-    private var courses: [CourseRecord] { includedTerms.flatMap(\.courses) }
+    private var includedTerms: [AcademicTerm] {
+        terms.filter { !$0.isDeleted && $0.isIncludedInCumulativeGPA }
+    }
+    /// Query course records directly instead of traversing `AcademicTerm.courses`.
+    ///
+    /// SwiftData can retain a deleted object in an already-materialized inverse
+    /// relationship while it refreshes a store. A dashboard must never dereference
+    /// that stale object during launch, because doing so traps before the view can
+    /// update. The direct query contains only live course records.
+    private var courses: [CourseRecord] {
+        let includedTermIDs = Set(includedTerms.map(\.id))
+        return allCourses.filter { course in
+            guard !course.isDeleted, let term = course.term, !term.isDeleted else { return false }
+            return includedTermIDs.contains(term.id)
+        }
+    }
+    private var livePolicies: [CourseGradingPolicy] {
+        policies.filter { !$0.isDeleted && isAttachedToLiveCourse($0.course) }
+    }
+    private var liveCategories: [GradingCategory] {
+        gradingCategories.filter { !$0.isDeleted && isAttachedToLiveCourse($0.course) }
+    }
+    private var liveGradeItems: [GradeItem] {
+        gradeItems.filter { !$0.isDeleted && isAttachedToLiveCourse($0.course) }
+    }
+    private var liveGradeScales: [GradeScale] {
+        gradeScales.filter { !$0.isDeleted && isAttachedToLiveCourse($0.course) }
+    }
+    private var liveForecasts: [ForecastScenario] {
+        forecasts.filter { !$0.isDeleted && isAttachedToLiveCourse($0.course) }
+    }
     private var inputs: [CourseCalculationInput] { courses.map(CourseCalculationInput.init) }
     private var cumulative: GPAResult { GPAService.cumulative(inputs) }
     private var currentTerm: AcademicTerm? { includedTerms.last }
@@ -30,7 +60,7 @@ struct DashboardView: View {
     private var upper: GPAResult { GPAService.upperDivision(inputs) }
     private var projectedGrades: [UUID: CourseGrade] {
         Dictionary(uniqueKeysWithValues: courses.compactMap { course in
-            guard let scenario = forecasts.first(where: { $0.course?.id == course.id && $0.isSelectedForGPAForecast }),
+            guard let scenario = liveForecasts.first(where: { belongsToCourse($0.course, course) && $0.isSelectedForGPAForecast }),
                   let grade = ProjectedGPAService.courseGrade(from: gradeResult(for: course, forecast: scenario).projectedLetterGrade) else { return nil }
             return (course.id, grade)
         })
@@ -40,14 +70,14 @@ struct DashboardView: View {
         ProjectedGPAService.calculate(inputs, projectedGrades: projectedGrades, termID: currentTerm?.id)
     }
     private var upcomingItems: [GradeItem] {
-        gradeItems.filter { item in item.dueDate.map { $0 >= Calendar.autoupdatingCurrent.startOfDay(for: .now) } ?? false && !item.isExcused && !item.isDropped }
+        liveGradeItems.filter { item in item.dueDate.map { $0 >= Calendar.autoupdatingCurrent.startOfDay(for: .now) } ?? false && !item.isExcused && !item.isDropped }
             .sorted { ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
     }
     private var attentionItems: [String] {
-        var messages = gradeItems.filter { ($0.status == .missing) || (($0.dueDate ?? .distantFuture) < .now && $0.earnedPoints == nil && !$0.isExcused) }
+        var messages = liveGradeItems.filter { ($0.status == .missing) || (($0.dueDate ?? .distantFuture) < .now && $0.earnedPoints == nil && !$0.isExcused) }
             .prefix(3).map { "\($0.course?.courseCode ?? "Course"): \($0.title) needs attention" }
         for course in courses {
-            let result = gradeResult(for: course, forecast: forecasts.first { $0.course?.id == course.id && $0.isSelectedForGPAForecast })
+            let result = gradeResult(for: course, forecast: liveForecasts.first { belongsToCourse($0.course, course) && $0.isSelectedForGPAForecast })
             if result.requiresManualReview { messages.append("\(course.courseCode): grading policy needs review") }
             else if result.issues.contains(.noGradeScale) { messages.append("\(course.courseCode): grade scale missing") }
         }
@@ -344,7 +374,7 @@ struct DashboardView: View {
                                     .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                             }
                             Spacer()
-                            let result = gradeResult(for: course, forecast: forecasts.first { $0.course?.id == course.id && $0.isSelectedForGPAForecast })
+                            let result = gradeResult(for: course, forecast: liveForecasts.first { belongsToCourse($0.course, course) && $0.isSelectedForGPAForecast })
                             VStack(alignment: .trailing) {
                                 Text(result.calculatedCurrentPercentage.map { "\(compact($0))%" } ?? "No scores")
                                     .font(.headline)
@@ -364,10 +394,22 @@ struct DashboardView: View {
 
     private func gradeResult(for course: CourseRecord, forecast: ForecastScenario?) -> CourseGradeCalculationResult {
         let input = CourseGradeSnapshotBuilder.makeInput(
-            course: course, policy: policies.first { $0.course?.id == course.id }, categories: gradingCategories,
-            items: gradeItems, gradeScale: gradeScales.first { $0.course?.id == course.id }, forecast: forecast
+            course: course, policy: livePolicies.first { belongsToCourse($0.course, course) }, categories: liveCategories,
+            items: liveGradeItems, gradeScale: liveGradeScales.first { belongsToCourse($0.course, course) }, forecast: forecast
         )
         return CourseGradeCalculationEngine.calculate(input)
+    }
+
+    private func isAttachedToLiveCourse(_ course: CourseRecord?) -> Bool {
+        guard let course else { return false }
+        return !course.isDeleted
+    }
+
+    private func belongsToCourse(_ relatedCourse: CourseRecord?, _ course: CourseRecord) -> Bool {
+        // `id` is app data and traps if a relationship still points at an object
+        // SwiftData has deleted. Its persistent model identifier remains readable,
+        // so use it for relationship matching at this boundary.
+        relatedCourse?.persistentModelID == course.persistentModelID
     }
 }
 

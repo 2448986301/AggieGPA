@@ -63,6 +63,19 @@ nonisolated enum GradeItemStatus: String, Codable, CaseIterable, Identifiable, S
     case notCounted
 
     var id: String { rawValue }
+
+    /// Stable catalog key for presentation. The persisted raw value remains unchanged.
+    var localizedLabelKey: String {
+        switch self {
+        case .upcoming: "Upcoming"
+        case .submitted: "Submitted"
+        case .graded: "Graded"
+        case .missing: "Missing"
+        case .excused: "Excused"
+        case .dropped: "Dropped"
+        case .notCounted: "Not Counted"
+        }
+    }
 }
 
 nonisolated enum ReminderLeadTime: String, Codable, CaseIterable, Sendable {

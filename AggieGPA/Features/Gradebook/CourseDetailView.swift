@@ -22,6 +22,7 @@ struct CourseDetailView: View {
     @State private var editingCategory: GradingCategory?
     @State private var editingItem: GradeItem?
     @State private var showCategoryEditor = false
+    @State private var categoryPendingDeletion: GradingCategory?
     @State private var showItemEditor = false
     @State private var showPolicyEditor = false
     @State private var showForecastEditor = false
@@ -95,6 +96,18 @@ struct CourseDetailView: View {
         }
         .sheet(isPresented: $showCategoryEditor) {
             CategoryEditorView(course: course, category: editingCategory, nextSortOrder: courseCategories.count)
+        }
+        .confirmationDialog("Delete this category?", isPresented: Binding(
+            get: { categoryPendingDeletion != nil },
+            set: { if !$0 { categoryPendingDeletion = nil } }
+        ), titleVisibility: .visible) {
+            Button("Delete Category", role: .destructive) {
+                if let categoryPendingDeletion { deleteCategory(categoryPendingDeletion) }
+                categoryPendingDeletion = nil
+            }
+            Button("Cancel", role: .cancel) { categoryPendingDeletion = nil }
+        } message: {
+            Text("Assignments and scores in this category will be kept as unassigned work.")
         }
         .sheet(isPresented: $showItemEditor) {
             GradeItemEditorView(course: course, categories: courseCategories, item: editingItem)
@@ -235,6 +248,23 @@ struct CourseDetailView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
+                Button("Edit") {
+                    editingCategory = category
+                    showCategoryEditor = true
+                }
+                .buttonStyle(.bordered)
+                Menu {
+                    Button("Edit Category", systemImage: "pencil") {
+                        editingCategory = category
+                        showCategoryEditor = true
+                    }
+                    Button("Delete Category", systemImage: "trash", role: .destructive) {
+                        categoryPendingDeletion = category
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .accessibilityLabel("Options for \(category.name)")
             }
             let categoryItems = courseItems.filter { $0.category?.id == category.id }.sorted(by: itemSort)
             if categoryItems.isEmpty {
@@ -264,7 +294,7 @@ struct CourseDetailView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.title).foregroundStyle(.primary)
                     HStack(spacing: 6) {
-                        Text(item.status.displayName)
+                        Text(LocalizedStringKey(item.status.localizedLabelKey))
                         if let due = item.dueDate { Text(due, style: .date) }
                     }.font(.caption).foregroundStyle(.secondary)
                 }
@@ -382,6 +412,16 @@ struct CourseDetailView: View {
         try? modelContext.save()
     }
 
+    private func deleteCategory(_ category: GradingCategory) {
+        // Preserve every assignment and recorded score: only remove the grouping.
+        for item in courseItems where item.category?.id == category.id {
+            item.category = nil
+            item.updatedAt = .now
+        }
+        modelContext.delete(category)
+        try? modelContext.save()
+    }
+
     private func updateStatus(_ item: GradeItem, to status: GradeItemStatus) {
         item.status = status
         item.updatedAt = .now
@@ -486,7 +526,7 @@ private extension CategoryCalculationMode {
 }
 
 private extension GradeItemStatus {
-    var displayName: String { rawValue.replacingOccurrences(of: "([a-z])([A-Z])", with: "$1 $2", options: .regularExpression).capitalized }
+    var displayName: String { localizedLabelKey }
     var icon: String {
         switch self { case .graded: "checkmark.circle.fill"; case .missing: "exclamationmark.circle.fill"; case .excused: "minus.circle"; case .dropped: "arrow.down.circle"; case .submitted: "paperplane.fill"; case .notCounted: "nosign"; case .upcoming: "clock" }
     }

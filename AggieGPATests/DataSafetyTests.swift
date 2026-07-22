@@ -195,18 +195,29 @@ final class DataSafetyTests: XCTestCase {
     let schema = Schema([
       AcademicTerm.self, CourseRecord.self, PlannerScenario.self,
       SimulatedCourse.self, GradeCategory.self, CourseGradePlan.self,
-      UserPreferences.self, BackupSnapshot.self,
+      UserPreferences.self, BackupSnapshot.self, CourseGradingPolicy.self,
+      GradingCategory.self, GradeItem.self, GradeScale.self, ForecastScenario.self,
     ])
     let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
     let container = try ModelContainer(for: schema, configurations: [configuration])
     let context = ModelContext(container)
     let preferences = UserPreferences()
+    let personalTerm = AcademicTerm(academicYear: "2026–2027", termType: .winter)
+    let personalCourse = CourseRecord(courseCode: "UWP 001", units: 4, grade: .inProgress, term: personalTerm)
     context.insert(preferences)
+    context.insert(personalTerm)
+    context.insert(personalCourse)
+    try context.save()
     DemoDataService.load(into: context, preferences: preferences)
     let loaded = try context.fetch(FetchDescriptor<CourseRecord>())
-    XCTAssertEqual(loaded.count, 4)
-    DemoDataService.clear(from: context, courses: loaded, preferences: preferences)
-    XCTAssertTrue(try context.fetch(FetchDescriptor<CourseRecord>()).isEmpty)
+    XCTAssertEqual(loaded.count, 5)
+    try DemoDataService.clear(from: context, courses: loaded, preferences: preferences)
+    XCTAssertEqual(try context.fetch(FetchDescriptor<CourseRecord>()).map(\.courseCode), ["UWP 001"])
+    XCTAssertTrue(try context.fetch(FetchDescriptor<CourseGradingPolicy>()).isEmpty)
+    XCTAssertTrue(try context.fetch(FetchDescriptor<GradingCategory>()).isEmpty)
+    XCTAssertTrue(try context.fetch(FetchDescriptor<GradeItem>()).isEmpty)
+    XCTAssertTrue(try context.fetch(FetchDescriptor<GradeScale>()).isEmpty)
+    XCTAssertTrue(try context.fetch(FetchDescriptor<ForecastScenario>()).isEmpty)
     XCTAssertFalse(preferences.demoDataLoaded)
   }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 @MainActor
 enum CourseGradeSnapshotBuilder {
@@ -11,9 +12,9 @@ enum CourseGradeSnapshotBuilder {
         forecast: ForecastScenario?
     ) -> CourseGradeCalculationInput {
         let courseCategories = categories
-            .filter { $0.course?.id == course.id }
+            .filter { $0.course?.persistentModelID == course.persistentModelID }
             .sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
-        let courseItems = items.filter { $0.course?.id == course.id }
+        let courseItems = items.filter { $0.course?.persistentModelID == course.persistentModelID }
 
         let categoryInputs = courseCategories.map { category in
             GradingCategoryCalculationInput(
@@ -26,7 +27,7 @@ enum CourseGradeSnapshotBuilder {
                 isExtraCredit: category.isExtraCredit,
                 isIncluded: category.isIncluded,
                 items: courseItems
-                    .filter { $0.category?.id == category.id }
+                    .filter { $0.category?.persistentModelID == category.persistentModelID }
                     .map { itemInput($0, fallbackType: category.categoryType) }
             )
         }
