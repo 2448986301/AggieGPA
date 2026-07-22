@@ -14,13 +14,13 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            Tab("Dashboard", systemImage: "gauge.with.dots.needle.67percent", value: .dashboard) {
+            Tab("Today", systemImage: "sun.max", value: .dashboard) {
                 DashboardView(preferences: preferences)
             }
-            Tab("Quarters", systemImage: "calendar", value: .quarters) {
+            Tab("Courses", systemImage: "books.vertical", value: .quarters) {
                 QuartersView(preferences: preferences)
             }
-            Tab("Planner", systemImage: "wand.and.stars", value: .planner) {
+            Tab("GPA", systemImage: "chart.line.uptrend.xyaxis", value: .planner) {
                 PlannerView(preferences: preferences)
             }
             Tab("Settings", systemImage: "gearshape", value: .settings) {

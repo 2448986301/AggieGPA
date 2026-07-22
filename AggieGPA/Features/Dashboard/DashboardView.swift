@@ -14,6 +14,8 @@ struct DashboardView: View {
     let preferences: UserPreferences
     @State private var showAddCourse = false
     @State private var showNewTerm = false
+    @State private var showAddMenu = false
+    @State private var addAction: TodayAddAction?
 
     private var includedTerms: [AcademicTerm] { terms.filter(\.isIncludedInCumulativeGPA) }
     private var courses: [CourseRecord] { includedTerms.flatMap(\.courses) }
@@ -58,23 +60,19 @@ struct DashboardView: View {
                 CampusBackground()
                 ScrollView {
                     LazyVStack(spacing: DesignSystem.Spacing.medium) {
-                        heroCard
-                        secondaryMetrics
-                        if !projectedCumulative.projectedCourseIDs.isEmpty { projectedMetrics }
-                        if !upcomingItems.isEmpty { upcomingSection }
-                        if !attentionItems.isEmpty { attentionSection }
-                        if !terms.isEmpty { trendChart }
+                        todayTasks
+                        addButton
                         recentCourses
-                        DisclaimerBanner()
+                        gpaSummary
                     }
                     .padding()
                 }
                 .refreshable { try? await Task.sleep(for: .milliseconds(250)) }
             }
-            .navigationTitle(greeting)
+            .navigationTitle("Today")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Add Course", systemImage: "plus") { showAddCourse = true }
+                    Button("Add", systemImage: "plus") { showAddMenu = true }
                         .buttonStyle(.glass)
                         .accessibilityIdentifier("dashboardAddCourse")
                 }
@@ -101,10 +99,83 @@ struct DashboardView: View {
             .sheet(isPresented: $showNewTerm) {
                 TermEditorView(defaultAcademicYear: preferences.firstAcademicYear)
             }
+            .confirmationDialog("Add", isPresented: $showAddMenu, titleVisibility: .visible) {
+                Button("Add Assignment") { present(.assignment) }
+                Button("Add Exam") { present(.exam) }
+                Button("Add Course") { present(.course) }
+                Button("Record Score") { present(.score) }
+                Button("Import Syllabus") { present(.syllabus) }
+            }
+            .sheet(item: $addAction) { action in
+                TodayAddDestination(action: action, course: currentTerm.flatMap { _ in courses.first }, courses: courses, preferences: preferences)
+            }
         }
     }
 
     private var greeting: String { AppCopy.greeting(name: preferences.displayName, locale: locale) }
+
+    private func present(_ action: TodayAddAction) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(200))
+            addAction = action
+        }
+    }
+
+    private var todayTasks: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
+            Text(upcomingItems.isEmpty ? "Today" : "Upcoming")
+                .font(.title2.bold())
+            if upcomingItems.isEmpty {
+                ContentUnavailableView("You’re all caught up.", systemImage: "checkmark.circle",
+                                       description: Text("Add an assignment or exam when something is due."))
+            } else {
+                ForEach(Array(upcomingItems.prefix(5))) { item in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.course?.courseCode ?? "Course").font(.caption.weight(.semibold)).foregroundStyle(DesignSystem.ColorToken.gold)
+                            Text(item.title).font(.headline)
+                            if let due = item.dueDate { Text(due, style: .relative).font(.caption).foregroundStyle(.secondary) }
+                        }
+                        Spacer()
+                        Image(systemName: item.earnedPoints == nil ? "clock" : "checkmark.circle")
+                            .foregroundStyle(item.earnedPoints == nil ? DesignSystem.ColorToken.gold : .secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding().glassCard(tint: DesignSystem.ColorToken.ice)
+    }
+
+    private var addButton: some View {
+        Button("+ Add") { showAddMenu = true }
+            .font(.headline)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .buttonStyle(.glassProminent)
+            .accessibilityIdentifier("todayAddButton")
+    }
+
+    private var gpaSummary: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
+            Text("GPA Summary").font(.title3.bold())
+            HStack {
+                VStack(alignment: .leading) {
+                    Text("Cumulative GPA").font(.caption).foregroundStyle(.secondary)
+                    Text(DecimalFormatters.string(cumulative.gpa, precision: preferences.decimalPrecision)).font(.title2.bold())
+                }
+                Spacer()
+                VStack(alignment: .trailing) {
+                    Text("Projected GPA").font(.caption).foregroundStyle(.secondary)
+                    Text(DecimalFormatters.string(projectedQuarter.projected.gpa, precision: preferences.decimalPrecision)).font(.title2.bold())
+                }
+            }
+            NavigationLink("See more") { PlannerView(preferences: preferences) }
+                .font(.subheadline.weight(.semibold))
+        }
+        .padding().glassCard(tint: DesignSystem.ColorToken.gold)
+    }
 
     private var heroCard: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
@@ -258,7 +329,7 @@ struct DashboardView: View {
 
     private var recentCourses: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
-            Text("Recently updated").font(.headline)
+            Text("My Courses").font(.title2.bold())
             if courses.isEmpty {
                 Text("No courses yet").foregroundStyle(.secondary)
             } else {
@@ -273,7 +344,12 @@ struct DashboardView: View {
                                     .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                             }
                             Spacer()
-                            Text(course.grade.rawValue).font(.headline)
+                            let result = gradeResult(for: course, forecast: forecasts.first { $0.course?.id == course.id && $0.isSelectedForGPAForecast })
+                            VStack(alignment: .trailing) {
+                                Text(result.calculatedCurrentPercentage.map { "\(compact($0))%" } ?? "No scores")
+                                    .font(.headline)
+                                Text(result.currentLetterGrade?.rawValue ?? "").font(.caption).foregroundStyle(.secondary)
+                            }
                         }
                     }
                     .buttonStyle(.plain)
@@ -292,5 +368,55 @@ struct DashboardView: View {
             items: gradeItems, gradeScale: gradeScales.first { $0.course?.id == course.id }, forecast: forecast
         )
         return CourseGradeCalculationEngine.calculate(input)
+    }
+}
+
+private enum TodayAddAction: String, Identifiable {
+    case assignment, exam, course, score, syllabus
+    var id: String { rawValue }
+}
+
+private struct TodayAddDestination: View {
+    @Environment(\.dismiss) private var dismiss
+    @Query private var gradingCategories: [GradingCategory]
+    let action: TodayAddAction
+    let course: CourseRecord?
+    let courses: [CourseRecord]
+    let preferences: UserPreferences
+
+    var body: some View {
+        if let course {
+            switch action {
+            case .assignment: QuickGradeItemView(course: course, categories: courseCategories(for: course), isExam: false)
+            case .exam: QuickGradeItemView(course: course, categories: courseCategories(for: course), isExam: true)
+            case .course:
+                if let term = course.term { CourseEditorView(term: term) } else { unavailable }
+            case .score: ScorePickerView(courses: courses)
+            case .syllabus: SyllabusImportView(course: course)
+            }
+        } else { unavailable }
+    }
+
+    private var unavailable: some View {
+        ContentUnavailableView("Add a course first", systemImage: "book.closed", description: Text("Create a course before adding work or scores."))
+    }
+
+    private func courseCategories(for course: CourseRecord) -> [GradingCategory] {
+        gradingCategories.filter { $0.course?.id == course.id }.sorted { $0.sortOrder < $1.sortOrder }
+    }
+}
+
+private struct ScorePickerView: View {
+    @Query private var items: [GradeItem]
+    let courses: [CourseRecord]
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(items.filter { $0.course.map { course in courses.contains(where: { $0.id == course.id }) } ?? false }) { item in
+                    NavigationLink(item.title) { RecordScoreView(item: item) }
+                }
+            }
+            .navigationTitle("Record Score")
+        }
     }
 }
