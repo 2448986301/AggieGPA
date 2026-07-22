@@ -78,9 +78,9 @@ final class CourseGradeCalculationEngineTests: XCTestCase {
 
         let before = calculate(.weightedCategories, categories: [homework, labs, midterms, final])
         XCTAssertEqual(before.categoryBreakdown.first?.average, Decimal(string: "92.5"))
-        XCTAssertEqual(before.calculatedCurrentPercentage, Decimal(string: "87.684210526315789473684210526315789473"))
-        // Homework 3 reduces completion progress, but it is excluded from the 92.5% homework average.
-        XCTAssertEqual(before.gradedWeight, Decimal(string: "63.333333333333333333333333333333333333"))
+        XCTAssertEqual(before.calculatedCurrentPercentage, Decimal(string: "88.14285714285714285714285714285714285714"))
+        // Homework 3 is excluded from both the homework average and the current course grade.
+        XCTAssertEqual(before.gradedWeight, 70)
 
         let changedHomework = category("Homework", type: .homework, weight: 20, items: [
             item("Homework 1", type: .homework, earned: 20, possible: 20, status: .graded),
@@ -89,7 +89,7 @@ final class CourseGradeCalculationEngineTests: XCTestCase {
         ])
         let after = calculate(.weightedCategories, categories: [changedHomework, labs, midterms, final])
         XCTAssertGreaterThan(after.calculatedCurrentPercentage ?? 0, before.calculatedCurrentPercentage ?? 0)
-        XCTAssertEqual(after.gradedWeight, Decimal(string: "63.333333333333333333333333333333333333"))
+        XCTAssertEqual(after.gradedWeight, 70)
     }
 
     func testMissingCountsZeroOnlyAfterPolicyConfirmation() {

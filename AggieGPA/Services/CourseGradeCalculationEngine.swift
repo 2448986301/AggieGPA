@@ -246,8 +246,11 @@ nonisolated enum CourseGradeCalculationEngine {
                 continue
             }
             let stats = categoryStats(category, input: input, forceMode: nil, issues: &issues)
-            let categoryGradedWeight = category.weight * stats.gradedFraction
-            let contribution = category.weight * stats.earnedAgainstAll
+            // A weighted category is represented by its graded average as soon
+            // as it has scored work. Future items in that category are not
+            // zeros and must not dilute the student's current course grade.
+            let categoryGradedWeight = stats.average == nil ? 0 : category.weight
+            let contribution = category.weight * (stats.average ?? 0)
             gradedWeight += categoryGradedWeight
             earnedCredit += contribution
             remainingIDs += stats.remainingItemIDs
