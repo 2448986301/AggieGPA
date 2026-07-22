@@ -1,18 +1,18 @@
 import Foundation
 
-enum GradingMethod: String, Codable, CaseIterable, Sendable {
+nonisolated enum GradingMethod: String, Codable, CaseIterable, Sendable {
     case weightedCategories
     case totalPoints
     case hybrid
     case manualLetterGradeOnly
 }
 
-enum MissingItemPolicy: String, Codable, CaseIterable, Sendable {
+nonisolated enum MissingItemPolicy: String, Codable, CaseIterable, Sendable {
     case excludeUntilGraded
     case countMissingAsZero
 }
 
-enum SyllabusImportSource: String, Codable, CaseIterable, Sendable {
+nonisolated enum SyllabusImportSource: String, Codable, CaseIterable, Sendable {
     case none
     case pdf
     case image
@@ -21,7 +21,7 @@ enum SyllabusImportSource: String, Codable, CaseIterable, Sendable {
     case manual
 }
 
-enum GradingPolicyImportStatus: String, Codable, CaseIterable, Sendable {
+nonisolated enum GradingPolicyImportStatus: String, Codable, CaseIterable, Sendable {
     case notImported
     case draft
     case needsReview
@@ -29,7 +29,7 @@ enum GradingPolicyImportStatus: String, Codable, CaseIterable, Sendable {
     case failed
 }
 
-enum GradeCategoryType: String, Codable, CaseIterable, Identifiable, Sendable {
+nonisolated enum GradeCategoryType: String, Codable, CaseIterable, Identifiable, Sendable {
     case homework
     case quiz
     case lab
@@ -46,14 +46,14 @@ enum GradeCategoryType: String, Codable, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
 }
 
-enum CategoryCalculationMode: String, Codable, CaseIterable, Sendable {
+nonisolated enum CategoryCalculationMode: String, Codable, CaseIterable, Sendable {
     case weightedCategory
     case totalPoints
     case equalItems
     case custom
 }
 
-enum GradeItemStatus: String, Codable, CaseIterable, Identifiable, Sendable {
+nonisolated enum GradeItemStatus: String, Codable, CaseIterable, Identifiable, Sendable {
     case upcoming
     case submitted
     case graded
@@ -65,14 +65,14 @@ enum GradeItemStatus: String, Codable, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
 }
 
-enum ReminderLeadTime: String, Codable, CaseIterable, Sendable {
+nonisolated enum ReminderLeadTime: String, Codable, CaseIterable, Sendable {
     case oneDay
     case threeDays
     case oneWeek
     case custom
 }
 
-enum ForecastScenarioKind: String, Codable, CaseIterable, Identifiable, Sendable {
+nonisolated enum ForecastScenarioKind: String, Codable, CaseIterable, Identifiable, Sendable {
     case bestCase
     case expected
     case conservative
@@ -82,7 +82,7 @@ enum ForecastScenarioKind: String, Codable, CaseIterable, Identifiable, Sendable
     var id: String { rawValue }
 }
 
-enum GradeLetter: String, Codable, CaseIterable, Identifiable, Sendable {
+nonisolated enum GradeLetter: String, Codable, CaseIterable, Identifiable, Sendable {
     case aPlus = "A+"
     case a = "A"
     case aMinus = "A-"

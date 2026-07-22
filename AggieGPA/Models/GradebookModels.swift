@@ -193,7 +193,7 @@ final class GradeItem {
     }
 }
 
-struct GradeScaleBoundary: Codable, Equatable, Sendable {
+nonisolated struct GradeScaleBoundary: Codable, Equatable, Sendable {
     var letter: GradeLetter
     var minimumPercentage: Decimal
 }
