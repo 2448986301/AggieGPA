@@ -19,6 +19,7 @@ struct SyllabusImportView: View {
     @State private var isWorking = false
     @State private var errorMessage: String?
     @State private var didSave = false
+    @State private var modelStatus = OnDeviceSyllabusParser.availability()
 
     private var courseCategories: [GradingCategory] { existingCategories.filter { $0.course?.id == course.id } }
 
@@ -42,6 +43,15 @@ struct SyllabusImportView: View {
                     Button("Extract Rules", systemImage: "sparkles") { parse() }
                         .disabled(sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isWorking)
                         .accessibilityIdentifier("parseSyllabusButton")
+                    VStack(alignment: .leading, spacing: 6) {
+                        Button("Refine with On-Device Model", systemImage: "apple.intelligence") {
+                            Task { await refineOnDevice() }
+                        }
+                        .disabled(modelStatus != .available || sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isWorking)
+                        Text(modelStatus.message).font(.caption).foregroundStyle(.secondary)
+                        Text("Optional. The syllabus stays on this device; deterministic checks and your confirmation still apply.")
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
                 }
 
                 if isWorking { Section { ProgressView("Reading syllabus on this device…") } }
@@ -135,6 +145,18 @@ struct SyllabusImportView: View {
             sourceText = texts.joined(separator: "\n")
             parse(confidence: confidences.isEmpty ? 0 : confidences.reduce(0, +) / Double(confidences.count))
         } catch { errorMessage = error.localizedDescription }
+    }
+
+    private func refineOnDevice() async {
+        isWorking = true; defer { isWorking = false }
+        do {
+            result = try await OnDeviceSyllabusParser.parse(sourceText)
+            errorMessage = nil
+        } catch {
+            modelStatus = OnDeviceSyllabusParser.availability()
+            errorMessage = "On-device refinement was unavailable. Local rule parsing still works: \(error.localizedDescription)"
+            parse()
+        }
     }
 
     private func confirm() {

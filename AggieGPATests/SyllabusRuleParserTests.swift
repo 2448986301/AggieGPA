@@ -1,6 +1,7 @@
 import XCTest
 @testable import AggieGPA
 
+@MainActor
 final class SyllabusRuleParserTests: XCTestCase {
     func testRecognizesCommonPercentageFormats() {
         let result = SyllabusRuleParser.parse("""
@@ -52,5 +53,25 @@ final class SyllabusRuleParserTests: XCTestCase {
     func testParsesGradeScaleBoundaries() {
         let result = SyllabusRuleParser.parse("Homework: 100%\nA >= 93\nA-: 90\nB+: 87")
         XCTAssertEqual(result.gradeBoundaries.map(\.letter), [.a, .aMinus, .bPlus])
+    }
+
+    func testOnDeviceDraftStillUsesDeterministicValidation() {
+        let draft = ModelSyllabusDraft(
+            categories: [
+                ModelSyllabusCategory(name: "Homework", weight: 20, possiblePoints: nil, dropLowestCount: 1),
+                ModelSyllabusCategory(name: "Final", weight: 25, possiblePoints: nil, dropLowestCount: 0)
+            ],
+            gradeBoundaries: ["A: 93"],
+            complexRules: ["Final replaces a midterm"]
+        )
+        let result = OnDeviceSyllabusParser.validated(draft, originalText: "private original syllabus text")
+        XCTAssertTrue(result.requiresManualReview)
+        XCTAssertTrue(result.manualReviewReasons.contains { $0.contains("not 100") })
+        XCTAssertTrue(result.manualReviewReasons.contains { $0.contains("On-device model flagged") })
+        XCTAssertEqual(result.sourceText, "private original syllabus text")
+    }
+
+    func testFoundationModelAvailabilityAlwaysExplainsFallback() {
+        XCTAssertFalse(OnDeviceSyllabusParser.availability().message.isEmpty)
     }
 }
