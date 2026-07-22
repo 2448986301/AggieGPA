@@ -121,6 +121,16 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Record Score"].exists)
     }
 
+    func testTodayAssignmentAsksForCourseWhenSeveralCoursesExist() {
+        let app = makeApp()
+        completeOnboarding(app: app, loadDemo: true)
+        app.buttons["todayAddButton"].tap()
+        app.buttons["Add Assignment"].tap()
+        XCTAssertTrue(app.navigationBars["Which course?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["CHE 002A"].exists)
+        XCTAssertTrue(app.staticTexts["BIS 002B"].exists)
+    }
+
     func testAppearancePickerHasDarkMode() {
         let app = makeApp()
         completeOnboarding(app: app)

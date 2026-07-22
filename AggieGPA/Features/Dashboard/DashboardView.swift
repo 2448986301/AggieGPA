@@ -107,7 +107,7 @@ struct DashboardView: View {
                 Button("Import Syllabus") { present(.syllabus) }
             }
             .sheet(item: $addAction) { action in
-                TodayAddDestination(action: action, course: currentTerm.flatMap { _ in courses.first }, courses: courses, preferences: preferences)
+                TodayAddDestination(action: action, term: currentTerm, courses: courses)
             }
         }
     }
@@ -377,32 +377,92 @@ private enum TodayAddAction: String, Identifiable {
 }
 
 private struct TodayAddDestination: View {
-    @Environment(\.dismiss) private var dismiss
-    @Query private var gradingCategories: [GradingCategory]
     let action: TodayAddAction
-    let course: CourseRecord?
+    let term: AcademicTerm?
     let courses: [CourseRecord]
-    let preferences: UserPreferences
 
     var body: some View {
-        if let course {
-            switch action {
-            case .assignment: QuickGradeItemView(course: course, categories: courseCategories(for: course), isExam: false)
-            case .exam: QuickGradeItemView(course: course, categories: courseCategories(for: course), isExam: true)
-            case .course:
-                if let term = course.term { CourseEditorView(term: term) } else { unavailable }
-            case .score: ScorePickerView(courses: courses)
-            case .syllabus: SyllabusImportView(course: course)
-            }
-        } else { unavailable }
+        switch action {
+        case .course:
+            if let term { CourseEditorView(term: term) } else { termUnavailable }
+        case .score:
+            if courses.isEmpty { unavailable } else { ScorePickerView(courses: courses) }
+        case .assignment, .exam, .syllabus:
+            if courses.isEmpty { unavailable }
+            else if let course = courses.first, courses.count == 1 { destination(for: course) }
+            else { GradeActionCoursePicker(courses: courses, action: action) }
+        }
     }
 
     private var unavailable: some View {
         ContentUnavailableView("Add a course first", systemImage: "book.closed", description: Text("Create a course before adding work or scores."))
     }
 
-    private func courseCategories(for course: CourseRecord) -> [GradingCategory] {
-        gradingCategories.filter { $0.course?.id == course.id }.sorted { $0.sortOrder < $1.sortOrder }
+    private var termUnavailable: some View {
+        ContentUnavailableView("Add a term first", systemImage: "calendar.badge.plus", description: Text("Create a term before adding a course."))
+    }
+
+    @ViewBuilder
+    private func destination(for course: CourseRecord) -> some View {
+        switch action {
+        case .assignment:
+            QuickGradeItemDestination(course: course, isExam: false)
+        case .exam:
+            QuickGradeItemDestination(course: course, isExam: true)
+        case .syllabus:
+            SyllabusImportView(course: course)
+        case .course, .score:
+            EmptyView()
+        }
+    }
+}
+
+private struct GradeActionCoursePicker: View {
+    let courses: [CourseRecord]
+    let action: TodayAddAction
+
+    var body: some View {
+        NavigationStack {
+            List(courses) { course in
+                NavigationLink {
+                    destination(for: course)
+                } label: {
+                    VStack(alignment: .leading) {
+                        Text(course.courseCode).font(.headline)
+                        Text(course.courseTitle).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .navigationTitle("Which course?")
+        }
+    }
+
+    @ViewBuilder
+    private func destination(for course: CourseRecord) -> some View {
+        switch action {
+        case .assignment:
+            QuickGradeItemDestination(course: course, isExam: false)
+        case .exam:
+            QuickGradeItemDestination(course: course, isExam: true)
+        case .syllabus:
+            SyllabusImportView(course: course)
+        case .course, .score:
+            EmptyView()
+        }
+    }
+}
+
+private struct QuickGradeItemDestination: View {
+    @Query private var gradingCategories: [GradingCategory]
+    let course: CourseRecord
+    let isExam: Bool
+
+    var body: some View {
+        QuickGradeItemView(
+            course: course,
+            categories: gradingCategories.filter { $0.course?.id == course.id }.sorted { $0.sortOrder < $1.sortOrder },
+            isExam: isExam
+        )
     }
 }
 

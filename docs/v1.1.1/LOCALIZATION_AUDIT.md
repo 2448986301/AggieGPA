@@ -1,5 +1,14 @@
 # Localization audit
 
-The baseline uses hard-coded English copy and an `AppCopy` helper. `Localizable.xcstrings` now covers the active student-first shell, Today, global Add, course-detail labels, and GPA summary. The remaining settings, import, advanced calculation, and legacy planner copy still need catalog migration before v1.1.1 completion.
+## Catalog migration status
 
-The simulator check must verify English and zh-Hans Today, Add, course detail, breakdown, GPA, Settings, empty states, errors, and Dynamic Type. Dates and numbers must continue using the environment locale.
+`Localizable.xcstrings` is now the single source of truth. Xcode extracted 459 active SwiftUI strings from the app, and 276 matching entries from the retired `zh-Hans.lproj/Localizable.strings` were mechanically preserved. The resulting catalog currently contains 293 translated zh-Hans entries and 166 entries that still need product-language review or translation.
+
+The student-first shell is translated: Today, Courses, GPA, Settings, global Add, course-detail progress, score entry, and the core GPA summary. Existing settings, import, calculation, and legacy planner phrases were retained where their source key still matched. New or changed phrases must not fall back silently before release.
+
+## Required release audit
+
+- Review each of the 166 untranslated catalog entries, prioritizing settings, syllabus import, advanced calculations, errors, and destructive confirmations.
+- Verify English and zh-Hans on iPhone 17 Pro Simulator for Today, Add Assignment, course detail, grade breakdown, GPA, Settings, empty states, error states, and Dynamic Type.
+- Confirm dates, decimal separators, percentages, and unit counts use the environment locale rather than translated format strings.
+- Re-run the export after every new UI string is added; do not reintroduce an `.lproj` table beside the catalog.
