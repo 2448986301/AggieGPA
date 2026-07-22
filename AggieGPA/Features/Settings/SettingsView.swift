@@ -2,6 +2,7 @@ import LocalAuthentication
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
+import UserNotifications
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -48,6 +49,11 @@ struct SettingsView: View {
                     Text("Aggie GPA never receives or stores biometric data. Authentication is performed by iOS.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
+                Section("Notifications") {
+                    NavigationLink("Assignment & Exam Reminders") { NotificationSettingsView() }
+                    Text("Reminders are local to this device and can be enabled per grade item.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
                 Section("Data") {
                     if preferences.demoDataLoaded {
                         Button("Clear Demo Data", role: .destructive) {
@@ -76,6 +82,38 @@ struct SettingsView: View {
     }
 
     private func save() { try? modelContext.save() }
+}
+
+private struct NotificationSettingsView: View {
+    @State private var status = "Checking…"
+    var body: some View {
+        Form {
+            Section("Permission") {
+                LabeledContent("Status", value: status)
+                Button("Request Notification Permission") {
+                    Task {
+                        _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
+                        await refresh()
+                    }
+                }
+            }
+            Section { Text("Changing a due date updates its reminder. Deleting an item cancels it. If permission is denied, the gradebook continues to work normally.").font(.footnote).foregroundStyle(.secondary) }
+        }
+        .navigationTitle("Reminders")
+        .task { await refresh() }
+    }
+
+    private func refresh() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        status = switch settings.authorizationStatus {
+        case .authorized: "Allowed"
+        case .denied: "Denied"
+        case .provisional: "Provisional"
+        case .ephemeral: "Temporary"
+        case .notDetermined: "Not requested"
+        @unknown default: "Unknown"
+        }
+    }
 }
 
 private struct DecimalPreferenceField: View {

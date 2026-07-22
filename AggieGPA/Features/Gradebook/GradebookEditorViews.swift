@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UserNotifications
 
 struct CategoryEditorView: View {
     @Environment(\.dismiss) private var dismiss
@@ -84,6 +85,9 @@ struct GradeItemEditorView: View {
     @State private var excused: Bool
     @State private var dropped: Bool
     @State private var notes: String
+    @State private var reminderEnabled: Bool
+    @State private var reminderLeadTime: ReminderLeadTime
+    @State private var customReminderDate: Date
     @State private var validation: String?
     @State private var saveAnother = false
 
@@ -100,6 +104,9 @@ struct GradeItemEditorView: View {
         _excused = State(initialValue: item?.isExcused ?? false)
         _dropped = State(initialValue: item?.isDropped ?? false)
         _notes = State(initialValue: item?.notes ?? "")
+        _reminderEnabled = State(initialValue: item?.reminderEnabled ?? false)
+        _reminderLeadTime = State(initialValue: item?.reminderLeadTime ?? ((item?.category?.categoryType == .midterm || item?.category?.categoryType == .finalExam) ? .threeDays : .oneDay))
+        _customReminderDate = State(initialValue: item?.customReminderDate ?? item?.dueDate ?? .now)
     }
 
     var body: some View {
@@ -123,6 +130,20 @@ struct GradeItemEditorView: View {
                     Toggle("Dropped", isOn: $dropped)
                 }
                 Section("Notes") { TextField("Optional notes", text: $notes, axis: .vertical) }
+                Section("Reminder") {
+                    Toggle("Remind me", isOn: $reminderEnabled)
+                    if reminderEnabled {
+                        Picker("Lead time", selection: $reminderLeadTime) {
+                            Text("1 day before").tag(ReminderLeadTime.oneDay)
+                            Text("3 days before").tag(ReminderLeadTime.threeDays)
+                            Text("1 week before").tag(ReminderLeadTime.oneWeek)
+                            Text("Custom").tag(ReminderLeadTime.custom)
+                        }
+                        if reminderLeadTime == .custom { DatePicker("Reminder date", selection: $customReminderDate) }
+                        Text("iOS will ask for notification permission when you save an enabled reminder.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
                 if item == nil { Section { Toggle("Save and add another", isOn: $saveAnother) } }
                 if let validation { Section { Text(validation).foregroundStyle(.red) } }
             }
@@ -142,18 +163,35 @@ struct GradeItemEditorView: View {
         let earned = earnedText.isEmpty ? nil : DecimalFormatters.decimal(from: earnedText)
         guard earnedText.isEmpty || earned != nil else { validation = "Enter a valid earned score."; return }
         let selectedCategory = categories.first { $0.id == categoryID }
+        let savedItem: GradeItem
         if let item {
             item.title = clean; item.category = selectedCategory; item.dueDate = hasDueDate ? dueDate : nil
             item.earnedPoints = earned; item.possiblePoints = possible; item.status = status
             item.isExtraCredit = extraCredit; item.isExcused = excused; item.isDropped = dropped
             item.notes = notes; item.updatedAt = .now
+            item.reminderEnabled = reminderEnabled; item.reminderLeadTime = reminderLeadTime
+            item.customReminderDate = reminderLeadTime == .custom ? customReminderDate : nil
+            savedItem = item
         } else {
-            modelContext.insert(GradeItem(course: course, category: selectedCategory, title: clean,
-                                          dueDate: hasDueDate ? dueDate : nil, earnedPoints: earned,
-                                          possiblePoints: possible, status: status, isExtraCredit: extraCredit,
-                                          isDropped: dropped, isExcused: excused, notes: notes))
+            let newItem = GradeItem(course: course, category: selectedCategory, title: clean,
+                                    dueDate: hasDueDate ? dueDate : nil, earnedPoints: earned,
+                                    possiblePoints: possible, status: status, isExtraCredit: extraCredit,
+                                    isDropped: dropped, isExcused: excused, notes: notes,
+                                    reminderEnabled: reminderEnabled, reminderLeadTime: reminderLeadTime,
+                                    customReminderDate: reminderLeadTime == .custom ? customReminderDate : nil)
+            modelContext.insert(newItem); savedItem = newItem
         }
         try? modelContext.save()
+        let reminder = GradeItemReminderSnapshot(savedItem)
+        Task {
+            do {
+                if reminder.enabled {
+                    let allowed = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
+                    guard allowed else { return }
+                }
+                try await GradeItemNotificationService.sync(reminder)
+            } catch { }
+        }
         if saveAnother && item == nil { title = ""; earnedText = ""; possibleText = ""; status = .upcoming; validation = nil }
         else { dismiss() }
     }

@@ -7,6 +7,8 @@ struct RootView: View {
     @Environment(PrivacyLockService.self) private var privacyLock
     @Environment(\.modelContext) private var modelContext
     @Query private var preferences: [UserPreferences]
+    @Query private var courses: [CourseRecord]
+    @State private var notificationCourse: CourseRecord?
 
     private var preference: UserPreferences? { preferences.first }
     private var preferredColorScheme: ColorScheme? {
@@ -44,6 +46,15 @@ struct RootView: View {
                 Task { await privacyLock.handleForeground(preferences: preference) }
             default:
                 break
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openGradeItemFromNotification)) { notification in
+            guard let rawID = notification.object as? String, let id = UUID(uuidString: rawID) else { return }
+            notificationCourse = courses.first { $0.id == id }
+        }
+        .sheet(item: $notificationCourse) { course in
+            if let preference {
+                NavigationStack { CourseDetailView(course: course, preferences: preference) }
             }
         }
     }

@@ -327,6 +327,7 @@ struct CourseDetailView: View {
 
     private func delete(_ item: GradeItem) {
         deletedItem = DeletedGradeItem(item)
+        GradeItemNotificationService.cancel(identifier: item.notificationIdentifier)
         modelContext.delete(item)
         try? modelContext.save()
     }

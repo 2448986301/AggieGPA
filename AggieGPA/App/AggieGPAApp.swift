@@ -3,6 +3,7 @@ import SwiftUI
 
 @main
 struct AggieGPAApp: App {
+    @UIApplicationDelegateAdaptor(NotificationAppDelegate.self) private var notificationDelegate
     private let container: ModelContainer
     private let storeErrorMessage: String?
     @State private var privacyLock = PrivacyLockService()
