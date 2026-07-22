@@ -54,6 +54,11 @@ struct SettingsView: View {
                     Text("Reminders are local to this device and can be enabled per grade item.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
+                Section("Siri & Shortcuts") {
+                    NavigationLink("Siri & Shortcuts Access") { SiriAccessSettingsView() }
+                    Text("Siri access is off by default. Each category of private data must be enabled explicitly.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
                 Section("Data") {
                     if preferences.demoDataLoaded {
                         Button("Clear Demo Data", role: .destructive) {
@@ -82,6 +87,39 @@ struct SettingsView: View {
     }
 
     private func save() { try? modelContext.save() }
+}
+
+private struct SiriAccessSettingsView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query private var records: [SiriAccessSettings]
+    private var settings: SiriAccessSettings? { records.first }
+
+    var body: some View {
+        Form {
+            if let settings {
+                @Bindable var settings = settings
+                Section("Access") {
+                    Toggle("Enable Siri Access", isOn: $settings.isSiriAccessEnabled)
+                    Toggle("Allow Assignment Summaries", isOn: $settings.allowAssignmentSummaries).disabled(!settings.isSiriAccessEnabled)
+                    Toggle("Allow Detailed Scores", isOn: $settings.allowDetailedScores).disabled(!settings.isSiriAccessEnabled)
+                    Toggle("Allow GPA Responses", isOn: $settings.allowGPAResponses).disabled(!settings.isSiriAccessEnabled)
+                    Toggle("Allow Creating Drafts", isOn: $settings.allowCreatingDrafts).disabled(!settings.isSiriAccessEnabled)
+                }
+                Section("Available Commands") {
+                    Text("Try: “What assignments are due this week?”, “What is my course grade?”, or “Draft an assignment.”")
+                    Link("Open Shortcuts", destination: URL(string: "shortcuts://")!)
+                }
+                Section { Text("Private intents require local device authentication. Draft intents never change scores until you confirm inside Aggie GPA.").font(.footnote).foregroundStyle(.secondary) }
+            } else {
+                ProgressView()
+            }
+        }
+        .navigationTitle("Siri & Shortcuts")
+        .task {
+            if settings == nil { modelContext.insert(SiriAccessSettings()); try? modelContext.save() }
+        }
+        .onDisappear { settings?.updatedAt = .now; try? modelContext.save() }
+    }
 }
 
 private struct NotificationSettingsView: View {

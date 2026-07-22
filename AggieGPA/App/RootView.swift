@@ -9,6 +9,7 @@ struct RootView: View {
     @Query private var preferences: [UserPreferences]
     @Query private var courses: [CourseRecord]
     @State private var notificationCourse: CourseRecord?
+    @State private var pendingSiriDraft: SiriDraftPayload?
 
     private var preference: UserPreferences? { preferences.first }
     private var preferredColorScheme: ColorScheme? {
@@ -31,7 +32,7 @@ struct RootView: View {
         }
         .preferredColorScheme(preferredColorScheme)
         .environment(\.locale, preference?.language.locale ?? .autoupdatingCurrent)
-        .task { bootstrapScreenshotModeIfNeeded() }
+        .task { bootstrapScreenshotModeIfNeeded(); handlePendingIntentNavigation() }
         .overlay {
             if privacyLock.isLocked {
                 PrivacyLockView()
@@ -44,6 +45,7 @@ struct RootView: View {
                 privacyLock.prepareForBackground()
             case .active:
                 Task { await privacyLock.handleForeground(preferences: preference) }
+                handlePendingIntentNavigation()
             default:
                 break
             }
@@ -57,6 +59,9 @@ struct RootView: View {
                 NavigationStack { CourseDetailView(course: course, preferences: preference) }
             }
         }
+        .sheet(item: $pendingSiriDraft) { draft in
+            SiriDraftConfirmationView(draft: draft)
+        }
     }
 
     private func bootstrapScreenshotModeIfNeeded() {
@@ -67,6 +72,14 @@ struct RootView: View {
                                          onboardingCompleted: true)
         modelContext.insert(preference)
         DemoDataService.load(into: modelContext, preferences: preference)
+    }
+
+    private func handlePendingIntentNavigation() {
+        if let rawID = UserDefaults.standard.string(forKey: "pendingOpenCourseID"), let id = UUID(uuidString: rawID) {
+            notificationCourse = courses.first { $0.id == id }
+            UserDefaults.standard.removeObject(forKey: "pendingOpenCourseID")
+        }
+        if pendingSiriDraft == nil { pendingSiriDraft = PendingSiriDraftStore.take() }
     }
 }
 
