@@ -25,6 +25,7 @@ struct CourseDetailView: View {
     @State private var showItemEditor = false
     @State private var showPolicyEditor = false
     @State private var showForecastEditor = false
+    @State private var showSyllabusImport = false
     @State private var editingForecast: ForecastScenario?
     @State private var deletedItem: DeletedGradeItem?
 
@@ -77,6 +78,8 @@ struct CourseDetailView: View {
                     Button("Grading Policy", systemImage: "slider.horizontal.3") { showPolicyEditor = true }
                     Button("Add Category", systemImage: "folder.badge.plus") { editingCategory = nil; showCategoryEditor = true }
                     Button("Add Grade Item", systemImage: "plus") { editingItem = nil; showItemEditor = true }
+                    Divider()
+                    Button("Import Grading Policy", systemImage: "doc.text.magnifyingglass") { showSyllabusImport = true }
                 }
             }
         }
@@ -88,6 +91,9 @@ struct CourseDetailView: View {
         }
         .sheet(isPresented: $showPolicyEditor) {
             GradingPolicyEditorView(course: course, policy: policy, scale: scale)
+        }
+        .sheet(isPresented: $showSyllabusImport) {
+            SyllabusImportView(course: course)
         }
         .sheet(isPresented: $showForecastEditor) {
             ForecastEditorView(course: course, policy: policy, forecast: editingForecast)
