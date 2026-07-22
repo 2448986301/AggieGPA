@@ -64,7 +64,7 @@ struct CourseDetailView: View {
             LazyVStack(spacing: DesignSystem.Spacing.medium) {
                 gradeHero
                 Picker("Course detail", selection: $section) {
-                    ForEach(CourseDetailSection.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(CourseDetailSection.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("courseDetailSectionPicker")

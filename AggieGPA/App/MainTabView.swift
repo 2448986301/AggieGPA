@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @Environment(\.locale) private var locale
     let preferences: UserPreferences
     @State private var selection: AppTab
 
@@ -28,6 +29,7 @@ struct MainTabView: View {
             }
         }
         .tint(DesignSystem.ColorToken.gold)
+        .id(locale.identifier)
     }
 }
 
