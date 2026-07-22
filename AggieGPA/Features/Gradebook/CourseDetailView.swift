@@ -30,6 +30,7 @@ struct CourseDetailView: View {
     @State private var showQuickAssignment = false
     @State private var showQuickExam = false
     @State private var scoringItem: GradeItem?
+    @State private var showTargetPicker = false
     @State private var editingForecast: ForecastScenario?
     @State private var deletedItem: DeletedGradeItem?
 
@@ -52,6 +53,10 @@ struct CourseDetailView: View {
             course: course, policy: policy, categories: courseCategories, items: courseItems,
             gradeScale: scale, forecast: forecast
         ))
+    }
+    private var nextItem: GradeItem? {
+        courseItems.filter { $0.earnedPoints == nil && !$0.isExcused && !$0.isDropped }
+            .sorted { ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }.first
     }
 
     var body: some View {
@@ -103,6 +108,7 @@ struct CourseDetailView: View {
         .sheet(isPresented: $showQuickAssignment) { QuickGradeItemView(course: course, categories: courseCategories, isExam: false) }
         .sheet(isPresented: $showQuickExam) { QuickGradeItemView(course: course, categories: courseCategories, isExam: true) }
         .sheet(item: $scoringItem) { item in RecordScoreView(item: item) }
+        .sheet(isPresented: $showTargetPicker) { SimpleTargetPickerView(course: course, policy: policy) }
         .sheet(isPresented: $showForecastEditor) {
             ForecastEditorView(course: course, policy: policy, forecast: editingForecast)
         }
@@ -142,12 +148,19 @@ struct CourseDetailView: View {
             Text("Based on graded work")
                 .font(.caption).foregroundStyle(.secondary)
             Divider()
-            HStack {
-                Label("Final recorded grade: \(course.grade.rawValue)", systemImage: "checkmark.seal")
+            HStack(spacing: DesignSystem.Spacing.large) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Graded so far").font(.caption).foregroundStyle(.secondary)
+                    Text("\(percent(result.gradedWeight))").font(.headline)
+                }
                 Spacer()
-                Label("\(percent(result.gradedWeight)) complete", systemImage: "chart.pie")
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("Next up").font(.caption).foregroundStyle(.secondary)
+                    Text(nextItem?.title ?? "Nothing due").font(.headline).lineLimit(1)
+                }
             }
-            .font(.caption).foregroundStyle(.secondary)
+            Label("Final recorded grade: \(course.grade.rawValue)", systemImage: "checkmark.seal")
+                .font(.caption).foregroundStyle(.secondary)
             if result.requiresManualReview {
                 Label("Check Course Settings before relying on predictions.", systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote).foregroundStyle(DesignSystem.ColorToken.warning)
@@ -295,12 +308,9 @@ struct CourseDetailView: View {
     @ViewBuilder private var forecastContent: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
             HStack {
-            Text("I want to finish with").font(.title2.bold())
+                Text("I want to finish with").font(.title2.bold())
                 Spacer()
-                if forecast != nil {
-                    Button("Edit", systemImage: "slider.horizontal.3") { editingForecast = forecast; showForecastEditor = true }
-                }
-                Button("New", systemImage: "plus") { editingForecast = nil; showForecastEditor = true }
+                Button(policy?.targetPercentage.map { "\(compact($0))%" } ?? "Set target") { showTargetPicker = true }
                     .buttonStyle(.borderedProminent)
             }
             if courseForecasts.count > 1 {
@@ -319,14 +329,9 @@ struct CourseDetailView: View {
             }
             if result.requiresManualReview {
                 ContentUnavailableView("Goal estimate unavailable", systemImage: "exclamationmark.triangle", description: Text("Check the course setup first."))
-            } else if forecast == nil {
-                ContentUnavailableView("Set a target", systemImage: "chart.line.uptrend.xyaxis", description: Text("Add a target course percentage to see what you need on remaining work."))
+            } else if policy?.targetPercentage == nil {
+                ContentUnavailableView("Set a target", systemImage: "chart.line.uptrend.xyaxis", description: Text("Choose the course percentage you want, and we’ll show what you need on remaining work."))
             } else {
-                forecastMetric("Projected final", value: percent(result.projectedFinalPercentage), detail: result.projectedLetterGrade?.rawValue ?? "No letter prediction")
-                HStack(spacing: DesignSystem.Spacing.medium) {
-                    forecastMetric("Best possible", value: percent(result.bestPossiblePercentage), detail: "100% remaining")
-                    forecastMetric("Floor", value: percent(result.worstPossiblePercentage), detail: "0% remaining")
-                }
                 if let required = result.requiredRemainingAverage {
                     forecastMetric("You need on remaining work", value: percent(required), detail: result.targetFeasibility.displayName)
                 }
@@ -385,6 +390,40 @@ struct CourseDetailView: View {
         if item.isDropped { parts.append("dropped") }
         if item.isExcused { parts.append("excused") }
         return parts.joined(separator: ", ")
+    }
+}
+
+private struct SimpleTargetPickerView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    let course: CourseRecord
+    let policy: CourseGradingPolicy?
+    @State private var target: Double
+
+    init(course: CourseRecord, policy: CourseGradingPolicy?) {
+        self.course = course; self.policy = policy
+        _target = State(initialValue: policy.map { decimalDouble($0.targetPercentage ?? 90) } ?? 90)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("I want to finish with") {
+                    Text("\(Int(target.rounded()))%").font(.largeTitle.bold())
+                    Slider(value: $target, in: 50...100, step: 1)
+                    HStack { Button("A- 90%") { target = 90 }; Button("B+ 87%") { target = 87 }; Button("A 93%") { target = 93 } }
+                }
+            }
+            .navigationTitle("Target Grade")
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Save") { save() } } }
+        }
+    }
+
+    private func save() {
+        let saved = policy ?? CourseGradingPolicy(course: course)
+        if policy == nil { modelContext.insert(saved) }
+        saved.targetPercentage = Decimal(target); saved.updatedAt = .now
+        try? modelContext.save(); dismiss()
     }
 }
 
