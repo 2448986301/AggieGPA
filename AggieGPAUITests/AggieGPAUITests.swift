@@ -9,7 +9,7 @@ final class AggieGPAUITests: XCTestCase {
     func testCompleteOnboarding() {
         let app = makeApp()
         completeOnboarding(app: app)
-        XCTAssertTrue(app.tabBars.buttons["Dashboard"].exists)
+        XCTAssertTrue(app.tabBars.buttons["Today"].exists)
     }
 
     func testAddQuarter() {
@@ -36,7 +36,7 @@ final class AggieGPAUITests: XCTestCase {
     func testOpenCourseGradebook() {
         let app = makeApp()
         completeOnboarding(app: app, loadDemo: true)
-        app.tabBars.buttons["Quarters"].tap()
+        app.tabBars.buttons["Courses"].tap()
         app.staticTexts["Fall 2026"].tap()
         app.staticTexts["CHE 002A"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["courseGradeHero"].waitForExistence(timeout: 5))
@@ -73,7 +73,7 @@ final class AggieGPAUITests: XCTestCase {
     func testDeleteAndUndo() {
         let app = makeApp()
         completeOnboarding(app: app, loadDemo: true)
-        app.tabBars.buttons["Quarters"].tap()
+        app.tabBars.buttons["Courses"].tap()
         app.staticTexts["Fall 2026"].tap()
         let course = app.staticTexts["CHE 002A"]
         course.swipeLeft()
@@ -85,8 +85,8 @@ final class AggieGPAUITests: XCTestCase {
     func testOpenWhatIfAndCreateScenario() {
         let app = makeApp()
         completeOnboarding(app: app, loadDemo: true)
-        app.tabBars.buttons["Planner"].tap()
-        app.staticTexts["What-If GPA"].tap()
+        app.tabBars.buttons["GPA"].tap()
+        app.staticTexts["Projected GPA"].tap()
         let saveScenario = app.buttons["Save Scenario"]
         scrollTo(saveScenario, in: app)
         saveScenario.tap()
@@ -108,6 +108,17 @@ final class AggieGPAUITests: XCTestCase {
         completeOnboarding(app: app)
         app.tabBars.buttons["Settings"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].exists)
+    }
+
+    func testTodayGlobalAddShowsStudentActions() {
+        let app = makeApp()
+        completeOnboarding(app: app, loadDemo: true)
+        let add = app.buttons["todayAddButton"]
+        XCTAssertTrue(add.waitForExistence(timeout: 5))
+        add.tap()
+        XCTAssertTrue(app.buttons["Add Assignment"].exists)
+        XCTAssertTrue(app.buttons["Add Exam"].exists)
+        XCTAssertTrue(app.buttons["Record Score"].exists)
     }
 
     func testAppearancePickerHasDarkMode() {
@@ -149,7 +160,7 @@ final class AggieGPAUITests: XCTestCase {
     }
 
     private func openDemoGradebook(app: XCUIApplication) {
-        app.tabBars.buttons["Quarters"].tap()
+        app.tabBars.buttons["Courses"].tap()
         app.staticTexts["Fall 2026"].tap()
         app.staticTexts["CHE 002A"].tap()
     }
@@ -164,7 +175,7 @@ final class AggieGPAUITests: XCTestCase {
     }
 
     private func addQuarter(app: XCUIApplication) {
-        app.tabBars.buttons["Quarters"].tap()
+        app.tabBars.buttons["Courses"].tap()
         app.buttons["addQuarterButton"].tap()
         app.buttons["saveQuarterButton"].tap()
     }
