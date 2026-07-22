@@ -1,5 +1,7 @@
 # UI and UX Specification
 
+> Implementation status (2026-07-22): the existing Liquid Glass hierarchy and tab navigation are preserved; grade state is communicated with text and symbols, key views expose VoiceOver semantics, and the gradebook remains reachable at Accessibility XXXL.
+
 Preserve the existing iOS 27 Liquid Glass language: current tabs/navigation/icon, deep navy and warm gold palette, large titles, generous corners, and restrained glass surfaces. Grade-item rows prioritize readable density and do not become heavy glass cards.
 
 ## Course Detail

@@ -1,5 +1,7 @@
 # Liquid Glass App Icon 设置
 
+> v1.1 状态：沿用 v1.0 的 AppIcon asset name、bundle identity 和正式图标，不因成绩册、Siri 或通知功能更换图标。以下导入说明仍然适用。
+
 ## 选择结果
 
 制作了三个原创方向：
@@ -41,4 +43,3 @@
 12. 导出 `.icon`，在 Xcode Target > General > App Icons and Accent Colors 中选择它；保留 Assets fallback 直到真机确认。
 
 当前环境虽然已安装 Icon Composer，但没有可靠的命令行文档格式可用于无损自动生成 `.icon` 工程，因此没有伪造该文件。全部可导入图层和设置均已交付，不阻塞主应用。
-

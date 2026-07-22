@@ -1,5 +1,7 @@
 # Product Specification
 
+> Implementation status (2026-07-22): the v1.1 gradebook, projection, local syllabus intelligence, reminders, Siri/Shortcuts, migration, backup, accessibility, and localization scope is implemented without changing the v1.0 product identity.
+
 ## Goal
 
 Aggie GPA v1.1.0 extends the installed v1.0 with a per-course gradebook, forecasts, syllabus-assisted setup, reminders, App Intents, Siri, Spotlight, and Shortcuts while preserving every v1.0 feature and record. The app identity, bundle identifier, navigation, icon, and local-first privacy model remain unchanged.

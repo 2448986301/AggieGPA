@@ -1,5 +1,7 @@
 # App Intents, Siri, Spotlight, and Shortcuts Specification
 
+> Implementation status (2026-07-22): implemented with read, open, calculation, and draft-only intents plus eight bilingual App Shortcuts. Siri access remains off by default and private results require authentication.
+
 ## Data boundary
 
 `AppIntentDataService` opens the same store and maps SwiftData records to Sendable snapshots. It applies Siri preference gates, date/calendar/time-zone logic, deletion handling, normalization, and the shared grade/GPA engines. No intent gets arbitrary database access, syllabus text, backup paths, private notes, or unrelated records.

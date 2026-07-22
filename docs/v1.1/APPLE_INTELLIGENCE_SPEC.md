@@ -1,5 +1,7 @@
 # Apple Intelligence Specification
 
+> Implementation status (2026-07-22): implemented with `SystemLanguageModel`, `LanguageModelSession`, typed generable output, deterministic validation, and a local parser fallback. No remote model is used.
+
 Foundation Models is an optional device-side enhancement after local text extraction. Where the iOS 27 SDK exposes `SystemLanguageModel`, use compile-time and runtime availability checks and structured/guided output to propose categories, weights, points, boundaries, drop rules, and complexity flags.
 
 Every model result is treated as untrusted candidate data and passes deterministic validation plus user confirmation. Unavailable hardware, disabled Apple Intelligence, unsupported language, or generation failure falls back without losing functionality:

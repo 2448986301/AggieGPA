@@ -1,5 +1,7 @@
 # Syllabus Import Specification
 
+> Implementation status (2026-07-22): PDFKit, Vision, VisionKit camera, pasted text, deterministic parsing, editable review, explicit confirmation, conflict protection, and optional on-device refinement are implemented.
+
 ## Inputs and pipeline
 
 Accept Files PDFs, images/screenshots, camera scans, pasted text, and manual entry. Use only Apple-local PDFKit, Vision, VisionKit, NaturalLanguage, Foundation, and deterministic parsing.

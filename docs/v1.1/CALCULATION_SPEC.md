@@ -1,5 +1,7 @@
 # Calculation Specification
 
+> Implementation status (2026-07-22): implemented as a pure Decimal snapshot engine with explicit current/projected/best/worst/required results and validation issues. Official grades are never mutated by calculation.
+
 ## One engine
 
 `CourseGradeCalculationEngine` is the sole source for SwiftUI, Dashboard, Planner, Siri, Spotlight, and Shortcuts. Inputs and outputs are Sendable value snapshots rather than SwiftData objects. Calculations use `Decimal`, do not round internally, and format only at presentation boundaries.

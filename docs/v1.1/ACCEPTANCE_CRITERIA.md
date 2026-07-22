@@ -1,5 +1,7 @@
 # Acceptance Criteria
 
+> Implementation status (2026-07-22): implemented. Automated criteria are covered by 83 unit tests and 13 UI tests; device-only notification authorization, Siri speech recognition, and in-place data inspection remain manual checks.
+
 ## Data and identity
 
 - The existing project, bundle identifier `com.easonzhou.aggiegpa`, signing team, navigation, and icon remain intact.

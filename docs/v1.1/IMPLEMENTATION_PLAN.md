@@ -1,5 +1,7 @@
 # Implementation Plan
 
+> Final status (2026-07-22): Phases 0–12 are implemented and committed; Phase 13 consists of final review, clean verification, same-identity device installation, branch push, and an unmerged pull request.
+
 1. Baseline audit and source-of-truth specifications.
 2. Versioned SwiftData v1/v1.1 models, safe container bootstrap, and migration fixtures.
 3. Shared Decimal grade engine and edge-case tests.

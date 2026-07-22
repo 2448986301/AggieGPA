@@ -1,5 +1,7 @@
 # Data Migration and Backup Specification
 
+> Implementation status (2026-07-22): versioned SwiftData v1→v2 lightweight migration, verified pre-migration JSON recovery backup, schema-v2 export, schema-v1 decode compatibility, transactional import, and relationship-restoration tests are complete.
+
 ## Store migration
 
 Define explicit v1.0 and v1.1 `VersionedSchema` types plus a `SchemaMigrationPlan` when supported by the shipping iOS 27 SDK. v1.0 includes the eight audited model types; v1.1 adds gradebook models and additive defaults while preserving original stable identifiers and relationships.

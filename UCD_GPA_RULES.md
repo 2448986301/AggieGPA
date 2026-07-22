@@ -1,6 +1,6 @@
 # UC Davis GPA 规则核对
 
-核对日期：2026-07-21
+核对日期：2026-07-22
 
 Aggie GPA 是估算工具，以下规则用于计算引擎，不代表 Registrar 对某位学生记录的最终决定。
 
@@ -60,3 +60,8 @@ P、NP、S、U、I、IP、NG 默认不进入 GPA 分子和分母。Incomplete、
 
 学院或专业 GPA 定义、ELWR 重复门槛、研究生规则、非法重复、课程 credit 限制、units 调整、ENWS、已永久化的 I、转学认定、academic standing、毕业资格和官方 transcript annotation 都必须查看正式记录或咨询 advisor。
 
+## v1.1 课程成绩册边界
+
+UC Davis 没有一套适用于所有课程的统一百分比到字母成绩分界。v1.1 因此只把 syllabus 中的 category weights、points、drop rules 与 letter boundaries 当作课程特定输入；常见 90/80/70/60 分数线只是可编辑模板，未经用户确认不会视为该课程规则。
+
+成绩册中的 Current Grade、Forecast、Final Exam Needed 和 Projected GPA 都是个人估算。只有用户在课程正式记录中输入的 letter grade 会进入 Official GPA；预测结果绝不会自动替换正式成绩。

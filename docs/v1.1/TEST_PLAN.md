@@ -1,5 +1,7 @@
 # Test Plan
 
+> Execution status (2026-07-22): 83 unit tests pass on iPhone 17 Pro Simulator. The 13-test UI suite covers the critical v1.0 flows plus gradebook entry, syllabus review, Siri-default privacy, and Accessibility XXXL; real-device Siri and notification checks remain manual.
+
 All engines use deterministic value inputs and exhaustive unit tests. Persistent features use in-memory containers plus v1.0-compatible disk fixtures. UI tests run serially on Xcode 27 beta because the baseline parallel runner can remove the application bundle between simulator clones.
 
 ## Required suites

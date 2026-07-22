@@ -1,5 +1,7 @@
 # Gradebook Specification
 
+> Implementation status (2026-07-22): course detail, policy, categories, grade items, breakdown, multiple forecasts, reminders, undo, and manual-review states are implemented.
+
 ## Ownership and models
 
 Each `CourseRecord` may own one `CourseGradingPolicy`, zero or more `GradingCategory`, `GradeItem`, `GradeScaleBoundary`, and `ForecastScenario` records. All use stable UUIDs, timestamps, explicit raw-value enums, and safe defaults.
