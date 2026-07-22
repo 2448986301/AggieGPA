@@ -176,6 +176,12 @@ struct DataManagementView: View {
     @Query(sort: \PlannerScenario.sortOrder) private var scenarios: [PlannerScenario]
     @Query(sort: \BackupSnapshot.createdAt, order: .reverse) private var snapshots: [BackupSnapshot]
     @Query private var gradePlans: [CourseGradePlan]
+    @Query private var gradingPolicies: [CourseGradingPolicy]
+    @Query private var gradingCategories: [GradingCategory]
+    @Query private var gradeItems: [GradeItem]
+    @Query private var gradeScales: [GradeScale]
+    @Query private var forecasts: [ForecastScenario]
+    @Query private var siriSettings: [SiriAccessSettings]
     let preferences: UserPreferences
 
     @State private var jsonDocument = JSONBackupDocument()
@@ -259,7 +265,11 @@ struct DataManagementView: View {
         )) { Button("OK") { errorMessage = nil } } message: { Text(LocalizedStringKey(errorMessage ?? "Please try again.")) }
     }
 
-    private var envelope: BackupEnvelope { BackupService.makeEnvelope(terms: terms, scenarios: scenarios, preferences: preferences) }
+    private var envelope: BackupEnvelope {
+        BackupService.makeEnvelope(terms: terms, scenarios: scenarios, preferences: preferences,
+                                   policies: gradingPolicies, categories: gradingCategories, items: gradeItems,
+                                   scales: gradeScales, forecasts: forecasts, siriSettings: siriSettings.first)
+    }
 
     private func prepareJSONExport() {
         do { jsonDocument = JSONBackupDocument(data: try BackupService.encode(envelope)); exportingJSON = true }
