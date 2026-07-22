@@ -13,6 +13,7 @@ struct DashboardView: View {
     @Query private var forecasts: [ForecastScenario]
     let preferences: UserPreferences
     @State private var showAddCourse = false
+    @State private var showNewTerm = false
 
     private var includedTerms: [AcademicTerm] { terms.filter(\.isIncludedInCumulativeGPA) }
     private var courses: [CourseRecord] { includedTerms.flatMap(\.courses) }
@@ -80,12 +81,19 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showAddCourse) {
                 if terms.isEmpty {
-                    ContentUnavailableView("Add a quarter first", systemImage: "calendar.badge.plus",
-                                           description: Text("Open Quarters to create the term that this course belongs to."))
+                    VStack(spacing: DesignSystem.Spacing.medium) {
+                        ContentUnavailableView("Add a term first", systemImage: "calendar.badge.plus",
+                                               description: Text("Create the term for this course, then add your course."))
+                        Button("Add Your First Term") { showAddCourse = false; showNewTerm = true }
+                            .buttonStyle(.borderedProminent)
+                    }
                         .presentationDetents([.medium])
                 } else {
                     CourseEditorView(term: currentTerm ?? terms[0])
                 }
+            }
+            .sheet(isPresented: $showNewTerm) {
+                TermEditorView(defaultAcademicYear: preferences.firstAcademicYear)
             }
         }
     }
