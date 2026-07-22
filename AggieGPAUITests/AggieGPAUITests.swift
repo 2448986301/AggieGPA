@@ -131,6 +131,25 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["BIS 002B"].exists)
     }
 
+    func testStudentCoreFlowRecordsAnUpcomingScore() {
+        let app = makeApp()
+        completeOnboarding(app: app, loadDemo: true)
+        openDemoGradebook(app: app)
+
+        let upcomingHomework = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Homework 3'")).firstMatch
+        XCTAssertTrue(upcomingHomework.waitForExistence(timeout: 5))
+        upcomingHomework.tap()
+
+        let earned = app.textFields["recordEarnedPointsField"]
+        XCTAssertTrue(earned.waitForExistence(timeout: 5))
+        earned.tap()
+        earned.typeText("20")
+        app.buttons["saveRecordedScoreButton"].tap()
+
+        let gradedHomework = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Homework 3, Graded'")).firstMatch
+        XCTAssertTrue(gradedHomework.waitForExistence(timeout: 5))
+    }
+
     func testAppearancePickerHasDarkMode() {
         let app = makeApp()
         completeOnboarding(app: app)
