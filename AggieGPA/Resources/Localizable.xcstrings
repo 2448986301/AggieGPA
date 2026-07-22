@@ -1,0 +1,31 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Today" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "今天" } } } },
+    "Courses" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "课程" } } } },
+    "GPA" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "GPA" } } } },
+    "Settings" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置" } } } },
+    "Upcoming" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "近期任务" } } } },
+    "My Courses" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "我的课程" } } } },
+    "GPA Summary" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "GPA 摘要" } } } },
+    "+ Add" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "+ 添加" } } } },
+    "Add" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加" } } } },
+    "Add Assignment" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加作业" } } } },
+    "Add Exam" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加考试" } } } },
+    "Add Course" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加课程" } } } },
+    "Record Score" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "录入分数" } } } },
+    "Import Syllabus" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "导入课程大纲" } } } },
+    "Assignments & Exams" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "作业与考试" } } } },
+    "Grade Breakdown" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "成绩构成" } } } },
+    "What Do I Need?" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "我还需要多少分" } } } },
+    "Current Course Grade" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "当前课程成绩" } } } },
+    "Based on graded work" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "根据目前已评分的内容计算" } } } },
+    "Graded so far" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已完成评分" } } } },
+    "Next up" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "下一项任务" } } } },
+    "I want to finish with" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "我希望最终获得" } } } },
+    "Set target" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置目标" } } } },
+    "Projected GPA" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "预测 GPA" } } } },
+    "Cumulative GPA" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正式累计 GPA" } } } }
+  },
+  "version" : "1.0"
+}
