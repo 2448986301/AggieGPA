@@ -33,13 +33,14 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["CHE 002A"].exists)
     }
 
-    func testEditCourse() {
+    func testOpenCourseGradebook() {
         let app = makeApp()
         completeOnboarding(app: app, loadDemo: true)
         app.tabBars.buttons["Quarters"].tap()
         app.staticTexts["Fall 2026"].tap()
         app.staticTexts["CHE 002A"].tap()
-        XCTAssertTrue(app.navigationBars["Edit Course"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["courseGradeHero"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["courseDetailSectionPicker"].exists)
     }
 
     func testDeleteAndUndo() {

@@ -50,8 +50,11 @@ struct TermDetailView: View {
                                            description: Text("Add the first course for this quarter."))
                 }
                 ForEach(sortedCourses) { course in
-                    Button { editingCourse = course } label: { CourseRow(course: course) }
-                        .buttonStyle(.plain)
+                    NavigationLink {
+                        CourseDetailView(course: course, preferences: preferences)
+                    } label: {
+                        CourseRow(course: course)
+                    }
                         .contextMenu {
                             Button("Edit", systemImage: "pencil") { editingCourse = course }
                             Button("Duplicate", systemImage: "plus.square.on.square") { duplicate(course) }
