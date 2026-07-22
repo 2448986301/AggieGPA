@@ -33,6 +33,7 @@ struct CourseDetailView: View {
     @State private var showTargetPicker = false
     @State private var editingForecast: ForecastScenario?
     @State private var deletedItem: DeletedGradeItem?
+    @State private var showScoreUpdate = false
 
     private var policy: CourseGradingPolicy? { policies.first { $0.course?.id == course.id } }
     private var courseCategories: [GradingCategory] {
@@ -107,7 +108,11 @@ struct CourseDetailView: View {
         .sheet(isPresented: $showSetup) { GradeBreakdownSetupView(course: course) }
         .sheet(isPresented: $showQuickAssignment) { QuickGradeItemView(course: course, categories: courseCategories, isExam: false) }
         .sheet(isPresented: $showQuickExam) { QuickGradeItemView(course: course, categories: courseCategories, isExam: true) }
-        .sheet(item: $scoringItem) { item in RecordScoreView(item: item) }
+        .sheet(item: $scoringItem) { item in
+            RecordScoreView(item: item) {
+                showScoreUpdate = true
+            }
+        }
         .sheet(isPresented: $showTargetPicker) { SimpleTargetPickerView(course: course, policy: policy) }
         .sheet(isPresented: $showForecastEditor) {
             ForecastEditorView(course: course, policy: policy, forecast: editingForecast)
@@ -118,6 +123,15 @@ struct CourseDetailView: View {
                     Text("Grade item deleted")
                     Spacer()
                     Button("Undo") { undoDelete() }.bold()
+                }
+                .padding()
+                .glassEffect(.regular, in: Capsule())
+                .padding(.horizontal)
+            } else if showScoreUpdate {
+                HStack {
+                    Text("Current course grade updated for \(course.courseCode).")
+                    Spacer()
+                    Button("Done") { showScoreUpdate = false }.bold()
                 }
                 .padding()
                 .glassEffect(.regular, in: Capsule())

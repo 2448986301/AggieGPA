@@ -160,12 +160,14 @@ struct RecordScoreView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     let item: GradeItem
+    let onSaved: (() -> Void)?
     @State private var earned: String
     @State private var possible: String
     @State private var validation: String?
 
-    init(item: GradeItem) {
+    init(item: GradeItem, onSaved: (() -> Void)? = nil) {
         self.item = item
+        self.onSaved = onSaved
         _earned = State(initialValue: item.earnedPoints.map(compact) ?? "")
         _possible = State(initialValue: compact(item.possiblePoints))
     }
@@ -193,6 +195,8 @@ struct RecordScoreView: View {
             validation = "Enter valid earned and possible points."; return
         }
         item.earnedPoints = earnedValue; item.possiblePoints = possibleValue; item.status = .graded; item.updatedAt = .now
-        try? modelContext.save(); dismiss()
+        try? modelContext.save()
+        onSaved?()
+        dismiss()
     }
 }

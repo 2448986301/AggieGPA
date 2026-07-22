@@ -146,6 +146,7 @@ final class AggieGPAUITests: XCTestCase {
         earned.typeText("20")
         app.buttons["saveRecordedScoreButton"].tap()
 
+        XCTAssertTrue(app.staticTexts["Current course grade updated for CHE 002A."].waitForExistence(timeout: 5))
         let gradedHomework = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Homework 3, Graded'")).firstMatch
         XCTAssertTrue(gradedHomework.waitForExistence(timeout: 5))
     }
