@@ -37,6 +37,7 @@ struct TermDetailView: View {
 
     private var result: GPAResult { GPAService.quarter(term.courses.map(CourseCalculationInput.init), termID: term.id) }
     private var sortedCourses: [CourseRecord] { term.courses.sorted { $0.courseCode < $1.courseCode } }
+    private var visibleCourses: [CourseRecord] { sortedCourses.filter { $0.id != deleted?.id } }
 
     var body: some View {
         List {
@@ -56,11 +57,11 @@ struct TermDetailView: View {
                 }
             }
             Section("Courses") {
-                if sortedCourses.isEmpty {
+                if visibleCourses.isEmpty {
                     ContentUnavailableView("No courses", systemImage: "book.closed",
                                            description: Text("Add the first course for this quarter."))
                 }
-                ForEach(sortedCourses) { course in
+                ForEach(visibleCourses) { course in
                     NavigationLink {
                         CourseDetailView(course: course, preferences: preferences)
                     } label: {
@@ -113,25 +114,11 @@ struct TermDetailView: View {
                                         items: items.filter { $0.course?.id == course.id },
                                         scales: scales.filter { $0.course?.id == course.id },
                                         forecasts: forecasts.filter { $0.course?.id == course.id })
-        modelContext.delete(course)
-        try? modelContext.save()
     }
 
     private func undoDelete() {
-        guard let deleted else { return }
-        let restored = CourseRecord(id: deleted.id, courseCode: deleted.code, courseTitle: deleted.title,
-                                    units: deleted.units, grade: deleted.grade, gradingBasis: deleted.gradingBasis,
-                                    institution: deleted.institution, term: term, isMajorCourse: deleted.isMajor,
-                                    isUpperDivision: deleted.isUpper, isIncludedInGPA: deleted.included,
-                                    isTransferCourse: deleted.transfer, notes: deleted.notes)
-        modelContext.insert(restored)
-        deleted.policies.forEach { $0.course = restored }
-        deleted.categories.forEach { $0.course = restored }
-        deleted.items.forEach { $0.course = restored }
-        deleted.scales.forEach { $0.course = restored }
-        deleted.forecasts.forEach { $0.course = restored }
+        guard deleted != nil else { return }
         self.deleted = nil
-        try? modelContext.save()
     }
 
     private func finalizePendingDelete() {
@@ -142,6 +129,7 @@ struct TermDetailView: View {
         deleted.policies.forEach(modelContext.delete)
         deleted.scales.forEach(modelContext.delete)
         deleted.forecasts.forEach(modelContext.delete)
+        if let course = term.courses.first(where: { $0.id == deleted.id }) { modelContext.delete(course) }
         do {
             try modelContext.save()
             notificationIdentifiers.forEach { GradeItemNotificationService.cancel(identifier: $0) }

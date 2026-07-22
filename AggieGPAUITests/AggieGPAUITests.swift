@@ -47,7 +47,7 @@ final class AggieGPAUITests: XCTestCase {
         let app = makeApp()
         completeOnboarding(app: app, loadDemo: true)
         openDemoGradebook(app: app)
-        app.buttons["Gradebook actions"].tap()
+        app.buttons["Course Settings"].tap()
         app.buttons["Import Grading Policy"].tap()
         let editor = app.textViews["syllabusTextEditor"]
         XCTAssertTrue(editor.waitForExistence(timeout: 5))
