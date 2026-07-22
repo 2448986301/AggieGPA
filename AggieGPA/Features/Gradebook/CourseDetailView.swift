@@ -265,6 +265,15 @@ struct CourseDetailView: View {
         .accessibilityHint("Records or updates this score")
         .contextMenu {
             Button("Record Score", systemImage: "pencil") { scoringItem = item }
+            if item.status != .submitted {
+                Button("Mark Submitted", systemImage: "paperplane") { updateStatus(item, to: .submitted) }
+            }
+            if item.status != .missing {
+                Button("Mark Missing", systemImage: "exclamationmark.circle") { updateStatus(item, to: .missing) }
+            }
+            if item.status != .excused {
+                Button("Mark Excused", systemImage: "minus.circle") { updateStatus(item, to: .excused) }
+            }
             Button("Edit", systemImage: "slider.horizontal.3") { editingItem = item; showItemEditor = true }
             Button("Delete", systemImage: "trash", role: .destructive) { delete(item) }
         }
@@ -356,6 +365,12 @@ struct CourseDetailView: View {
         deletedItem = DeletedGradeItem(item)
         GradeItemNotificationService.cancel(identifier: item.notificationIdentifier)
         modelContext.delete(item)
+        try? modelContext.save()
+    }
+
+    private func updateStatus(_ item: GradeItem, to status: GradeItemStatus) {
+        item.status = status
+        item.updatedAt = .now
         try? modelContext.save()
     }
 

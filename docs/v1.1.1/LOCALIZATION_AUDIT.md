@@ -2,7 +2,7 @@
 
 ## Catalog migration status
 
-`Localizable.xcstrings` is now the single source of truth. Xcode extracted 459 active SwiftUI strings from the app, and 276 matching entries from the retired `zh-Hans.lproj/Localizable.strings` were mechanically preserved. The resulting catalog currently contains 347 translated zh-Hans entries and 112 entries that still need product-language review or translation.
+`Localizable.xcstrings` is now the single source of truth. Xcode extracted 462 active SwiftUI strings from the app, and 276 matching entries from the retired `zh-Hans.lproj/Localizable.strings` were mechanically preserved. The resulting catalog currently contains 350 translated zh-Hans entries and 112 entries that still need product-language review or translation.
 
 The student-first shell is translated: Today, Courses, GPA, Settings, global Add, course-detail progress, score entry, and the core GPA summary. Existing settings, import, calculation, and legacy planner phrases were retained where their source key still matched. New or changed phrases must not fall back silently before release.
 
