@@ -2,6 +2,7 @@ import SwiftData
 import SwiftUI
 
 struct RootView: View {
+    let storeErrorMessage: String?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(PrivacyLockService.self) private var privacyLock
     @Environment(\.modelContext) private var modelContext
@@ -18,7 +19,9 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if let preference, preference.onboardingCompleted {
+            if let storeErrorMessage {
+                StoreRecoveryView(message: storeErrorMessage)
+            } else if let preference, preference.onboardingCompleted {
                 MainTabView(preferences: preference)
             } else {
                 OnboardingView(existingPreferences: preference)
@@ -53,6 +56,27 @@ struct RootView: View {
                                          onboardingCompleted: true)
         modelContext.insert(preference)
         DemoDataService.load(into: modelContext, preferences: preference)
+    }
+}
+
+private struct StoreRecoveryView: View {
+    let message: String
+
+    var body: some View {
+        ZStack {
+            CampusBackground()
+            VStack(spacing: DesignSystem.Spacing.large) {
+                Image(systemName: "externaldrive.badge.exclamationmark")
+                    .font(.system(size: 48, weight: .semibold))
+                    .foregroundStyle(DesignSystem.ColorToken.gold)
+                Text("Your data needs attention")
+                    .font(.title2.bold())
+                Text(message)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(DesignSystem.Spacing.xLarge)
+        }
     }
 }
 
