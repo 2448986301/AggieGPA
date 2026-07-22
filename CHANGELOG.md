@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1 — In progress
+
+- Student-first Today page, global Add entry point, and simpler course-detail flow.
+- Direct score entry and current course-grade updates.
+- Simplified grade-breakdown template and target-grade entry.
+- v1.1.1 visible Xcode and simulator checkpoint plan.
+
 ## 1.1.0 — 2026-07-22
 
 - 在现有课程详情中加入本机成绩册：类别权重、作业/考试、earned/possible points、drop lowest、extra credit、缺交策略与成绩分界。

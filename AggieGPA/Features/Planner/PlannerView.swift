@@ -6,28 +6,28 @@ struct PlannerView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("GPA Planning") {
+                Section("Your GPA") {
                     NavigationLink { WhatIfView(preferences: preferences) } label: {
-                        PlannerRow(icon: "wand.and.stars", title: "What-If GPA", subtitle: "Try grades without changing records")
+                        PlannerRow(icon: "chart.line.uptrend.xyaxis", title: "Projected GPA", subtitle: "See how your current course grades affect this term")
                     }
                     NavigationLink { TargetGPAView(preferences: preferences) } label: {
-                        PlannerRow(icon: "target", title: "Target GPA Calculator", subtitle: "Find the future average you need")
+                        PlannerRow(icon: "target", title: "Target GPA", subtitle: "Find the future average you need")
                     }
                 }
-                Section("Course Planning") {
+                Section("Explore") {
                     NavigationLink { FinalGradeCalculatorView() } label: {
-                        PlannerRow(icon: "percent", title: "Final Grade Calculator", subtitle: "Model weighted categories and finals")
+                        PlannerRow(icon: "percent", title: "Course grade calculator", subtitle: "Try a course calculation without changing your records")
                     }
                     NavigationLink { ScenarioListView(preferences: preferences) } label: {
-                        PlannerRow(icon: "square.3.layers.3d", title: "Scenario Comparison", subtitle: "Compare saved grade plans")
+                        PlannerRow(icon: "square.3.layers.3d", title: "Assumed grades", subtitle: "Compare saved grade plans")
                     }
                     NavigationLink { FutureQuarterPlannerView(preferences: preferences) } label: {
-                        PlannerRow(icon: "calendar.badge.clock", title: "Future Quarter Planner", subtitle: "Keep planned courses separate")
+                        PlannerRow(icon: "calendar.badge.clock", title: "Future terms", subtitle: "Keep planned courses separate")
                     }
                 }
                 Section { DisclaimerBanner() }
             }
-            .navigationTitle("Planner")
+            .navigationTitle("GPA")
         }
     }
 }
