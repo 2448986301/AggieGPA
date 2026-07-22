@@ -13,6 +13,6 @@
 
 ## Remaining release checks
 
-- Full English and zh-Hans visual audit of every active catalog string.
-- Dynamic Type and light/dark visual audit for Today, course detail, grade breakdown, GPA, Settings, empty states, and errors.
-- Visible iPhone 17 Pro Simulator walkthrough of the complete student path; physical-device walkthrough remains required before release.
+- The iPhone 17 Pro Simulator smoke check covers English and zh-Hans Today and Settings, including the persisted picker values for grading basis and appearance. Complete the visual matrix for grade breakdown, GPA, empty and error states whenever those screens change.
+- Dynamic Type and light/dark visual audit remain required for Today, course detail, grade breakdown, GPA, Settings, empty states, and errors.
+- The same bundle identity was installed over v1.1.0 on a connected iPhone 17 Pro and launched successfully as v1.1.1 (build 3). A manual on-device walkthrough remains the final visual release check.
