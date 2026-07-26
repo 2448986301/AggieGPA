@@ -4,6 +4,7 @@ struct MainTabView: View {
     @Environment(\.locale) private var locale
     let preferences: UserPreferences
     @State private var selection: AppTab
+    @State private var siriSearchQuery = ""
 
     init(preferences: UserPreferences) {
         self.preferences = preferences
@@ -19,7 +20,7 @@ struct MainTabView: View {
                 DashboardView(preferences: preferences)
             }
             Tab("Courses", systemImage: "books.vertical", value: .quarters) {
-                QuartersView(preferences: preferences)
+                QuartersView(preferences: preferences, initialSearchQuery: siriSearchQuery)
             }
             Tab("GPA", systemImage: "chart.line.uptrend.xyaxis", value: .planner) {
                 PlannerView(preferences: preferences)
@@ -30,7 +31,28 @@ struct MainTabView: View {
         }
         .tint(DesignSystem.ColorToken.gold)
         .id(locale.identifier)
+        .onReceive(NotificationCenter.default.publisher(for: .openGPAForecastFromSiri)) { _ in
+            selection = .planner
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openSearchFromSiri)) { notification in
+            openSearch(notification.object as? String)
+        }
+        .task {
+            guard let route = PendingSiriNavigationStore.peek(), route.kind == .search else { return }
+            openSearch(route.query)
+        }
     }
+
+    private func openSearch(_ query: String?) {
+        siriSearchQuery = query ?? ""
+        selection = .quarters
+        PendingSiriNavigationStore.clear()
+    }
+}
+
+extension Notification.Name {
+    static let openGPAForecastFromSiri = Notification.Name("openGPAForecastFromSiri")
+    nonisolated static let openSearchFromSiri = Notification.Name("openSearchFromSiri")
 }
 
 private enum AppTab: String, Hashable {

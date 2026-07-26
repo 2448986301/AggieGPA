@@ -9,16 +9,20 @@ struct StoreBootstrapResult {
 @MainActor
 enum PersistentStoreService {
     static let configurationName = "AggieGPA"
+    nonisolated static let appGroupIdentifier = "group.com.easonzhou.aggiegpa"
 
     static var v1Schema: Schema { Schema(AggieGPASchemaV1.models) }
     static var v2Schema: Schema { Schema(versionedSchema: AggieGPASchemaV2.self) }
 
     static func makeContainer(inMemory: Bool) -> StoreBootstrapResult {
-        let configuration = ModelConfiguration(
-            configurationName,
-            schema: v2Schema,
-            isStoredInMemoryOnly: inMemory
-        )
+        if !inMemory {
+            do {
+                try migrateLegacyStoreToAppGroupIfNeeded()
+            } catch {
+                return StoreBootstrapResult(container: makeRecoveryContainer(), errorMessage: "Aggie GPA could not safely prepare the local Siri data store. Your original data was not deleted or replaced. \(error.localizedDescription)")
+            }
+        }
+        let configuration = makeConfiguration(inMemory: inMemory)
 
         do {
             if !inMemory {
@@ -31,23 +35,93 @@ enum PersistentStoreService {
             )
             return StoreBootstrapResult(container: container, errorMessage: nil)
         } catch {
-            let recovery = ModelConfiguration(
-                "AggieGPARecovery",
-                schema: v2Schema,
-                isStoredInMemoryOnly: true
-            )
-            guard let container = try? ModelContainer(
-                for: v2Schema,
-                migrationPlan: AggieGPAMigrationPlan.self,
-                configurations: [recovery]
-            ) else {
-                fatalError("Aggie GPA could not initialize a recovery container: \(error.localizedDescription)")
-            }
+            let container = makeRecoveryContainer()
             return StoreBootstrapResult(
                 container: container,
                 errorMessage: "Aggie GPA could not safely open or migrate your local data. The original store was not deleted or replaced. Close the app and keep the migration backup before trying again."
             )
         }
+    }
+
+    /// Opens the exact production store for App Intents. Unlike the app bootstrap,
+    /// this deliberately has no in-memory recovery fallback: returning an empty
+    /// database to Siri would be indistinguishable from a valid "no results" answer.
+    static func makeAppIntentContainer() throws -> ModelContainer {
+        let configuration = makeConfiguration(inMemory: false)
+        return try ModelContainer(
+            for: v2Schema,
+            migrationPlan: AggieGPAMigrationPlan.self,
+            configurations: [configuration]
+        )
+    }
+
+    static func makeConfiguration(inMemory: Bool) -> ModelConfiguration {
+        if !inMemory, let storeURL = appGroupStoreURL() {
+            return ModelConfiguration(configurationName, schema: v2Schema, url: storeURL)
+        }
+        return ModelConfiguration(
+            configurationName,
+            schema: v2Schema,
+            isStoredInMemoryOnly: inMemory
+        )
+    }
+
+    private static func makeRecoveryContainer() -> ModelContainer {
+        let recovery = ModelConfiguration("AggieGPARecovery", schema: v2Schema, isStoredInMemoryOnly: true)
+        guard let container = try? ModelContainer(for: v2Schema, migrationPlan: AggieGPAMigrationPlan.self, configurations: [recovery]) else {
+            fatalError("Aggie GPA could not initialize a recovery container.")
+        }
+        return container
+    }
+
+    private static func appGroupStoreURL() -> URL? {
+        guard let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) else { return nil }
+        let support = container.appending(path: "Library/Application Support", directoryHint: .isDirectory)
+        return support.appending(path: "\(configurationName).store", directoryHint: .notDirectory)
+    }
+
+    /// Copies the legacy app-private SQLite store once, preserving the source files.
+    /// The shared group is local-only and lets the app and its App Intents use exactly the same records.
+    private static func migrateLegacyStoreToAppGroupIfNeeded() throws {
+        guard let destination = appGroupStoreURL() else { throw StoreError.appGroupUnavailable }
+        let legacy = legacyStoreURL()
+        guard legacy.standardizedFileURL != destination.standardizedFileURL else { return }
+        let manager = FileManager.default
+        guard manager.fileExists(atPath: legacy.path) else { return }
+        if manager.fileExists(atPath: destination.path) {
+            guard try !sharedStoreContainsUserData(at: destination) else { return }
+            for suffix in ["", "-wal", "-shm"] {
+                let emptyStoreFile = URL(fileURLWithPath: destination.path + suffix)
+                if manager.fileExists(atPath: emptyStoreFile.path) { try manager.removeItem(at: emptyStoreFile) }
+            }
+        }
+        try manager.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+        for suffix in ["", "-wal", "-shm"] {
+            let source = URL(fileURLWithPath: legacy.path + suffix)
+            guard manager.fileExists(atPath: source.path) else { continue }
+            try manager.copyItem(at: source, to: URL(fileURLWithPath: destination.path + suffix))
+        }
+    }
+
+    private static func legacyStoreURL() -> URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("\(configurationName).store", isDirectory: false)
+    }
+
+    private static func sharedStoreContainsUserData(at url: URL) throws -> Bool {
+        let configuration = ModelConfiguration(configurationName, schema: v2Schema, url: url)
+        let container = try ModelContainer(for: v2Schema, migrationPlan: AggieGPAMigrationPlan.self, configurations: [configuration])
+        let context = ModelContext(container)
+        let preferences = try context.fetch(FetchDescriptor<UserPreferences>())
+        let terms = try context.fetch(FetchDescriptor<AcademicTerm>())
+        let courses = try context.fetch(FetchDescriptor<CourseRecord>())
+        let items = try context.fetch(FetchDescriptor<GradeItem>())
+        return !preferences.isEmpty || !terms.isEmpty || !courses.isEmpty || !items.isEmpty
+    }
+
+    private enum StoreError: LocalizedError {
+        case appGroupUnavailable
+        var errorDescription: String? { "The local shared App Group is unavailable." }
     }
 
     static func createVerifiedV1RecoveryBackupIfNeeded(storeURL: URL) throws {

@@ -2,6 +2,7 @@ import LocalAuthentication
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
+import UIKit
 import UserNotifications
 
 struct SettingsView: View {
@@ -55,8 +56,8 @@ struct SettingsView: View {
                     Text("Reminders are local to this device and can be enabled per grade item.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-                Section("Siri & Shortcuts") {
-                    NavigationLink("Siri & Shortcuts Access") { SiriAccessSettingsView() }
+                Section("Siri AI") {
+                    NavigationLink("Siri AI") { SiriAccessSettingsView() }
                     Text("Siri access is off by default. Each category of private data must be enabled explicitly.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
@@ -102,7 +103,12 @@ struct SettingsView: View {
 private struct SiriAccessSettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var records: [SiriAccessSettings]
+    @Query private var courses: [CourseRecord]
+    @Query private var gradeItems: [GradeItem]
     private var settings: SiriAccessSettings? { records.first }
+    @State private var indexStatus = "Not verified"
+    @State private var diagnosticStatus = "Not verified"
+    @State private var lastSiriEvent = "No execution recorded"
 
     var body: some View {
         Form {
@@ -115,20 +121,58 @@ private struct SiriAccessSettingsView: View {
                     Toggle("Allow GPA Responses", isOn: $settings.allowGPAResponses).disabled(!settings.isSiriAccessEnabled)
                     Toggle("Allow Creating Drafts", isOn: $settings.allowCreatingDrafts).disabled(!settings.isSiriAccessEnabled)
                 }
-                Section("Available Commands") {
-                    Text("Try: “What assignments are due this week?”, “What is my course grade?”, or “Draft an assignment.”")
-                    Link("Open Shortcuts", destination: URL(string: "shortcuts://")!)
+                Section("Try Siri") {
+                    Text("You do not need to create a Shortcut. Try: “What assignments are due this week in Aggie GPA?”, “What is my current grade in CHE 002A?”, or “Open CHE 002A.”")
+                }
+                Section("Siri Diagnostics") {
+                    LabeledContent("App Intents", value: "Registered after app launch")
+                    LabeledContent("Courses", value: "\(courses.filter { !$0.isDeleted }.count)")
+                    LabeledContent("Assignments and exams", value: "\(gradeItems.count)")
+                    LabeledContent("Search index", value: indexStatus)
+                    LabeledContent("Data access", value: diagnosticStatus)
+                    LabeledContent("Last Siri execution", value: lastSiriEvent)
+                    Button("Rebuild Search Index") {
+                        Task {
+                            do {
+                                try await SiriSpotlightIndex.rebuildAll()
+                                indexStatus = "Working"
+                            } catch {
+                                indexStatus = "Needs attention"
+                            }
+                        }
+                    }
+                    Button("Run Siri Diagnostics") {
+                        Task {
+                            do {
+                                _ = try await AppIntentDataService.shared.courses(ids: nil)
+                                diagnosticStatus = "Working"
+                            } catch {
+                                diagnosticStatus = "Needs attention"
+                            }
+                        }
+                    }
+                    Link("Open App Settings", destination: URL(string: UIApplication.openSettingsURLString)!)
                 }
                 Section { Text("Private intents require local device authentication. Draft intents never change scores until you confirm inside Aggie GPA.").font(.footnote).foregroundStyle(.secondary) }
             } else {
                 ProgressView()
             }
         }
-        .navigationTitle("Siri & Shortcuts")
+        .navigationTitle("Siri AI")
         .task {
             if settings == nil { modelContext.insert(SiriAccessSettings()); try? modelContext.save() }
+            refreshLastSiriEvent()
         }
         .onDisappear { settings?.updatedAt = .now; try? modelContext.save() }
+    }
+
+    private func refreshLastSiriEvent() {
+        guard let event = SiriExecutionTrace.latestIntentExecution() ?? SiriExecutionTrace.latest() else {
+            lastSiriEvent = "No execution recorded"
+            return
+        }
+        let count = event.itemCount.map { " · \($0) item\($0 == 1 ? "" : "s")" } ?? ""
+        lastSiriEvent = "\(event.stage)\(count)"
     }
 }
 

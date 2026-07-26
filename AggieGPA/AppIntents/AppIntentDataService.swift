@@ -8,9 +8,12 @@ final class AppIntentDataService {
 
     private init() {
         containerResult = Result {
-            let configuration = ModelConfiguration("AggieGPA")
-            return try ModelContainer(for: Schema(AggieGPASchemaV2.models), migrationPlan: AggieGPAMigrationPlan.self, configurations: configuration)
+            try PersistentStoreService.makeAppIntentContainer()
         }
+    }
+
+    init(container: ModelContainer) {
+        containerResult = .success(container)
     }
 
     private var context: ModelContext {
@@ -28,28 +31,43 @@ final class AppIntentDataService {
         let normalized = Self.normalizeCourseCode(query)
         return candidates.filter {
             Self.normalizeCourseCode($0.code) == normalized || $0.code.localizedCaseInsensitiveContains(query) ||
-            $0.title.localizedCaseInsensitiveContains(query)
+            $0.title.localizedCaseInsensitiveContains(query) ||
+            $0.aliases.contains { $0.localizedCaseInsensitiveCompare(query) == .orderedSame || $0.localizedCaseInsensitiveContains(query) }
         }
     }
 
     func assignments(ids: [String]) throws -> [AssignmentEntity] { try assignmentSnapshots().filter { ids.contains($0.id) } }
     func assignments(matching query: String) throws -> [AssignmentEntity] {
-        try assignmentSnapshots().filter { $0.title.localizedCaseInsensitiveContains(query) || $0.courseCode.localizedCaseInsensitiveContains(query) }
+        let normalized = Self.normalizeWorkTitle(query)
+        return try assignmentSnapshots().filter {
+            Self.normalizeWorkTitle($0.title).contains(normalized) || normalized.contains(Self.normalizeWorkTitle($0.title)) ||
+            $0.courseCode.localizedCaseInsensitiveContains(query)
+        }
     }
     func upcomingAssignments(days: Int, calendar: Calendar = .autoupdatingCurrent, now: Date = .now) throws -> [AssignmentEntity] {
+        if let sharedAssignments = SiriSharedSnapshotStore.upcomingAssignments(days: days, now: now, calendar: calendar) {
+            return sharedAssignments
+        }
         let start = calendar.startOfDay(for: now)
-        let end = calendar.date(byAdding: .day, value: days + 1, to: start)!
+        let end = calendar.date(byAdding: .day, value: days, to: start)!
         return try assignmentSnapshots().filter { item in item.dueDate.map { $0 >= start && $0 < end } ?? false }
             .sorted { ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
     }
 
     func exams(ids: [String]) throws -> [ExamEntity] { try examSnapshots().filter { ids.contains($0.id) } }
     func exams(matching query: String) throws -> [ExamEntity] {
-        try examSnapshots().filter { $0.title.localizedCaseInsensitiveContains(query) || $0.courseCode.localizedCaseInsensitiveContains(query) }
+        let normalized = Self.normalizeWorkTitle(query)
+        return try examSnapshots().filter {
+            Self.normalizeWorkTitle($0.title).contains(normalized) || normalized.contains(Self.normalizeWorkTitle($0.title)) ||
+            $0.courseCode.localizedCaseInsensitiveContains(query)
+        }
     }
     func upcomingExams(days: Int, calendar: Calendar = .autoupdatingCurrent, now: Date = .now) throws -> [ExamEntity] {
+        if let sharedExams = SiriSharedSnapshotStore.upcomingExams(days: days, now: now, calendar: calendar) {
+            return sharedExams
+        }
         let start = calendar.startOfDay(for: now)
-        let end = calendar.date(byAdding: .day, value: days + 1, to: start)!
+        let end = calendar.date(byAdding: .day, value: days, to: start)!
         return try examSnapshots().filter { item in item.dueDate.map { $0 >= start && $0 < end } ?? false }
             .sorted { ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
     }
@@ -100,6 +118,36 @@ final class AppIntentDataService {
         }.map(CourseCalculationInput.init)
         let result = GPAService.calculate(inputs)
         return "Official cumulative GPA: \(result.gpa.map(DecimalFormatters.compact) ?? "—"), based only on official grades."
+    }
+
+    func projectedGPAOverview(term: AcademicTermEntity? = nil) throws -> String {
+        let context = try permittedContext(gpa: true)
+        let courses = try context.fetch(FetchDescriptor<CourseRecord>()).filter { !$0.isDeleted }
+        let policies = try context.fetch(FetchDescriptor<CourseGradingPolicy>())
+        let categories = try context.fetch(FetchDescriptor<GradingCategory>())
+        let items = try context.fetch(FetchDescriptor<GradeItem>())
+        let scales = try context.fetch(FetchDescriptor<GradeScale>())
+        let forecasts = try context.fetch(FetchDescriptor<ForecastScenario>())
+        let scopedTermID = term.flatMap { UUID(uuidString: $0.id) }
+        let scopedCourses = courses.filter { course in
+            guard let scopedTermID else { return course.term.map { !$0.isDeleted && $0.isIncludedInCumulativeGPA } ?? false }
+            return course.term?.id == scopedTermID
+        }
+        let projectedGrades = Dictionary(uniqueKeysWithValues: scopedCourses.compactMap { course -> (UUID, CourseGrade)? in
+            let modelID = course.persistentModelID
+            let input = CourseGradeSnapshotBuilder.makeInput(
+                course: course,
+                policy: policies.first { $0.course?.persistentModelID == modelID },
+                categories: categories,
+                items: items,
+                gradeScale: scales.first { $0.course?.persistentModelID == modelID },
+                forecast: forecasts.first { $0.course?.persistentModelID == modelID && $0.isSelectedForGPAForecast }
+            )
+            return ProjectedGPAService.courseGrade(from: CourseGradeCalculationEngine.calculate(input).projectedLetterGrade).map { (course.id, $0) }
+        })
+        let result = ProjectedGPAService.calculate(scopedCourses.map(CourseCalculationInput.init), projectedGrades: projectedGrades, termID: scopedTermID)
+        let scope = term?.name ?? "your included terms"
+        return "Projected GPA for \(scope): \(result.projected.gpa.map(DecimalFormatters.compact) ?? "—"). Official GPA remains \(result.official.gpa.map(DecimalFormatters.compact) ?? "—")."
     }
 
     func quarterGPA(_ term: AcademicTermEntity) throws -> String {
@@ -166,15 +214,15 @@ final class AppIntentDataService {
     }
 
     private static func courseEntity(_ course: CourseRecord) -> CourseEntity {
-        CourseEntity(id: course.id.uuidString, code: course.courseCode, title: course.courseTitle, termName: course.term?.displayName ?? "No term")
+        CourseEntity(id: course.id.uuidString, code: course.courseCode, title: course.courseTitle, termName: course.term?.displayName ?? "No term", aliases: SiriAliasStore.aliases(for: course.id))
     }
     private static func assignmentEntity(_ item: GradeItem) -> AssignmentEntity? {
         guard let course = item.course else { return nil }
-        return AssignmentEntity(id: item.id.uuidString, courseID: course.id.uuidString, courseCode: course.courseCode, title: item.title, dueDate: item.dueDate)
+        return AssignmentEntity(id: item.id.uuidString, courseID: course.id.uuidString, courseCode: course.courseCode, title: item.title, dueDate: item.dueDate, category: item.category?.name ?? "Assignment", status: item.status.rawValue)
     }
     private static func examEntity(_ item: GradeItem) -> ExamEntity? {
         guard let course = item.course else { return nil }
-        return ExamEntity(id: item.id.uuidString, courseID: course.id.uuidString, courseCode: course.courseCode, title: item.title, dueDate: item.dueDate)
+        return ExamEntity(id: item.id.uuidString, courseID: course.id.uuidString, courseCode: course.courseCode, title: item.title, dueDate: item.dueDate, examType: item.category?.name ?? "Exam", status: item.status.rawValue)
     }
     private static func isExam(_ item: GradeItem) -> Bool { item.category?.categoryType == .midterm || item.category?.categoryType == .finalExam }
 
@@ -187,6 +235,18 @@ final class AppIntentDataService {
               let suffixRange = Range(match.range(at: 3), in: compact) else { return compact }
         let number = String(compact[numberRange]); let padded = String(repeating: "0", count: max(0, 3 - number.count)) + number
         return String(compact[lettersRange]) + padded + String(compact[suffixRange])
+    }
+
+    nonisolated static func normalizeWorkTitle(_ value: String) -> String {
+        let lowercased = value.lowercased()
+            .replacingOccurrences(of: "homework", with: "hw")
+            .replacingOccurrences(of: "作业", with: "hw")
+            .replacingOccurrences(of: "midterm", with: "mid")
+            .replacingOccurrences(of: "期中考试", with: "mid")
+            .replacingOccurrences(of: "期中", with: "mid")
+            .replacingOccurrences(of: "final exam", with: "final")
+            .replacingOccurrences(of: "期末考试", with: "final")
+        return lowercased.filter { $0.isLetter || $0.isNumber }
     }
 
     enum ServiceError: LocalizedError {

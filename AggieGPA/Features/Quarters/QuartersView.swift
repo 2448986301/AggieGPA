@@ -12,10 +12,16 @@ struct QuartersView: View {
     @Query private var scales: [GradeScale]
     @Query private var forecasts: [ForecastScenario]
     let preferences: UserPreferences
+    let initialSearchQuery: String
     @State private var searchText = ""
     @State private var selectedYear = "All"
     @State private var showNewTerm = false
     @State private var pendingDelete: AcademicTerm?
+
+    init(preferences: UserPreferences, initialSearchQuery: String = "") {
+        self.preferences = preferences
+        self.initialSearchQuery = initialSearchQuery
+    }
 
     private var liveTerms: [AcademicTerm] { terms.filter { !$0.isDeleted } }
     private var years: [String] { ["All"] + Array(Set(liveTerms.map(\.academicYear))).sorted() }
@@ -23,7 +29,11 @@ struct QuartersView: View {
         liveTerms.filter { term in
             (selectedYear == "All" || term.academicYear == selectedYear) &&
             (searchText.isEmpty || term.displayName.localizedCaseInsensitiveContains(searchText) ||
-             courses(for: term).contains { $0.courseCode.localizedCaseInsensitiveContains(searchText) || $0.courseTitle.localizedCaseInsensitiveContains(searchText) })
+             courses(for: term).contains { $0.courseCode.localizedCaseInsensitiveContains(searchText) || $0.courseTitle.localizedCaseInsensitiveContains(searchText) } ||
+             items.contains { item in
+                 item.course?.term?.persistentModelID == term.persistentModelID &&
+                 item.title.localizedCaseInsensitiveContains(searchText)
+             })
         }
     }
 
@@ -64,7 +74,10 @@ struct QuartersView: View {
                 }
             }
             .navigationTitle("Quarters")
-            .searchable(text: $searchText, prompt: "Course, title, or quarter")
+            .searchable(text: $searchText, prompt: "Course, coursework, or quarter")
+            .onChange(of: initialSearchQuery, initial: true) { _, query in
+                searchText = query
+            }
             .navigationDestination(for: AcademicTerm.self) { term in
                 TermDetailView(term: term, preferences: preferences)
             }

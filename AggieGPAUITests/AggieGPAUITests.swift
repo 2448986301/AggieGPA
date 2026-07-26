@@ -204,7 +204,7 @@ final class AggieGPAUITests: XCTestCase {
         let app = makeApp()
         completeOnboarding(app: app)
         app.tabBars.buttons["Settings"].tap()
-        let siriLink = app.buttons["Siri & Shortcuts Access"]
+        let siriLink = app.buttons["Siri AI"]
         scrollTo(siriLink, in: app)
         siriLink.tap()
         let siriToggle = app.switches["Enable Siri Access"]

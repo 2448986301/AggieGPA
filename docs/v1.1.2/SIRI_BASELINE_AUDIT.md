@@ -3,6 +3,22 @@
 Date: 2026-07-22  
 Scope: pre-implementation audit for `feature/v1.1.2-direct-siri-ai`.
 
+> Historical baseline: the audit below records the state before the direct-Siri work. It is intentionally preserved. The verified device status as of 2026-07-23 is summarized here so the baseline is not mistaken for the current result.
+
+## Current verified delta — 2026-07-23
+
+- The current source version is Aggie GPA 1.1.2 build 13 on `feature/v1.1.2-direct-siri-ai`. The unchanged bundle identifier is `com.easonzhou.aggiegpa`.
+- Xcode 27.0 beta build `27A5228h` and the iOS 27.0 SDK are in use. The connected physical iPhone is an iPhone 17 Pro on iOS 27.0 build `24A5390f`.
+- The app now has the App Group `group.com.easonzhou.aggiegpa`, a local read-only Siri snapshot, privacy-safe execution breadcrumbs, indexed course/assignment/exam entities, and pending navigation stored in the App Group.
+- Build 11 verified one end-to-end custom App Shortcut route in the standalone Siri app. The exact phrase `View assignments in Aggie GPA` rendered an Aggie GPA card containing `Homework 3`, `CHE 002A`, and its due date. The device-side trace recorded `assignments-started`, `snapshot-read` with one item, and `assignments-completed` with one item.
+- The build 11 native `.system.searchInApp` experiment and native `.system.open` experiment were both recognized by the build metadata, but the standalone Siri app rejected the tested requests before either intent's `perform()` ran. No schema-start trace was recorded.
+- Build 12 changed only the search-schema experiment to legacy `.system.search` for an A/B test. Without rebooting the device, Siri again rejected the tested in-app search before `perform()` and recorded no schema-start trace. This does not prove behavior after reboot or on a later seed. Build 13 restores the official `.system.searchInApp` annotation; no build 13 device success is claimed yet.
+- Spotlight now displays the indexed `CHE 002A` result under Aggie GPA. This proves Core Spotlight ingestion; it does not prove that the standalone Siri planner will select the native open/search schema.
+- The installed iOS 27 SDK exposes no education/course/grade/GPA/homework App Schema. Grade, GPA, target-score, and assignment-summary answers therefore remain custom App Intents surfaced through automatic `AppShortcutsProvider` registration. No manually created user Shortcut is required, but this route is not the same as a native system App Schema.
+- A current iOS 27 beta, Siri-language, region/account eligibility, or post-install registration delay may explain the schema rejection. That remains a hypothesis, not a verified cause.
+
+For the current design, evidence, and limits, use `DIRECT_SIRI_DESIGN.md`, `APP_SCHEMA_MAPPING.md`, `REAL_DEVICE_SIRI_RESULTS.md`, and `SIRI_KNOWN_LIMITATIONS.md`.
+
 ## Repository and build baseline
 
 | Item | Verified state |
@@ -106,4 +122,3 @@ There is no `IndexedEntity`, `IndexedEntityQuery`, `CSSearchableIndex`, `CoreSpo
 6. Add confirmed draft flows that require an explicit confirmation before mutation, then update notifications/indexes after the visible app confirmation.
 7. Build the Siri AI settings/diagnostics and in-context teaching UI; perform English and Simplified Chinese simulator visual checks.
 8. Install as an update on the physical iPhone, launch once, inspect language/region/Siri/Apple Intelligence state, then conduct the one-command-at-a-time user-spoken device test matrix. Record only observed results in `REAL_DEVICE_SIRI_RESULTS.md`.
-

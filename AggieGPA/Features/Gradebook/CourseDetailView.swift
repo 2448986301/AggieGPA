@@ -1,3 +1,4 @@
+import AppIntents
 import SwiftData
 import SwiftUI
 
@@ -18,6 +19,7 @@ struct CourseDetailView: View {
 
     let course: CourseRecord
     let preferences: UserPreferences
+    let initialItemID: UUID?
     @State private var section = CourseDetailSection.gradebook
     @State private var editingCategory: GradingCategory?
     @State private var editingItem: GradeItem?
@@ -35,6 +37,12 @@ struct CourseDetailView: View {
     @State private var editingForecast: ForecastScenario?
     @State private var deletedItem: DeletedGradeItem?
     @State private var showScoreUpdate = false
+
+    init(course: CourseRecord, preferences: UserPreferences, initialItemID: UUID? = nil) {
+        self.course = course
+        self.preferences = preferences
+        self.initialItemID = initialItemID
+    }
 
     private func belongsToCourse(_ relatedCourse: CourseRecord?) -> Bool {
         relatedCourse?.persistentModelID == course.persistentModelID
@@ -133,6 +141,12 @@ struct CourseDetailView: View {
         .sheet(isPresented: $showForecastEditor) {
             ForecastEditorView(course: course, policy: policy, forecast: editingForecast)
         }
+        .task {
+            guard let initialItemID, let item = courseItems.first(where: { $0.id == initialItemID }) else { return }
+            section = .gradebook
+            editingItem = item
+            showItemEditor = true
+        }
         .safeAreaInset(edge: .bottom) {
             if deletedItem != nil {
                 HStack {
@@ -154,6 +168,7 @@ struct CourseDetailView: View {
                 .padding(.horizontal)
             }
         }
+        .appEntityIdentifier(EntityIdentifier(for: CourseEntity.self, identifier: course.id.uuidString))
     }
 
     private var gradeHero: some View {

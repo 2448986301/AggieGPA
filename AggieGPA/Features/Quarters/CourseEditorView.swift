@@ -21,6 +21,7 @@ struct CourseEditorView: View {
     @State private var attemptNumber: Int
     @State private var repeatMode: RepeatHandlingMode
     @State private var notes: String
+    @State private var siriAliases: String
     @State private var validationMessage: String?
     @FocusState private var focusedField: Field?
 
@@ -43,6 +44,7 @@ struct CourseEditorView: View {
         _attemptNumber = State(initialValue: max(1, course?.repeatAttemptOrder ?? 1))
         _repeatMode = State(initialValue: course?.repeatHandlingMode ?? .manualReview)
         _notes = State(initialValue: course?.notes ?? "")
+        _siriAliases = State(initialValue: course.map { SiriAliasStore.aliases(for: $0.id).joined(separator: ", ") } ?? "")
     }
 
     var body: some View {
@@ -93,6 +95,12 @@ struct CourseEditorView: View {
                     }
                 }
                 Section("Notes") { TextField("Optional notes", text: $notes, axis: .vertical) }
+                Section("Siri Aliases") {
+                    TextField("For example: Chemistry, Chem 2A, 化学", text: $siriAliases, axis: .vertical)
+                    Text("Use short names you naturally say. Separate aliases with commas.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 if let validationMessage {
                     Section { Label(validationMessage, systemImage: "exclamationmark.circle").foregroundStyle(.red) }
                 }
@@ -147,15 +155,18 @@ struct CourseEditorView: View {
             course.repeatHandlingMode = repeatMode
             course.notes = notes
             course.updatedAt = .now
+            SiriAliasStore.save(siriAliases, for: course.id)
         } else {
-            modelContext.insert(CourseRecord(courseCode: normalizedCode,
+            let record = CourseRecord(courseCode: normalizedCode,
                                              courseTitle: title.trimmingCharacters(in: .whitespacesAndNewlines),
                                              units: units, grade: grade, gradingBasis: gradingBasis,
                                              institution: institution, term: term, isMajorCourse: isMajor,
                                              isUpperDivision: isUpper, isIncludedInGPA: includeInGPA,
                                              isTransferCourse: isTransfer, isRepeatCourse: isRepeat,
                                              repeatAttemptOrder: attemptNumber, repeatHandlingMode: repeatMode,
-                                             notes: notes))
+                                             notes: notes)
+            modelContext.insert(record)
+            SiriAliasStore.save(siriAliases, for: record.id)
         }
         try? modelContext.save()
         dismiss()
