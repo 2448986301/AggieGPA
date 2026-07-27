@@ -15,7 +15,10 @@ enum PersistentStoreService {
     static var v2Schema: Schema { Schema(versionedSchema: AggieGPASchemaV2.self) }
 
     static func makeContainer(inMemory: Bool) -> StoreBootstrapResult {
-        if !inMemory {
+        // The Simulator does not always grant the production App Group. In that environment,
+        // continue with the existing app-private store instead of presenting a recovery screen.
+        // Physical builds still migrate once to, and then use, the shared App Group store.
+        if !inMemory, appGroupStoreURL() != nil {
             do {
                 try migrateLegacyStoreToAppGroupIfNeeded()
             } catch {
@@ -43,9 +46,12 @@ enum PersistentStoreService {
         }
     }
 
-    /// Opens the exact production store for App Intents. Unlike the app bootstrap,
-    /// this deliberately has no in-memory recovery fallback: returning an empty
-    /// database to Siri would be indistinguishable from a valid "no results" answer.
+    /// Opens the same durable store as the app for App Intents.
+    ///
+    /// This deliberately has no in-memory recovery fallback: returning an empty database to
+    /// Siri would be indistinguishable from a valid "no results" answer. When a Simulator
+    /// does not expose the production App Group, `makeConfiguration` selects the same
+    /// app-private store used by the app instead.
     static func makeAppIntentContainer() throws -> ModelContainer {
         let configuration = makeConfiguration(inMemory: false)
         return try ModelContainer(
@@ -56,7 +62,8 @@ enum PersistentStoreService {
     }
 
     static func makeConfiguration(inMemory: Bool) -> ModelConfiguration {
-        if !inMemory, let storeURL = appGroupStoreURL() {
+        if !inMemory {
+            let storeURL = appGroupStoreURL() ?? legacyStoreURL()
             return ModelConfiguration(configurationName, schema: v2Schema, url: storeURL)
         }
         return ModelConfiguration(

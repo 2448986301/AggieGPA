@@ -5,15 +5,20 @@ import SwiftData
 final class AppIntentDataService {
     static let shared = AppIntentDataService()
     private let containerResult: Result<ModelContainer, Error>
+    private let usesSharedSnapshot: Bool
 
     private init() {
         containerResult = Result {
             try PersistentStoreService.makeAppIntentContainer()
         }
+        usesSharedSnapshot = true
     }
 
     init(container: ModelContainer) {
         containerResult = .success(container)
+        // An injected container is an isolated data source (for previews and tests), so a
+        // persisted snapshot from another store must never shadow its records.
+        usesSharedSnapshot = false
     }
 
     private var context: ModelContext {
@@ -45,7 +50,8 @@ final class AppIntentDataService {
         }
     }
     func upcomingAssignments(days: Int, calendar: Calendar = .autoupdatingCurrent, now: Date = .now) throws -> [AssignmentEntity] {
-        if let sharedAssignments = SiriSharedSnapshotStore.upcomingAssignments(days: days, now: now, calendar: calendar) {
+        if usesSharedSnapshot,
+           let sharedAssignments = SiriSharedSnapshotStore.upcomingAssignments(days: days, now: now, calendar: calendar) {
             return sharedAssignments
         }
         let start = calendar.startOfDay(for: now)
@@ -63,7 +69,8 @@ final class AppIntentDataService {
         }
     }
     func upcomingExams(days: Int, calendar: Calendar = .autoupdatingCurrent, now: Date = .now) throws -> [ExamEntity] {
-        if let sharedExams = SiriSharedSnapshotStore.upcomingExams(days: days, now: now, calendar: calendar) {
+        if usesSharedSnapshot,
+           let sharedExams = SiriSharedSnapshotStore.upcomingExams(days: days, now: now, calendar: calendar) {
             return sharedExams
         }
         let start = calendar.startOfDay(for: now)
