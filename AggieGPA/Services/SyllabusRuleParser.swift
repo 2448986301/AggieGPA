@@ -158,6 +158,8 @@ nonisolated enum SyllabusRuleParser {
         return .custom
     }
 
+    static func categoryTypeForImport(_ name: String) -> GradeCategoryType { categoryType(for: name) }
+
     private static func cleanName(_ value: String) -> String {
         value.trimmingCharacters(in: CharacterSet(charactersIn: " :,-—()"))
             .replacingOccurrences(of: #"(?i)^grading\s+"#, with: "", options: .regularExpression)

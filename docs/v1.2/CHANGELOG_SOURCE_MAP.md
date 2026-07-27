@@ -6,6 +6,7 @@ claims from the app-facing copy.
 
 | Changelog version | Sources | Editorial rule |
 | --- | --- | --- |
+| 1.3.0 Unreleased | Current syllabus-import source, Foundation Models SDK availability checks, build and test evidence | Describe only on-device processing, confirmation boundary, and reviewed evidence. Do not claim PCC availability or a completed real-device model run. |
 | 1.2.0 Unreleased | Apple Design commits `8bbeeb5` through `06d3426`; current source and build settings | Include only completed current-branch design, localization, accessibility, and feedback work. |
 | 1.1.2 | `756ef1d`; `docs/v1.1.2/REAL_DEVICE_SIRI_RESULTS.md`; `SIRI_KNOWN_LIMITATIONS.md` | State only the documented assignment App Shortcut and Spotlight evidence; label all other Siri routes unverified. |
 | 1.1.1 | `fd5d870` through `704f243`; `docs/v1.1.1/ACCEPTANCE_TESTS.md` | Describe the student-flow checkpoint. Do not call it a confirmed public release. |

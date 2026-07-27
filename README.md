@@ -1,6 +1,6 @@
 # Aggie GPA
 
-**Unofficial GPA Planner for UC Davis Students**
+**Unofficial GPA Planner for UC Davis Students — 1.3.0 (Build 16)**
 
 Aggie GPA 是一个供 UC Davis 学生个人使用的非官方、完全离线的 iPhone GPA 记录、课程成绩册与规划工具。v1.1 可以记录 category、作业、考试和分数，计算 Current Grade、Forecast 与 Projected GPA，并从 syllabus 提取待确认的评分规则。它没有账号、服务器或远程 AI。
 
@@ -13,8 +13,8 @@ Aggie GPA 是一个供 UC Davis 学生个人使用的非官方、完全离线的
 - SwiftData 本机课程、quarter、scenario、grading plan 和偏好设置。
 - 每门课的 Gradebook、category weights、作业/考试、提醒、drop lowest、extra credit 和可编辑分数线。
 - Official GPA、Current Grade、Projected Grade 与 Projected GPA 明确分开，预测绝不改写正式记录。
-- PDF、图片、相机或粘贴文字的本机 syllabus 识别；保存前必须人工确认。
-- 可选端侧 Foundation Models；不可用时退回本地规则解析。
+- PDF 原始文字、图片、相机或粘贴文字的课程大纲理解；保存前必须人工确认。
+- 支持设备端 Foundation Models 时直接理解文字或扫描页；不使用 OCR，也不会把模型不可用伪装成解析成功。
 - Siri / Shortcuts 查询与草稿操作，默认关闭并按数据类别授权。
 - Decimal 精确 GPA engine；A+ = 4.0，中间结果不提前舍入。
 - Dashboard Hero、当前/专业/upper-division GPA、课程概览和 Charts 趋势。
@@ -94,9 +94,9 @@ Planner > Final Grade Calculator。按 syllabus 输入 category weight、earned 
 
 ### 导入 syllabus
 
-课程右上角 > Import Grading Policy，可选择 PDF 或图片、使用相机扫描，或直接粘贴 grading rules。Aggie GPA 会显示识别原文、置信度、category 和需要人工核对的问题。只有点 Confirm and Save Rules 后才会写入；已有 category 时不会静默覆盖。
+课程右上角 > Import Grading Policy，可选择 PDF、图片或文字文件、使用相机扫描，或直接粘贴 grading rules。文字型 PDF 读取内嵌文字；扫描页作为图像由设备端 Foundation Models 分析，不使用 OCR。预览会显示 category、weight、作业/考试、来源页码、置信度和需要人工确认的规则。只有点 Confirm Import 后才会写入；已有数据只会追加已确认内容，绝不静默覆盖。
 
-支持 Apple Intelligence 的设备可选择 Refine with On-Device Model。模型不可用、未下载或不支持当前语言时，本地确定性 parser 仍可工作；syllabus 不会上传，也不会调用远程 AI。
+支持 Apple Intelligence 的设备优先使用设备端模型。模型不可用、未下载或不支持当前语言时，App 会明确说明并提供手动建立和粘贴文字入口，不会返回假的解析结果。Private Cloud Compute 仍需 Apple entitlement、运行时可用性和单独许可，未作为已发布能力承诺。
 
 ### Forecast、Official 与 Projected
 
@@ -177,7 +177,7 @@ Aggie GPA 不会直接宣称 Good Standing、Probation、Subject to Dismissal �
 ## 已知限制
 
 - 没有服务器和设备间自动同步；备份依赖手动 JSON export。
-- syllabus OCR 和规则识别可能不完整，曲线、替代考试和复杂 extra credit 必须人工核对。
+- 课程大纲理解可能不完整，曲线、替代考试和复杂 extra credit 必须人工核对；App 不使用 OCR。
 - Foundation Models、Siri、Shortcuts 和通知的实际可用性取决于设备、语言、已下载模型、系统权限与 Personal Team 配置。
 - Siri 只提供有限本机数据；写操作只能创建待确认草稿。
 - Major / upper-division 标记由用户维护，应用不知道某个专业的官方 course list。

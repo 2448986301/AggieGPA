@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.3.0] — Unreleased
+
+### Added
+
+- Rebuilt syllabus import around Apple Foundation Models on supported devices. It
+  reads native PDF text or analyzes scanned pages as images; it does not use OCR.
+- Added reviewable grading categories, weights, assessments, dates, special rules,
+  page evidence, confidence indicators, and explicit review flags.
+
+### Improved
+
+- Import results stay editable and no course data changes until Confirm Import.
+- Improved English and Simplified Chinese syllabus-import status, privacy, review,
+  warning, and error guidance.
+
+### Notes
+
+- On-device model availability depends on the device, enabled Apple Intelligence,
+  language, and downloaded system model. Private Cloud Compute is not a released
+  feature claim: it remains gated by Apple entitlement, availability, and a
+  separate in-app permission.
+
 ## [1.2.0] — Unreleased
 
 ### Changed

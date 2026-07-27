@@ -26,8 +26,20 @@ enum AppVersionHistory {
 
     static let releases: [AppVersionRelease] = [
         AppVersionRelease(
-            version: "1.2.0",
+            version: "1.3.0",
             status: "Current Version",
+            summary: "Reviewable on-device syllabus understanding, with clearer evidence and control.",
+            highlights: [
+                "On-device AI reads syllabus text and scanned pages without OCR",
+                "Clearer grading categories, weights, assessments, and special rules",
+                "Page evidence and review flags for every uncertain result",
+                "Nothing changes course data until you choose Confirm Import",
+                "Improved English and Simplified Chinese syllabus-import guidance"
+            ]
+        ),
+        AppVersionRelease(
+            version: "1.2.0",
+            status: "Unreleased development version",
             summary: "A calmer, more consistent way to track your grades.",
             highlights: [
                 "A unified Apple-inspired design system",

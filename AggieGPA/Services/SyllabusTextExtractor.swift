@@ -1,56 +1,77 @@
 import Foundation
 import PDFKit
 import UIKit
-import Vision
 
+/// Reads document-native text and page images. This type deliberately contains no Vision or OCR API.
 enum SyllabusTextExtractor {
-    struct ExtractionResult: Sendable {
-        let text: String
-        let confidence: Double
+    struct Page: @unchecked Sendable {
+        let number: Int
+        let text: String?
+        let image: CGImage?
     }
 
-    static func extract(from url: URL) async throws -> ExtractionResult {
-        let accessed = url.startAccessingSecurityScopedResource()
-        defer { if accessed { url.stopAccessingSecurityScopedResource() } }
-        if url.pathExtension.lowercased() == "pdf" {
-            guard let document = PDFDocument(url: url) else { throw ExtractionError.unreadableFile }
-            let text = (0..<document.pageCount).compactMap { document.page(at: $0)?.string }.joined(separator: "\n")
-            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ExtractionError.noText }
-            return ExtractionResult(text: text, confidence: 1)
-        }
-        let data = try Data(contentsOf: url)
-        guard let image = UIImage(data: data), let cgImage = image.cgImage else { throw ExtractionError.unreadableFile }
-        return try await recognize(cgImage)
-    }
-
-    static func recognize(_ image: CGImage) async throws -> ExtractionResult {
-        try await withCheckedThrowingContinuation { continuation in
-            let request = VNRecognizeTextRequest { request, error in
-                if let error { continuation.resume(throwing: error); return }
-                let observations = request.results as? [VNRecognizedTextObservation] ?? []
-                let candidates = observations.compactMap { observation -> (String, Float)? in
-                    guard let candidate = observation.topCandidates(1).first else { return nil }
-                    return (candidate.string, candidate.confidence)
-                }
-                let text = candidates.map(\.0).joined(separator: "\n")
-                guard !text.isEmpty else { continuation.resume(throwing: ExtractionError.noText); return }
-                let confidence = candidates.isEmpty ? 0 : candidates.reduce(0) { $0 + Double($1.1) } / Double(candidates.count)
-                continuation.resume(returning: ExtractionResult(text: text, confidence: confidence))
-            }
-            request.recognitionLevel = .accurate
-            request.usesLanguageCorrection = true
-            do {
-                try VNImageRequestHandler(cgImage: image).perform([request])
-            } catch {
-                continuation.resume(throwing: error)
-            }
-        }
+    struct Document: @unchecked Sendable {
+        let pages: [Page]
+        let source: SyllabusImportSource
     }
 
     enum ExtractionError: LocalizedError {
-        case unreadableFile, noText
+        case unreadableFile, unsupportedTextDocument, noReadableContent
+
         var errorDescription: String? {
-            switch self { case .unreadableFile: "The selected syllabus could not be read."; case .noText: "No readable text was found." }
+            switch self {
+            case .unreadableFile: String(localized: "The selected syllabus could not be read.")
+            case .unsupportedTextDocument: String(localized: "This text document format is not supported. Paste its text instead.")
+            case .noReadableContent: String(localized: "No readable text or image pages were found.")
+            }
         }
+    }
+
+    static func read(url: URL) throws -> Document {
+        let accessed = url.startAccessingSecurityScopedResource()
+        defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+        let ext = url.pathExtension.lowercased()
+        if ext == "pdf" { return try readPDF(url) }
+        if ["txt", "text", "md", "csv"].contains(ext) {
+            let data = try Data(contentsOf: url)
+            guard let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .unicode) else {
+                throw ExtractionError.unsupportedTextDocument
+            }
+            return Document(pages: [Page(number: 1, text: text, image: nil)], source: .pastedText)
+        }
+        if let image = UIImage(contentsOfFile: url.path)?.cgImage {
+            return Document(pages: [Page(number: 1, text: nil, image: image)], source: .image)
+        }
+        throw ExtractionError.unsupportedTextDocument
+    }
+
+    static func read(images: [UIImage]) throws -> Document {
+        let pages = images.enumerated().compactMap { offset, image in
+            image.cgImage.map { Page(number: offset + 1, text: nil, image: $0) }
+        }
+        guard !pages.isEmpty else { throw ExtractionError.noReadableContent }
+        return Document(pages: pages, source: .camera)
+    }
+
+    private static func readPDF(_ url: URL) throws -> Document {
+        guard let document = PDFDocument(url: url) else { throw ExtractionError.unreadableFile }
+        let pages = (0..<document.pageCount).compactMap { index -> Page? in
+            guard let page = document.page(at: index) else { return nil }
+            let nativeText = page.string?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let nativeText, !nativeText.isEmpty { return Page(number: index + 1, text: nativeText, image: nil) }
+            let bounds = page.bounds(for: .mediaBox)
+            let scale: CGFloat = min(2, max(1.25, 144 / max(bounds.width / 72, 1)))
+            let size = CGSize(width: bounds.width * scale, height: bounds.height * scale)
+            UIGraphicsBeginImageContextWithOptions(size, true, 1)
+            UIColor.white.setFill(); UIRectFill(CGRect(origin: .zero, size: size))
+            guard let context = UIGraphicsGetCurrentContext() else { UIGraphicsEndImageContext(); return nil }
+            context.scaleBy(x: scale, y: scale)
+            page.draw(with: .mediaBox, to: context)
+            let image = UIGraphicsGetImageFromCurrentImageContext()?.cgImage
+            UIGraphicsEndImageContext()
+            return image.map { Page(number: index + 1, text: nil, image: $0) }
+        }
+        guard !pages.isEmpty else { throw ExtractionError.noReadableContent }
+        return Document(pages: pages, source: .pdf)
     }
 }
