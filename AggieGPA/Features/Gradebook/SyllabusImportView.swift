@@ -54,11 +54,35 @@ struct SyllabusImportView: View {
                     }
                 }
 
-                if isWorking { Section { ProgressView("Reading syllabus on this device…") } }
+                if isWorking {
+                    Section {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Reading syllabus on this device…")
+                                Text("You can keep this sheet open while we prepare the preview.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            ProgressView()
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
                 if let result { review(result) }
-                if let errorMessage { Section { Text(errorMessage).foregroundStyle(.red) } }
+                if let errorMessage {
+                    Section {
+                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(DesignSystem.ColorToken.error)
+                            .accessibilityElement(children: .combine)
+                    }
+                }
                 if didSave {
-                    Section { Label("Confirmed grading rules saved.", systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
+                    Section {
+                        Label("Confirmed grading rules saved.", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(DesignSystem.ColorToken.success)
+                            .accessibilityElement(children: .combine)
+                    }
                 }
             }
             .navigationTitle("Import Syllabus")

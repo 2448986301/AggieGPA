@@ -3,6 +3,7 @@ import SwiftUI
 
 struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let existingPreferences: UserPreferences?
 
     @State private var page = 0
@@ -53,7 +54,9 @@ struct OnboardingView: View {
             Image(systemName: item.0)
                 .font(.system(size: 62, weight: .semibold))
                 .foregroundStyle(DesignSystem.ColorToken.gold)
-                .symbolEffect(.breathe, isActive: page < 3)
+                // A quiet symbol treatment gives the welcome flow life without creating a
+                // continuously moving focal point for people who reduce motion.
+                .symbolEffect(.breathe, isActive: page < 3 && !reduceMotion)
                 .accessibilityHidden(true)
             Text(item.1)
                 .font(.largeTitle.bold())

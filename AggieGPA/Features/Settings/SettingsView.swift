@@ -286,7 +286,13 @@ struct DataManagementView: View {
             Section("Danger Zone") {
                 Button("Reset All Academic Data", role: .destructive) { confirmReset = true }
             }
-            if let statusMessage { Section { Text(LocalizedStringKey(statusMessage)).foregroundStyle(.secondary) } }
+            if let statusMessage {
+                Section {
+                    Label(LocalizedStringKey(statusMessage), systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(DesignSystem.ColorToken.success)
+                        .accessibilityElement(children: .combine)
+                }
+            }
         }
         .navigationTitle("Data & Backups")
         .onAppear { prepareShareFile() }

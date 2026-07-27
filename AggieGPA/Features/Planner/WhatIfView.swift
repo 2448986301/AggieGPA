@@ -86,7 +86,13 @@ struct WhatIfView: View {
                     .disabled(terms.isEmpty)
                     .tint(DesignSystem.ColorToken.warning)
             }
-            if let statusMessage { Section { Text(LocalizedStringKey(statusMessage)).foregroundStyle(.secondary) } }
+            if let statusMessage {
+                Section {
+                    Label(LocalizedStringKey(statusMessage), systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(DesignSystem.ColorToken.success)
+                        .accessibilityElement(children: .combine)
+                }
+            }
             Section {
                 Text("What-If changes stay separate until you explicitly choose Save to Records.")
                     .font(.footnote).foregroundStyle(.secondary)

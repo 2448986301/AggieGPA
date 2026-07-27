@@ -40,7 +40,13 @@ struct SiriDraftConfirmationView: View {
                             .foregroundStyle(.orange)
                     }
                 }
-                if let errorMessage { Section { Text(errorMessage).foregroundStyle(.red) } }
+                if let errorMessage {
+                    Section {
+                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(DesignSystem.ColorToken.error)
+                            .accessibilityElement(children: .combine)
+                    }
+                }
             }
             .navigationTitle("Confirm Siri Draft")
             .navigationBarTitleDisplayMode(.inline)
