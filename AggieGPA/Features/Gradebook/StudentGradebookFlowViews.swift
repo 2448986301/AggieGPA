@@ -152,20 +152,11 @@ struct QuickGradeItemView: View {
             .onChange(of: title) { _, _ in validation = nil }
             .onChange(of: possible) { _, _ in validation = nil }
             .onChange(of: categoryID) { _, _ in validation = nil }
+            .safeAreaInset(edge: .bottom) {
+                saveButton(identifier: "saveQuickGradeItemButton")
+            }
         }
         .presentationDetents([.medium, .large])
-        .safeAreaInset(edge: .bottom) {
-            Button("Save") {
-                focusedField = nil
-                save()
-            }
-            .frame(maxWidth: .infinity)
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .padding(.horizontal, DesignSystem.Spacing.medium)
-            .padding(.vertical, DesignSystem.Spacing.small)
-            .accessibilityIdentifier("saveQuickGradeItemButton")
-        }
     }
 
     private var isExam: Bool {
@@ -174,6 +165,23 @@ struct QuickGradeItemView: View {
 
     private var selectedCategory: GradingCategory {
         categories.first { $0.id == categoryID } ?? category
+    }
+
+    private func saveButton(identifier: String) -> some View {
+        Button {
+            focusedField = nil
+            save()
+        } label: {
+            Label("Save", systemImage: "checkmark")
+                .fontWeight(.semibold)
+        }
+        .frame(maxWidth: .infinity)
+        .buttonStyle(.glass)
+        .controlSize(.large)
+        .accessibilityIdentifier(identifier)
+        .padding(.horizontal, DesignSystem.Spacing.medium)
+        .padding(.bottom, DesignSystem.Spacing.medium)
+        .offset(y: -DesignSystem.Spacing.small)
     }
 
     private func save() {
@@ -234,20 +242,28 @@ struct RecordScoreView: View {
             }
             .onChange(of: earned) { _, _ in validation = nil }
             .onChange(of: possible) { _, _ in validation = nil }
+            .safeAreaInset(edge: .bottom) {
+                saveButton
+            }
         }
         .presentationDetents([.medium, .large])
-        .safeAreaInset(edge: .bottom) {
-            Button("Save") {
-                focusedField = nil
-                save()
-            }
-            .frame(maxWidth: .infinity)
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .padding(.horizontal, DesignSystem.Spacing.medium)
-            .padding(.vertical, DesignSystem.Spacing.small)
-            .accessibilityIdentifier("saveRecordedScoreButton")
+    }
+
+    private var saveButton: some View {
+        Button {
+            focusedField = nil
+            save()
+        } label: {
+            Label("Save", systemImage: "checkmark")
+                .fontWeight(.semibold)
         }
+        .frame(maxWidth: .infinity)
+        .buttonStyle(.glass)
+        .controlSize(.large)
+        .accessibilityIdentifier("saveRecordedScoreButton")
+        .padding(.horizontal, DesignSystem.Spacing.medium)
+        .padding(.bottom, DesignSystem.Spacing.medium)
+        .offset(y: -DesignSystem.Spacing.small)
     }
 
     private func save() {

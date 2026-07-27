@@ -170,20 +170,28 @@ struct GradeItemEditorView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
+            .safeAreaInset(edge: .bottom) {
+                saveButton
+            }
         }
         .presentationDetents([.large])
-        .safeAreaInset(edge: .bottom) {
-            Button("Save") {
-                focusedField = nil
-                save()
-            }
-            .frame(maxWidth: .infinity)
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .padding(.horizontal, DesignSystem.Spacing.medium)
-            .padding(.vertical, DesignSystem.Spacing.small)
-            .accessibilityIdentifier("saveGradeItemButton")
+    }
+
+    private var saveButton: some View {
+        Button {
+            focusedField = nil
+            save()
+        } label: {
+            Label("Save", systemImage: "checkmark")
+                .fontWeight(.semibold)
         }
+        .frame(maxWidth: .infinity)
+        .buttonStyle(.glass)
+        .controlSize(.large)
+        .accessibilityIdentifier("saveGradeItemButton")
+        .padding(.horizontal, DesignSystem.Spacing.medium)
+        .padding(.bottom, DesignSystem.Spacing.medium)
+        .offset(y: -DesignSystem.Spacing.small)
     }
 
     private func save() {
