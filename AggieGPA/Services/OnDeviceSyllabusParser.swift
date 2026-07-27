@@ -89,27 +89,15 @@ enum OnDeviceSyllabusParser {
         }
     }
 
-    @available(iOS 27.0, *)
-    static func privateCloudIsAvailable() -> Bool { PrivateCloudComputeLanguageModel().isAvailable }
-
     static func extract(document: SyllabusTextExtractor.Document, mode: SyllabusAnalysisMode,
                         progress: @Sendable (SyllabusAnalysisPhase) -> Void) async throws -> SyllabusImportDraft {
         guard availability() == .available else { throw ParserError.unavailable(availability()) }
         do {
-            if mode == .privateCloud {
-                guard #available(iOS 27.0, *), privateCloudIsAvailable() else { throw ParserError.privateCloudUnavailable }
-            }
             var combined = SyllabusImportDraft(); combined.source = document.source
             for page in document.pages {
                 try Task.checkCancellation()
                 progress(page.image == nil ? .analyzingGrading : .organizingAssessments)
-                let pageDraft: ModelSyllabusDraft
-                if mode == .privateCloud {
-                    guard #available(iOS 27.0, *) else { throw ParserError.privateCloudUnavailable }
-                    pageDraft = try await respond(page: page, model: PrivateCloudComputeLanguageModel())
-                } else {
-                    pageDraft = try await respond(page: page, model: SystemLanguageModel.default)
-                }
+                let pageDraft = try await respond(page: page, model: SystemLanguageModel.default)
                 merge(pageDraft, into: &combined, defaultPage: page.number)
             }
             validate(&combined)
@@ -226,8 +214,8 @@ enum OnDeviceSyllabusParser {
         return result
     }
 
-    enum ParserError: LocalizedError { case unavailable(OnDeviceModelAvailability), privateCloudUnavailable, imageUnderstandingUnavailable
-        var errorDescription: String? { switch self { case .unavailable(let status): status.message; case .privateCloudUnavailable: String(localized: "Private cloud analysis requires your permission and is currently unavailable."); case .imageUnderstandingUnavailable: String(localized: "This model cannot analyze scanned pages. You can paste text or create the grading method manually.") } }
+    enum ParserError: LocalizedError { case unavailable(OnDeviceModelAvailability), imageUnderstandingUnavailable
+        var errorDescription: String? { switch self { case .unavailable(let status): status.message; case .imageUnderstandingUnavailable: String(localized: "This model cannot analyze scanned pages. You can paste text or create the grading method manually.") } }
     }
 }
 #else

@@ -1,7 +1,7 @@
 import Foundation
 
 nonisolated enum SyllabusAnalysisMode: String, Sendable {
-    case onDevice, privateCloud
+    case onDevice
 }
 
 nonisolated enum SyllabusAnalysisPhase: Equatable, Sendable {

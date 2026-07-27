@@ -22,7 +22,6 @@ struct SyllabusImportView: View {
     @State private var errorMessage: String?
     @State private var showFileImporter = false
     @State private var showScanner = false
-    @State private var showCloudConsent = false
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var didSave = false
 
@@ -53,10 +52,6 @@ struct SyllabusImportView: View {
                 loadSelectedPhotos(items)
             }
             .sheet(isPresented: $showScanner) { DocumentScannerView { images in load(images) } }
-            .alert("Private cloud analysis requires your permission", isPresented: $showCloudConsent) {
-                Button("Use Private Cloud") { analyze(mode: .privateCloud) }
-                Button("Cancel", role: .cancel) {}
-            } message: { Text("The selected syllabus pages will be sent to Apple Private Cloud Compute for analysis. Nothing is saved until you choose Confirm Import.") }
         }
     }
 
@@ -87,11 +82,6 @@ struct SyllabusImportView: View {
             }
             Button("Analyze Pasted Text", systemImage: "apple.intelligence") { document = .init(pages: [.init(number: 1, text: pastedText, image: nil)], source: .pastedText); analyze(mode: .onDevice) }
                 .disabled(pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isWorking)
-            if document != nil, #available(iOS 27.0, *) {
-                Button("Use Private Cloud Analysis", systemImage: "lock.icloud") { showCloudConsent = true }
-                    .disabled(isWorking || !OnDeviceSyllabusParser.privateCloudIsAvailable())
-                Text("Private cloud analysis requires your permission.").font(.caption).foregroundStyle(.secondary)
-            }
             if OnDeviceSyllabusParser.availability() != .available {
                 Label(OnDeviceSyllabusParser.availability().message, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
                 Text("You can paste text and create the grading method manually. OCR is not used.").font(.footnote).foregroundStyle(.secondary)

@@ -20,9 +20,8 @@
 ### Notes
 
 - On-device model availability depends on the device, enabled Apple Intelligence,
-  language, and downloaded system model. Private Cloud Compute is not a released
-  feature claim: it remains gated by Apple entitlement, availability, and a
-  separate in-app permission.
+  language, and downloaded system model. Private Cloud Compute is not exposed
+  because it has not passed real-device stability validation.
 - The automatic local fallback has no network path and applies only when the
   document already contains readable text; it cannot infer text from scanned images.
 

@@ -96,7 +96,7 @@ Planner > Final Grade Calculator。按 syllabus 输入 category weight、earned 
 
 课程右上角 > Import Grading Policy，可选择 PDF、图片或文字文件、使用相机扫描，或直接粘贴 grading rules。文字型 PDF 读取内嵌文字；扫描页作为图像由设备端 Foundation Models 分析，不使用 OCR。预览会显示 category、weight、作业/考试、来源页码、置信度和需要人工确认的规则。只有点 Confirm Import 后才会写入；已有数据只会追加已确认内容，绝不静默覆盖。
 
-支持 Apple Intelligence 的设备优先使用设备端模型。模型不可用、未下载或不支持当前语言时，App 会明确说明并提供手动建立和粘贴文字入口，不会返回假的解析结果。Private Cloud Compute 仍需 Apple entitlement、运行时可用性和单独许可，未作为已发布能力承诺。
+支持 Apple Intelligence 的设备优先使用设备端模型。模型不可用、未下载或不支持当前语言时，App 会明确说明并提供手动建立和粘贴文字入口，不会返回假的解析结果。Private Cloud Compute 未完成真机稳定性验证，因此不作为 App 功能公开；课程大纲不会上传至云端。
 
 ### Forecast、Official 与 Projected
 
