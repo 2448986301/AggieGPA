@@ -4,6 +4,9 @@
 
 ### Added
 
+- Added a native iPadOS workspace with a primary sidebar and a Courses list-detail
+  layout. It adapts between portrait, landscape, Split View, and narrower windows
+  without changing the iPhone TabView.
 - Rebuilt syllabus import around Apple Foundation Models on supported devices. It
   reads native PDF text or analyzes scanned pages as images; it does not use OCR.
 - Added reviewable grading categories, weights, assessments, dates, special rules,
@@ -11,6 +14,8 @@
 
 ### Improved
 
+- Improved iPad assignment, exam, score-entry, course-detail, keyboard, pointer,
+  and accessibility composition by reusing the same SwiftData and calculation flows.
 - Import results stay editable and no course data changes until Confirm Import.
 - Improved English and Simplified Chinese syllabus-import status, privacy, review,
   warning, and error guidance.

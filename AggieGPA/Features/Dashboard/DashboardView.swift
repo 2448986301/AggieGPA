@@ -17,6 +17,7 @@ struct DashboardView: View {
     @State private var showAddCourse = false
     @State private var showNewTerm = false
     @State private var addAction: TodayAddAction?
+    @State private var availableWidth: CGFloat = 0
 
     private var includedTerms: [AcademicTerm] {
         terms.filter { !$0.isDeleted && $0.isIncludedInCumulativeGPA }
@@ -92,13 +93,38 @@ struct DashboardView: View {
             ZStack {
                 CampusBackground()
                 ScrollView {
-                    LazyVStack(spacing: DesignSystem.Spacing.medium) {
-                        todayTasks
-                        recentCourses
-                        gpaSummary
+                    Group {
+                        if availableWidth >= 900 {
+                            HStack(alignment: .top, spacing: DesignSystem.Spacing.large) {
+                                VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
+                                    todayTasks
+                                    gpaSummary
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
+                                    recentCourses
+                                    if !attentionItems.isEmpty { attentionSection }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        } else {
+                            LazyVStack(spacing: DesignSystem.Spacing.medium) {
+                                todayTasks
+                                recentCourses
+                                gpaSummary
+                            }
+                        }
                     }
+                    .frame(maxWidth: 1_180, alignment: .leading)
                     .padding(.horizontal, DesignSystem.Spacing.medium)
                     .padding(.vertical, DesignSystem.Spacing.small)
+                    .background {
+                        GeometryReader { proxy in
+                            Color.clear
+                                .onAppear { availableWidth = proxy.size.width }
+                                .onChange(of: proxy.size.width) { _, width in availableWidth = width }
+                        }
+                    }
                 }
                 .refreshable { await Task.yield() }
             }

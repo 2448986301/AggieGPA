@@ -27,6 +27,7 @@ private enum CourseDetailSection: String, CaseIterable, Identifiable {
 
 struct CourseDetailView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Query private var policies: [CourseGradingPolicy]
     @Query private var categories: [GradingCategory]
     @Query private var items: [GradeItem]
@@ -107,6 +108,7 @@ struct CourseDetailView: View {
                 }
                 DisclaimerBanner().padding(.top, DesignSystem.Spacing.small)
             }
+            .frame(maxWidth: horizontalSizeClass == .regular ? 980 : .infinity, alignment: .leading)
             .padding(.horizontal, DesignSystem.Spacing.medium)
             .padding(.vertical, DesignSystem.Spacing.medium)
         }

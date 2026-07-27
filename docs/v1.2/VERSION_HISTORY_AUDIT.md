@@ -13,7 +13,7 @@ where the repository does not establish one.
 
 | Version | Build | Primary commit / ref | Status | Evidence | Uncertainty |
 | --- | ---: | --- | --- | --- | --- |
-| 1.3.0 | 16 | Current branch `feature/v1.3-ai-syllabus-import` | Unreleased development version | Current project settings, syllabus-import source, changelog, and 1.3 documentation | Real-device Foundation Models and PCC availability remain unverified. |
+| 1.3.0 | 17 | Current branch `feature/v1.3-ai-syllabus-import` | Unreleased development version | Current project settings, syllabus-import and native iPad workspace source, changelog, and 1.3 documentation | Real-device Foundation Models and PCC availability remain unverified. |
 | 1.0 (semantic 1.0.0) | 1 | `6a80167` on `main` | Documented baseline | `docs/v1.1/BASELINE_AUDIT.md`; project settings at commit; existing changelog | No Git tag; no separately recorded public release date. |
 | 1.1.0 | 2 | `0b3418f` (`feature/v1.1-gradebook-siri`) | Documented completed development version | Project settings at ref; `CHANGELOG.md`; v1.1 product, acceptance, and test documents | The existing changelog date is retained as historical documentation; no tag proves a release artifact. |
 | 1.1.1 | 3 | `704f243` (`feature/v1.1.1-student-first-ux`) | Documented student-flow checkpoint | Project settings at ref; v1.1.1 acceptance and verification documents | Existing changelog calls it “In progress”; it must not be presented as a confirmed public release. |
@@ -22,10 +22,11 @@ where the repository does not establish one.
 
 ## Version-by-version evidence
 
-### 1.3.0, build 16
+### 1.3.0, build 17
 
 - **User-visible scope:** reviewable on-device syllabus understanding, page evidence,
-  confidence and confirmation controls, and removal of the prior OCR path.
+  confidence and confirmation controls, removal of the prior OCR path, and a native
+  iPad sidebar/list-detail workspace.
 - **Do not claim:** a completed real-device Apple Intelligence run or PCC access.
 
 ### 1.0 (semantic 1.0.0), build 1

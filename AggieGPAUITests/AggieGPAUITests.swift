@@ -141,9 +141,9 @@ final class AggieGPAUITests: XCTestCase {
     }
 
     func testAboutShowsCurrentVersionAndVersionHistory() {
-        let app = makeApp()
+        let app = makeApp(extraArguments: ["--screenshot-tab=settings"])
         completeOnboarding(app: app)
-        app.tabBars.buttons["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         let about = app.buttons["About"]
         scrollTo(about, in: app)
         about.tap()

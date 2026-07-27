@@ -28,13 +28,15 @@ enum AppVersionHistory {
         AppVersionRelease(
             version: "1.3.0",
             status: "Current Version",
-            summary: "Reviewable on-device syllabus understanding, with clearer evidence and control.",
+            summary: "Reviewable on-device syllabus understanding, now with a native iPad workspace.",
             highlights: [
                 "On-device AI reads syllabus text and scanned pages without OCR",
                 "Clearer grading categories, weights, assessments, and special rules",
                 "Page evidence and review flags for every uncertain result",
                 "Nothing changes course data until you choose Confirm Import",
-                "Improved English and Simplified Chinese syllabus-import guidance"
+                "Improved English and Simplified Chinese syllabus-import guidance",
+                "Native iPad sidebar and course list-detail workspace",
+                "Adaptive layouts for portrait, landscape, Split View, keyboard, and pointer"
             ]
         ),
         AppVersionRelease(
@@ -105,13 +107,67 @@ struct AboutView: View {
                     .accessibilityIdentifier("whatsNewLink")
             }
             Section("About") {
-                NavigationLink("Privacy") { InformationPage(title: "Privacy", text: "Privacy details") }
-                NavigationLink("GPA Rules") { InformationPage(title: "GPA Rules", text: "GPA rules details") }
-                NavigationLink("Disclaimer") { InformationPage(title: "Disclaimer", text: "Disclaimer details") }
+                NavigationLink("Privacy") { AboutInformationPage.privacy }
+                NavigationLink("GPA Rules") { AboutInformationPage.gpaRules }
+                NavigationLink("Disclaimer") { AboutInformationPage.disclaimer }
             }
             Section { DisclaimerBanner() }
         }
         .navigationTitle("About")
+    }
+}
+
+private struct AboutInformationSection: Identifiable {
+    let title: LocalizedStringKey
+    let body: LocalizedStringKey
+
+    var id: String { String(describing: title) }
+}
+
+private struct AboutInformationPage: View {
+    let title: LocalizedStringKey
+    let sections: [AboutInformationSection]
+
+    static let privacy = AboutInformationPage(
+        title: "Privacy",
+        sections: [
+            .init(title: "Privacy overview", body: "Your academic records stay on this device. Aggie GPA has no account, advertising, analytics tracking, remote logging, or cloud sync."),
+            .init(title: "Backups and device security", body: "You control exported backups. Deleting the app can remove local data, so keep a backup before changing devices. Face ID, Touch ID, and passcode checks are performed by iOS; Aggie GPA never receives biometric information."),
+            .init(title: "Syllabus import", body: "Syllabus analysis is performed on device. You review every proposed category, weight, assessment, and rule before anything is written to your course data.")
+        ]
+    )
+
+    static let gpaRules = AboutInformationPage(
+        title: "GPA Rules",
+        sections: [
+            .init(title: "Grade-point estimates", body: "Aggie GPA uses the UC Davis grade-point scale: A+ and A are both 4.0, and plus/minus grades differ by 0.3 except for A+. P, NP, S, U, I, IP, and NG are excluded from GPA estimates by default."),
+            .init(title: "Repeated courses", body: "Undergraduate repeat replacement is estimated for up to 16 units. When a repeated course crosses that limit, Aggie GPA includes both attempts in the estimate and flags the result for review."),
+            .init(title: "Verify official records", body: "Calculations are planning estimates, not official academic records. Confirm your transcript, degree progress, and any special program rules with UC Davis or your academic advisor.")
+        ]
+    )
+
+    static let disclaimer = AboutInformationPage(
+        title: "Disclaimer",
+        sections: [
+            .init(title: "Independent student tool", body: "Aggie GPA is an unofficial student tool and is not affiliated with UC Davis."),
+            .init(title: "What this app cannot decide", body: "This app does not determine official academic standing, graduation eligibility, repeat-course notation, transfer credit, major requirements, or Registrar decisions."),
+            .init(title: "Keep records current", body: "University policies and program requirements can change. Use Aggie GPA to plan, then verify important decisions with official university records.")
+        ]
+    )
+
+    var body: some View {
+        List {
+            ForEach(sections) { section in
+                Section(section.title) {
+                    Text(section.body)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

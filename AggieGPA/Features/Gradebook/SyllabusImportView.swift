@@ -7,6 +7,7 @@ import PhotosUI
 struct SyllabusImportView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Query private var policies: [CourseGradingPolicy]
     @Query private var existingCategories: [GradingCategory]
     @Query private var existingItems: [GradeItem]
@@ -31,11 +32,28 @@ struct SyllabusImportView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                sourceSection
-                statusSection
-                if let draft { review(draft) }
-                if let errorMessage { Section { Label(errorMessage, systemImage: "exclamationmark.triangle.fill").foregroundStyle(DesignSystem.ColorToken.error) } }
+            Group {
+                if horizontalSizeClass == .regular, let draft {
+                    HStack(spacing: 0) {
+                        List {
+                            sourceSection
+                            statusSection
+                            sourcePreview
+                            if let errorMessage { errorSection(errorMessage) }
+                        }
+                        .frame(minWidth: 330, idealWidth: 420, maxWidth: 520)
+                        Divider()
+                        List { review(draft) }
+                            .frame(maxWidth: .infinity)
+                    }
+                } else {
+                    List {
+                        sourceSection
+                        statusSection
+                        if let draft { review(draft) }
+                        if let errorMessage { errorSection(errorMessage) }
+                    }
+                }
             }
             .navigationTitle("Import Syllabus")
             .navigationBarTitleDisplayMode(.inline)
@@ -53,6 +71,31 @@ struct SyllabusImportView: View {
             }
             .sheet(isPresented: $showScanner) { DocumentScannerView { images in load(images) } }
         }
+    }
+
+    @ViewBuilder private var sourcePreview: some View {
+        if let document {
+            Section("Source Preview") {
+                ForEach(document.pages, id: \.number) { page in
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xSmall) {
+                        Text("Page \(page.number)").font(.headline)
+                        if let image = page.image {
+                            Image(decorative: image, scale: 1)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxHeight: 220)
+                                .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.compact, style: .continuous))
+                        } else if let text = page.text {
+                            Text(text).font(.caption).lineLimit(10).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func errorSection(_ message: String) -> some View {
+        Section { Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(DesignSystem.ColorToken.error) }
     }
 
     private var sourceSection: some View {
