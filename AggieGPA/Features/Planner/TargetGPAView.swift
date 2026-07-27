@@ -20,6 +20,11 @@ struct TargetGPAView: View {
 
     var body: some View {
         Form {
+            Section {
+                targetSummary
+                    .listRowInsets(EdgeInsets(top: DesignSystem.Spacing.small, leading: 0, bottom: DesignSystem.Spacing.small, trailing: 0))
+                    .listRowBackground(Color.clear)
+            }
             Section("Inputs") {
                 decimalField("Current GPA", text: $currentGPA)
                 decimalField("Current GPA units", text: $currentUnits)
@@ -27,27 +32,14 @@ struct TargetGPAView: View {
                 decimalField("Future units", text: $futureUnits)
                 Button("Use my records") { useRecords() }
             }
-            Section("Result") {
-                if let result {
-                    if result.isReachable, let required = result.requiredFutureGPA {
-                        Text("Across \(futureUnits) future units, you would need an average GPA of \(DecimalFormatters.string(required, precision: 3)).")
-                            .font(.headline)
-                    } else {
-                        Label("This target is not mathematically reachable within the selected number of future units if the maximum future GPA is 4.0.", systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.orange)
-                    }
-                    LabeledContent("Highest possible final GPA", value: DecimalFormatters.string(result.maximumFinalGPA, precision: 3))
-                    if let extra = result.additionalUnitsNeeded, extra > 0 {
-                        LabeledContent("Additional units at 4.0 needed", value: DecimalFormatters.string(extra, precision: 2))
-                    }
-                } else {
-                    Text("Enter valid GPA values from 0 to 4 and future units greater than 0.").foregroundStyle(.secondary)
+            Section("Calculation details") {
+                DisclosureGroup("Formula and assumptions") {
+                    Text("Required future GPA = (target × (current units + future units) − current GPA × current units) ÷ future units.")
+                    Text("Maximum future GPA is assumed to be 4.0. No intermediate value is rounded. Grade combinations are examples, not unique answers.")
                 }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             }
-            Section("Formula and assumptions") {
-                Text("Required future GPA = (target × (current units + future units) − current GPA × current units) ÷ future units.")
-                Text("Maximum future GPA is assumed to be 4.0. No intermediate value is rounded. Grade combinations are examples, not unique answers.")
-            }.font(.footnote)
         }
         .navigationTitle("Target GPA")
         .onAppear { if targetGPA.isEmpty { targetGPA = DecimalFormatters.compact(preferences.targetGPA); useRecords() } }
@@ -57,6 +49,42 @@ struct TargetGPAView: View {
         TextField(title, text: text).keyboardType(.decimalPad)
     }
 
+    @ViewBuilder private var targetSummary: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
+            Label("Your target", systemImage: "target")
+                .font(.headline)
+            if let result {
+                if result.isReachable, let required = result.requiredFutureGPA {
+                    Text(DecimalFormatters.string(required, precision: 3))
+                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                        .monospacedDigit()
+                    Text("Average GPA needed across your remaining future units")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Label("This target is not reachable with the selected future units.", systemImage: "exclamationmark.triangle.fill")
+                        .font(.headline)
+                        .foregroundStyle(DesignSystem.ColorToken.warning)
+                    Text("At a 4.0 future GPA, your highest possible final GPA is \(DecimalFormatters.string(result.maximumFinalGPA, precision: 3)).")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                if let extra = result.additionalUnitsNeeded, extra > 0 {
+                    LabeledContent("Additional units at 4.0 needed", value: DecimalFormatters.string(extra, precision: 2))
+                        .font(.footnote)
+                }
+            } else {
+                Text("Enter GPA values from 0 to 4 and future units greater than 0 to see your target.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(DesignSystem.Spacing.medium)
+        .contentSurface(radius: DesignSystem.Radius.card)
+        .accessibilityElement(children: .combine)
+    }
+
     private func useRecords() {
         let official = GPAService.cumulative(courses.map(CourseCalculationInput.init))
         currentGPA = DecimalFormatters.compact(official.gpa ?? 0)
@@ -64,4 +92,3 @@ struct TargetGPAView: View {
         if targetGPA.isEmpty { targetGPA = DecimalFormatters.compact(preferences.targetGPA) }
     }
 }
-
