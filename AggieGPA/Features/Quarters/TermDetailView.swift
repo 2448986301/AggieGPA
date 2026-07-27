@@ -173,6 +173,7 @@ struct TermDetailView: View {
 
 private struct CourseRow: View {
     @Environment(\.locale) private var locale
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Query private var policies: [CourseGradingPolicy]
     @Query private var categories: [GradingCategory]
     @Query private var items: [GradeItem]
@@ -199,31 +200,50 @@ private struct CourseRow: View {
         ))
     }
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(course.courseCode).font(.headline).foregroundStyle(.primary)
-                if !course.courseTitle.isEmpty { Text(course.courseTitle).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
+                    courseIdentity
+                    courseGrade
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            } else {
                 HStack {
-                    Text(verbatim: AppCopy.units(course.units, locale: locale))
-                    if course.isMajorCourse { Label("Major", systemImage: "star.fill") }
-                    if course.isRepeatCourse { Label("Repeat", systemImage: "arrow.triangle.2.circlepath") }
-                }.font(.caption2).foregroundStyle(.secondary)
-            }
-            Spacer()
-            VStack(alignment: .trailing) {
-                if course.grade.isPending, let current = gradeResult.calculatedCurrentPercentage {
-                    Text("Current \(compact(current))%").font(.headline).foregroundStyle(.primary)
-                    if let projected = gradeResult.projectedLetterGrade {
-                        Text("Projected \(projected.rawValue)").font(.caption2).foregroundStyle(DesignSystem.ColorToken.gold)
-                    } else {
-                        Text("\(compact(gradeResult.gradedWeight))% graded").font(.caption2).foregroundStyle(.secondary)
-                    }
-                } else {
-                    Text("Official \(course.grade.rawValue)").font(.headline).foregroundStyle(.primary)
-                    Text(course.isIncludedInGPA ? "Included" : "Excluded").font(.caption2).foregroundStyle(.secondary)
+                    courseIdentity
+                    Spacer(minLength: DesignSystem.Spacing.small)
+                    courseGrade
+                        .frame(width: 168, alignment: .trailing)
                 }
             }
         }
         .accessibilityElement(children: .combine)
+    }
+
+    private var courseIdentity: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(course.courseCode).font(.headline).foregroundStyle(.primary)
+            if !course.courseTitle.isEmpty { Text(course.courseTitle).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
+            HStack {
+                Text(verbatim: AppCopy.units(course.units, locale: locale))
+                if course.isMajorCourse { Label("Major", systemImage: "star.fill") }
+                if course.isRepeatCourse { Label("Repeat", systemImage: "arrow.triangle.2.circlepath") }
+            }.font(.caption2).foregroundStyle(.secondary)
+        }
+    }
+
+    private var courseGrade: some View {
+        VStack(alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .trailing) {
+            if course.grade.isPending, let current = gradeResult.calculatedCurrentPercentage {
+                Text("Current \(compact(current))%").font(.headline).foregroundStyle(.primary)
+                if let projected = gradeResult.projectedLetterGrade {
+                    Text("Projected \(projected.rawValue)").font(.caption2).foregroundStyle(DesignSystem.ColorToken.gold)
+                } else {
+                    Text("\(compact(gradeResult.gradedWeight))% graded").font(.caption2).foregroundStyle(.secondary)
+                }
+            } else {
+                Text("Official \(course.grade.rawValue)").font(.headline).foregroundStyle(.primary)
+                Text(course.isIncludedInGPA ? "Included" : "Excluded").font(.caption2).foregroundStyle(.secondary)
+            }
+        }
     }
 }
