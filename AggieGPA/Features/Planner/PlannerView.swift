@@ -80,7 +80,7 @@ struct PlannerView: View {
                 .font(.headline)
 
             HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.medium) {
-                gpaValue("Official cumulative", value: officialCumulative.gpa, detail: AppCopy.units(officialCumulative.attemptedUnits, locale: .current))
+                gpaValue("Official GPA", value: officialCumulative.gpa, detail: AppCopy.units(officialCumulative.attemptedUnits, locale: .current))
                 Spacer(minLength: DesignSystem.Spacing.small)
                 gpaValue("This term", value: officialCurrent.gpa, detail: currentTerm?.displayName ?? "No current term", alignment: .trailing)
             }
@@ -88,13 +88,13 @@ struct PlannerView: View {
             Divider()
 
             HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.medium) {
-                projectedValue("Forecast this term", result: projectedCurrent)
+                projectedValue("Estimated term", result: projectedCurrent)
                 Spacer(minLength: DesignSystem.Spacing.small)
-                projectedValue("Forecast cumulative", result: projectedCumulative, alignment: .trailing)
+                projectedValue("Estimated overall", result: projectedCumulative, alignment: .trailing)
             }
             Text(projectedGrades.isEmpty
-                 ? "Add a course forecast to see predicted GPA. Official GPA remains unchanged."
-                 : "Forecast uses selected course estimates only. Official GPA remains unchanged.")
+                 ? "No estimate yet. Add one from a course."
+                 : "Estimates never change your official GPA.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }

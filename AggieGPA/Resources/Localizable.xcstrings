@@ -2869,6 +2869,21 @@
     "GPA overview" : {
       "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "GPA 概览" } } }
     },
+    "Official GPA" : {
+      "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正式 GPA" } } }
+    },
+    "Estimated term" : {
+      "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "本学期预计" } } }
+    },
+    "Estimated overall" : {
+      "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "累计预计" } } }
+    },
+    "No estimate yet. Add one from a course." : {
+      "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "还没有预计成绩。可在课程中添加。" } } }
+    },
+    "Estimates never change your official GPA." : {
+      "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "预计成绩不会修改正式 GPA。" } } }
+    },
     "Official cumulative" : {
       "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正式累计 GPA" } } }
     },
