@@ -149,7 +149,6 @@ struct QuickGradeItemView: View {
             }
         }
         .presentationDetents([.medium, .large])
-        .presentationBackground(Color(.systemGroupedBackground))
         .safeAreaInset(edge: .bottom) {
             Button("Save") {
                 focusedField = nil
@@ -160,7 +159,6 @@ struct QuickGradeItemView: View {
             .controlSize(.large)
             .padding(.horizontal, DesignSystem.Spacing.medium)
             .padding(.vertical, DesignSystem.Spacing.small)
-            .background(.bar)
             .accessibilityIdentifier("saveQuickGradeItemButton")
         }
     }
@@ -227,7 +225,6 @@ struct RecordScoreView: View {
             }
         }
         .presentationDetents([.medium, .large])
-        .presentationBackground(Color(.systemGroupedBackground))
         .safeAreaInset(edge: .bottom) {
             Button("Save") {
                 focusedField = nil
@@ -238,7 +235,6 @@ struct RecordScoreView: View {
             .controlSize(.large)
             .padding(.horizontal, DesignSystem.Spacing.medium)
             .padding(.vertical, DesignSystem.Spacing.small)
-            .background(.bar)
             .accessibilityIdentifier("saveRecordedScoreButton")
         }
     }

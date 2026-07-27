@@ -172,7 +172,6 @@ struct GradeItemEditorView: View {
             }
         }
         .presentationDetents([.large])
-        .presentationBackground(Color(.systemGroupedBackground))
         .safeAreaInset(edge: .bottom) {
             Button("Save") {
                 focusedField = nil
@@ -183,7 +182,6 @@ struct GradeItemEditorView: View {
             .controlSize(.large)
             .padding(.horizontal, DesignSystem.Spacing.medium)
             .padding(.vertical, DesignSystem.Spacing.small)
-            .background(.bar)
             .accessibilityIdentifier("saveGradeItemButton")
         }
     }

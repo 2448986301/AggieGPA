@@ -7,6 +7,22 @@ private enum CourseDetailSection: String, CaseIterable, Identifiable {
     case breakdown = "Grade Breakdown"
     case forecast = "What Do I Need?"
     var id: String { rawValue }
+
+    var compactTitle: LocalizedStringKey {
+        switch self {
+        case .gradebook: "Items"
+        case .breakdown: "Breakdown"
+        case .forecast: "Goal"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .gradebook: "checklist"
+        case .breakdown: "chart.bar"
+        case .forecast: "target"
+        }
+    }
 }
 
 struct CourseDetailView: View {
@@ -76,10 +92,13 @@ struct CourseDetailView: View {
             LazyVStack(spacing: DesignSystem.Spacing.medium) {
                 gradeHero
                 Picker("Course detail", selection: $section) {
-                    ForEach(CourseDetailSection.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0) }
+                    ForEach(CourseDetailSection.allCases) { section in
+                        Label(section.compactTitle, systemImage: section.symbol).tag(section)
+                    }
                 }
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("courseDetailSectionPicker")
+                .accessibilityHint("Switches between assignments, grade breakdown, and goal estimate")
 
                 switch section {
                 case .gradebook: gradebookContent
