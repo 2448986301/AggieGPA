@@ -5,7 +5,7 @@ nonisolated enum SyllabusAnalysisMode: String, Sendable {
 }
 
 nonisolated enum SyllabusAnalysisPhase: Equatable, Sendable {
-    case idle, reading, analyzingGrading, organizingAssessments, needsReview, complete, unavailable(String)
+    case idle, reading, analyzingGrading, organizingAssessments, usingLocalFallback, needsReview, complete, unavailable(String)
 
     var localizationKey: String {
         switch self {
@@ -13,6 +13,7 @@ nonisolated enum SyllabusAnalysisPhase: Equatable, Sendable {
         case .reading: "Analyzing on this device"
         case .analyzingGrading: "Analyzing the grading structure"
         case .organizingAssessments: "Organizing assignments and exams"
+        case .usingLocalFallback: "AI analysis was unavailable. Using local rule recognition instead."
         case .needsReview: "Some items need your review"
         case .complete: "Analysis complete"
         case .unavailable(let message): message

@@ -10,8 +10,11 @@ or any other OCR SDK.
 
 The system language model is the default. Its availability, language support, and
 vision capability are checked before a request. If it cannot analyze the document,
-the app explains why and offers pasted text or manual grading setup. It does not
-pretend that an OCR or rule-parser result is AI analysis.
+the app does not attempt to bypass Apple safety guardrails. For a text-native
+document that is declined by the model, it automatically runs the deterministic
+local rule parser and labels the resulting draft as local rule recognition. This
+fallback does not use OCR or a network service; it cannot recover text from a
+scanned image page.
 
 ## Privacy and confirmation
 

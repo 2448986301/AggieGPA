@@ -95,25 +95,72 @@ enum OnDeviceSyllabusParser {
     static func extract(document: SyllabusTextExtractor.Document, mode: SyllabusAnalysisMode,
                         progress: @Sendable (SyllabusAnalysisPhase) -> Void) async throws -> SyllabusImportDraft {
         guard availability() == .available else { throw ParserError.unavailable(availability()) }
-        if mode == .privateCloud {
-            guard #available(iOS 27.0, *), privateCloudIsAvailable() else { throw ParserError.privateCloudUnavailable }
-        }
-        var combined = SyllabusImportDraft(); combined.source = document.source
-        for page in document.pages {
-            try Task.checkCancellation()
-            progress(page.image == nil ? .analyzingGrading : .organizingAssessments)
-            let pageDraft: ModelSyllabusDraft
+        do {
             if mode == .privateCloud {
-                guard #available(iOS 27.0, *) else { throw ParserError.privateCloudUnavailable }
-                pageDraft = try await respond(page: page, model: PrivateCloudComputeLanguageModel())
-            } else {
-                pageDraft = try await respond(page: page, model: SystemLanguageModel.default)
+                guard #available(iOS 27.0, *), privateCloudIsAvailable() else { throw ParserError.privateCloudUnavailable }
             }
-            merge(pageDraft, into: &combined, defaultPage: page.number)
+            var combined = SyllabusImportDraft(); combined.source = document.source
+            for page in document.pages {
+                try Task.checkCancellation()
+                progress(page.image == nil ? .analyzingGrading : .organizingAssessments)
+                let pageDraft: ModelSyllabusDraft
+                if mode == .privateCloud {
+                    guard #available(iOS 27.0, *) else { throw ParserError.privateCloudUnavailable }
+                    pageDraft = try await respond(page: page, model: PrivateCloudComputeLanguageModel())
+                } else {
+                    pageDraft = try await respond(page: page, model: SystemLanguageModel.default)
+                }
+                merge(pageDraft, into: &combined, defaultPage: page.number)
+            }
+            validate(&combined)
+            progress(combined.requiresReview ? .needsReview : .complete)
+            return combined
+        } catch {
+            guard mode == .onDevice, isSafetyFailure(error), let fallback = localFallback(document: document) else { throw error }
+            progress(.usingLocalFallback)
+            return fallback
         }
-        validate(&combined)
-        progress(combined.requiresReview ? .needsReview : .complete)
-        return combined
+    }
+
+    /// A no-network fallback for text-native documents when Apple's model refuses sensitive source material.
+    private static func localFallback(document: SyllabusTextExtractor.Document) -> SyllabusImportDraft? {
+        let pages = document.pages.compactMap { page -> (number: Int, text: String)? in
+            guard let text = page.text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+            return (page.number, text)
+        }
+        guard !pages.isEmpty else { return nil }
+
+        let parsed = SyllabusRuleParser.parse(pages.map(\.text).joined(separator: "\n\n"))
+        var draft = SyllabusImportDraft(); draft.source = document.source
+        draft.categories = parsed.categories.map { candidate in
+            let page = pages.first(where: { $0.text.localizedCaseInsensitiveContains(candidate.sourceLine) })
+            let dropCount = parsed.dropLowestCategoryNames.contains { $0.caseInsensitiveCompare(candidate.name) == .orderedSame } ? 1 : 0
+            return SyllabusCategoryDraft(
+                name: candidate.name,
+                normalizedType: candidate.categoryType,
+                weightPercent: candidate.weight,
+                totalPoints: candidate.possiblePoints,
+                parentCategory: nil,
+                dropLowestCount: dropCount,
+                isExtraCredit: candidate.categoryType == .extraCredit,
+                evidence: page.map { .init(page: $0.number, excerpt: candidate.sourceLine) },
+                confidence: candidate.confidence
+            )
+        }
+        draft.gradeScale = parsed.gradeBoundaries.map {
+            .init(letterGrade: $0.letter, minimumPercent: $0.minimumPercentage, maximumPercent: nil, plusMinusPolicy: nil)
+        }
+        draft.issues = [
+            .init(field: "Analysis", reason: String(localized: "AI analysis was unavailable. Local rule recognition created this review-only draft."), possibleValues: [], sourcePage: nil, requiresUserReview: true)
+        ] + parsed.manualReviewReasons.map {
+            .init(field: "Syllabus", reason: $0, possibleValues: [], sourcePage: nil, requiresUserReview: true)
+        }
+        return draft
+    }
+
+    private static func isSafetyFailure(_ error: any Error) -> Bool {
+        let description = error.localizedDescription.lowercased()
+        return description.contains("guardrail") || description.contains("safety") || description.contains("refusal")
     }
 
     @available(iOS 27.0, *)

@@ -14,6 +14,8 @@
 - Import results stay editable and no course data changes until Confirm Import.
 - Improved English and Simplified Chinese syllabus-import status, privacy, review,
   warning, and error guidance.
+- When Apple AI declines text-native syllabus content for safety, import now
+  automatically switches to local rule recognition and presents a review-only draft.
 
 ### Notes
 
@@ -21,6 +23,8 @@
   language, and downloaded system model. Private Cloud Compute is not a released
   feature claim: it remains gated by Apple entitlement, availability, and a
   separate in-app permission.
+- The automatic local fallback has no network path and applies only when the
+  document already contains readable text; it cannot infer text from scanned images.
 
 ## [1.2.0] — Unreleased
 
