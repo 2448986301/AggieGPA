@@ -89,7 +89,8 @@ struct CourseDetailView: View {
                 }
                 DisclaimerBanner().padding(.top, DesignSystem.Spacing.small)
             }
-            .padding()
+            .padding(.horizontal, DesignSystem.Spacing.medium)
+            .padding(.vertical, DesignSystem.Spacing.medium)
         }
         .background(CampusBackground())
         .navigationTitle(course.courseCode)
@@ -173,22 +174,9 @@ struct CourseDetailView: View {
 
     private var gradeHero: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(course.courseCode).font(.title3.bold())
-                    Text(course.courseTitle.isEmpty ? "Course" : course.courseTitle)
-                        .font(.headline)
-                    Text("Current Course Grade")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(percent(result.calculatedCurrentPercentage))
-                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    Text(result.currentLetterGrade?.rawValue ?? "No letter prediction")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(result.requiresManualReview ? DesignSystem.ColorToken.warning : DesignSystem.ColorToken.gold)
-                }
+            ViewThatFits(in: .horizontal) {
+                courseIdentityAndGrade(horizontal: true)
+                courseIdentityAndGrade(horizontal: false)
             }
             Text("Based on graded work")
                 .font(.caption).foregroundStyle(.secondary)
@@ -212,7 +200,7 @@ struct CourseDetailView: View {
             }
         }
         .padding(DesignSystem.Spacing.large)
-        .glassCard(tint: DesignSystem.ColorToken.navy)
+        .contentSurface()
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(course.courseCode), calculated current grade \(percent(result.calculatedCurrentPercentage)), official grade \(course.grade.rawValue)")
         .accessibilityValue(result.requiresManualReview ? "Manual review required" : "Grading policy checked")
@@ -235,14 +223,13 @@ struct CourseDetailView: View {
             HStack {
                 Text("Assignments & Exams").font(.title2.bold())
                 Spacer()
-                Button("Add", systemImage: "plus") { showQuickAssignment = true }
-                    .buttonStyle(.borderedProminent)
+                Menu("Add", systemImage: "plus") {
+                    Button("Add Assignment", systemImage: "square.and.pencil") { showQuickAssignment = true }
+                    Button("Add Exam", systemImage: "calendar.badge.plus") { showQuickExam = true }
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityLabel("Add assignment or exam")
             }
-            HStack(spacing: DesignSystem.Spacing.small) {
-                Button("+ Add Assignment") { showQuickAssignment = true }
-                Button("+ Add Exam") { showQuickExam = true }
-            }
-            .buttonStyle(.glass)
             ForEach(courseCategories) { category in
                 categorySection(category)
             }
@@ -291,8 +278,8 @@ struct CourseDetailView: View {
                 ForEach(categoryItems) { itemRow($0) }
             }
         }
-        .padding()
-        .glassCard()
+        .padding(DesignSystem.Spacing.medium)
+        .contentSurface()
     }
 
     private func itemGroup(title: String, items: [GradeItem]) -> some View {
@@ -300,7 +287,7 @@ struct CourseDetailView: View {
             Text(title).font(.headline)
             ForEach(items.sorted(by: itemSort)) { itemRow($0) }
         }
-        .padding().glassCard()
+        .padding(DesignSystem.Spacing.medium).contentSurface()
     }
 
     private func itemRow(_ item: GradeItem) -> some View {
@@ -363,7 +350,7 @@ struct CourseDetailView: View {
                         Text("Worth \(percent(category.weight)) of course")
                     }.font(.caption).foregroundStyle(.secondary)
                 }
-                .padding().glassCard()
+                .padding(DesignSystem.Spacing.medium).contentSurface()
             }
             if !result.issues.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
@@ -371,7 +358,9 @@ struct CourseDetailView: View {
                     ForEach(Array(result.issues.enumerated()), id: \.offset) { _, issue in
                         Text("• \(issue.message)").font(.footnote).foregroundStyle(.secondary)
                     }
-                }.padding().glassCard(tint: DesignSystem.ColorToken.warning)
+                }
+                .padding(DesignSystem.Spacing.medium)
+                .contentSurface()
             }
         }
     }
@@ -420,7 +409,47 @@ struct CourseDetailView: View {
             Text(title).font(.caption).foregroundStyle(.secondary)
             Text(value).font(.title2.bold().monospacedDigit())
             Text(detail).font(.caption2).foregroundStyle(.secondary)
-        }.frame(maxWidth: .infinity, alignment: .leading).padding().glassCard()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(DesignSystem.Spacing.medium)
+        .contentSurface()
+    }
+
+    @ViewBuilder private func courseIdentityAndGrade(horizontal: Bool) -> some View {
+        if horizontal {
+            HStack(alignment: .top) {
+                courseIdentity
+                Spacer(minLength: DesignSystem.Spacing.medium)
+                courseGradeValue
+            }
+        } else {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
+                courseIdentity
+                courseGradeValue.frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private var courseIdentity: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(course.courseCode).font(.title3.bold())
+            Text(course.courseTitle.isEmpty ? "Course" : course.courseTitle)
+                .font(.headline)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Current Course Grade")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private var courseGradeValue: some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            Text(percent(result.calculatedCurrentPercentage))
+                .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                .monospacedDigit()
+            Text(result.currentLetterGrade?.rawValue ?? "No letter prediction")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(result.requiresManualReview ? DesignSystem.ColorToken.warning : DesignSystem.ColorToken.gold)
+        }
     }
 
     private func delete(_ item: GradeItem) {

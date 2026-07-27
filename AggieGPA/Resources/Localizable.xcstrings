@@ -601,6 +601,16 @@
         }
       }
     },
+    "Add assignment or exam" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加作业或考试"
+          }
+        }
+      }
+    },
     "Add Course" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1471,6 +1481,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "课程已删除"
+          }
+        }
+      }
+    },
+    "Course deleted. Undo is available." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "课程已删除。可以撤销。"
           }
         }
       }
@@ -5427,6 +5447,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "这门课已有类别。为避免覆盖已输入内容，请手动合并识别出的规则。"
+          }
+        }
+      }
+    },
+    "This quarter, based on courses currently included in GPA." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本学期数据基于当前计入 GPA 的课程。"
           }
         }
       }

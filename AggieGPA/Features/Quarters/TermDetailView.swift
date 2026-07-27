@@ -46,19 +46,29 @@ struct TermDetailView: View {
     var body: some View {
         List {
             Section {
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text("Quarter GPA").font(.caption).foregroundStyle(.secondary)
-                        Text(DecimalFormatters.string(result.gpa, precision: preferences.decimalPrecision))
-                            .font(.largeTitle.bold())
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
+                    HStack(alignment: .firstTextBaseline) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Quarter GPA").font(.caption).foregroundStyle(.secondary)
+                            Text(DecimalFormatters.string(result.gpa, precision: preferences.decimalPrecision))
+                                .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                                .monospacedDigit()
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text(verbatim: AppCopy.units(result.attemptedUnits, locale: locale))
+                            Text(verbatim: AppCopy.points(result.gradePoints, locale: locale))
+                        }
+                        .font(.subheadline).foregroundStyle(.secondary)
                     }
-                    Spacer()
-                    VStack(alignment: .trailing) {
-                        Text(verbatim: AppCopy.units(result.attemptedUnits, locale: locale))
-                        Text(verbatim: AppCopy.points(result.gradePoints, locale: locale))
-                    }
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    Text("This quarter, based on courses currently included in GPA.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
+                .padding(DesignSystem.Spacing.medium)
+                .contentSurface()
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: DesignSystem.Spacing.small, leading: DesignSystem.Spacing.medium, bottom: DesignSystem.Spacing.small, trailing: DesignSystem.Spacing.medium))
             }
             Section("Courses") {
                 if visibleCourses.isEmpty {
@@ -102,6 +112,8 @@ struct TermDetailView: View {
                 .padding()
                 .glassEffect(.regular, in: Capsule())
                 .padding(.horizontal)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Course deleted. Undo is available.")
             }
         }
         .onDisappear { finalizePendingDelete() }
