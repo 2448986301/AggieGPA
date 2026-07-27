@@ -122,7 +122,9 @@ struct QuickGradeItemView: View {
         NavigationStack {
             Form {
                 Section("Required details") {
-                    TextField(isExam ? "Exam name" : "Assignment name", text: $title)
+                    LabeledContent("Category", value: selectedCategory.name)
+                        .foregroundStyle(.secondary)
+                    TextField("Title", text: $title)
                         .accessibilityIdentifier("quickGradeItemTitleField")
                         .focused($focusedField, equals: .title)
                     DatePicker(isExam ? "Exam date" : "Due date", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
@@ -147,6 +149,9 @@ struct QuickGradeItemView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
+            .onChange(of: title) { _, _ in validation = nil }
+            .onChange(of: possible) { _, _ in validation = nil }
+            .onChange(of: categoryID) { _, _ in validation = nil }
         }
         .presentationDetents([.medium, .large])
         .safeAreaInset(edge: .bottom) {
@@ -164,7 +169,11 @@ struct QuickGradeItemView: View {
     }
 
     private var isExam: Bool {
-        category.categoryType == .midterm || category.categoryType == .finalExam
+        selectedCategory.categoryType == .midterm || selectedCategory.categoryType == .finalExam
+    }
+
+    private var selectedCategory: GradingCategory {
+        categories.first { $0.id == categoryID } ?? category
     }
 
     private func save() {
@@ -223,6 +232,8 @@ struct RecordScoreView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
+            .onChange(of: earned) { _, _ in validation = nil }
+            .onChange(of: possible) { _, _ in validation = nil }
         }
         .presentationDetents([.medium, .large])
         .safeAreaInset(edge: .bottom) {
