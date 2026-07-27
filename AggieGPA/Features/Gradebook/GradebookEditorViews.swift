@@ -30,12 +30,12 @@ struct CategoryEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Required") {
+                Section("Required details") {
                     TextField("Name", text: $name).accessibilityIdentifier("categoryNameField")
                     Picker("Type", selection: $type) { ForEach(GradeCategoryType.allCases) { Text($0.displayName).tag($0) } }
                     TextField("Weight percent", text: $weightText).keyboardType(.decimalPad)
                 }
-                Section("Optional") {
+                Section("Optional details") {
                     DisclosureGroup("More Options", isExpanded: $showMoreOptions) {
                     Picker("Item calculation", selection: $mode) {
                         Text("Total points").tag(CategoryCalculationMode.totalPoints)
@@ -121,7 +121,7 @@ struct GradeItemEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Required") {
+                Section("Required details") {
                     TextField("Title", text: $title)
                         .focused($focusedField, equals: .title)
                         .accessibilityIdentifier("gradeItemTitleField")
@@ -141,7 +141,7 @@ struct GradeItemEditorView: View {
                         .keyboardType(.decimalPad)
                         .focused($focusedField, equals: .possible)
                 }
-                Section("Optional") {
+                Section("Optional details") {
                     DisclosureGroup("More Options", isExpanded: $showMoreOptions) {
                         Toggle("Extra credit", isOn: $extraCredit)
                         Toggle("Excused", isOn: $excused)

@@ -123,13 +123,13 @@ struct QuickGradeItemView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Required") {
+                Section("Required details") {
                     TextField(isExam ? "Exam name" : "Assignment name", text: $title)
                         .accessibilityIdentifier("quickGradeItemTitleField")
                         .focused($focusedField, equals: .title)
                     DatePicker(isExam ? "Exam date" : "Due date", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
                 }
-                Section("Optional") {
+                Section("Optional details") {
                     DisclosureGroup("More Options", isExpanded: $showMore) {
                         Picker("Category", selection: $categoryID) {
                             ForEach(categories) { Text($0.name).tag(Optional($0.id)) }
@@ -202,7 +202,7 @@ struct RecordScoreView: View {
                     LabeledContent("Course", value: item.course?.courseCode ?? "Course")
                         .foregroundStyle(.secondary)
                 }
-                Section("Required") {
+                Section("Required details") {
                     TextField("Earned points", text: $earned)
                         .keyboardType(.decimalPad)
                         .focused($focusedField, equals: .earned)
