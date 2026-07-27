@@ -15,34 +15,36 @@ struct SettingsView: View {
         @Bindable var preferences = preferences
         NavigationStack {
             Form {
-                Section("Profile") {
+                Section("App") {
                     TextField("Name or nickname", text: $preferences.displayName)
                     TextField("Major", text: $preferences.major)
                     TextField("First academic year", text: $preferences.firstAcademicYear)
+                }
+                Section("Grades & GPA") {
                     DecimalPreferenceField(title: "Target GPA", value: $preferences.targetGPA, range: 0...4)
                     Picker("Default grading basis", selection: $preferences.defaultGradingBasisRaw) {
                         ForEach(GradingBasis.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0.rawValue) }
                     }
-                }
-                Section("Display") {
-                    Picker("Language", selection: $preferences.languageRaw) {
-                        ForEach(AppLanguage.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0.rawValue) }
-                    }
                     Picker("GPA decimal places", selection: $preferences.decimalPrecision) {
                         Text("2").tag(2); Text("3").tag(3); Text("4").tag(4)
-                    }
-                    Picker("Appearance", selection: $preferences.appearanceRaw) {
-                        ForEach(AppAppearance.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0.rawValue) }
                     }
                     Toggle("Show Major GPA", isOn: $preferences.showMajorGPA)
                     Toggle("Show Upper-Division GPA", isOn: $preferences.showUpperDivisionGPA)
                     Toggle("Show repeat summary", isOn: $preferences.showRepeatSummary)
+                }
+                Section("App Preferences") {
+                    Picker("Language", selection: $preferences.languageRaw) {
+                        ForEach(AppLanguage.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0.rawValue) }
+                    }
+                    Picker("Appearance", selection: $preferences.appearanceRaw) {
+                        ForEach(AppAppearance.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0.rawValue) }
+                    }
                     Toggle("Haptics", isOn: $preferences.hapticsEnabled)
                     LabeledContent("App icon appearance", value: "Managed by iOS")
                     Text("Default, Dark, Clear, Tinted, and Monochrome appearances are selected by the iOS Home Screen. Aggie GPA does not pretend to switch unsupported system icon modes at runtime.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-                Section("Privacy Lock") {
+                Section("Privacy") {
                     Toggle("Require Face ID, Touch ID, or passcode", isOn: $preferences.privacyLockEnabled)
                         .accessibilityIdentifier("privacyLockToggle")
                     Picker("Lock delay", selection: $preferences.privacyLockDelayRaw) {
@@ -61,7 +63,7 @@ struct SettingsView: View {
                     Text("Siri access is off by default. Each category of private data must be enabled explicitly.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-                Section("Data") {
+                Section("Data & Backups") {
                     if preferences.demoDataLoaded {
                         Button("Clear Demo Data", role: .destructive) {
                             do {
@@ -215,13 +217,17 @@ private struct DecimalPreferenceField: View {
     @State private var text = ""
 
     var body: some View {
-        TextField(title, text: $text)
-            .keyboardType(.decimalPad)
-            .onAppear { text = DecimalFormatters.compact(value) }
-            .onChange(of: text) { _, newValue in
-                if let decimal = DecimalFormatters.decimal(from: newValue), range.contains(decimal) { value = decimal }
+        LabeledContent(title) {
+            TextField(title, text: $text)
+                .multilineTextAlignment(.trailing)
+                .keyboardType(.decimalPad)
+                .accessibilityLabel(title)
+                .onAppear { text = DecimalFormatters.compact(value) }
+                .onChange(of: text) { _, newValue in
+                    if let decimal = DecimalFormatters.decimal(from: newValue), range.contains(decimal) { value = decimal }
+                }
             }
-    }
+        }
 }
 
 struct DataManagementView: View {

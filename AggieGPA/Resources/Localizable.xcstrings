@@ -2869,6 +2869,12 @@
     "GPA overview" : {
       "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "GPA 概览" } } }
     },
+    "Grades & GPA" : {
+      "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "成绩与 GPA" } } }
+    },
+    "App Preferences" : {
+      "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "App 偏好设置" } } }
+    },
     "Official GPA" : {
       "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正式 GPA" } } }
     },
