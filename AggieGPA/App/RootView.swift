@@ -14,6 +14,8 @@ struct RootView: View {
     @State private var notificationCourse: CourseRecord?
     @State private var pendingSiriItemID: UUID?
     @State private var pendingSiriDraft: SiriDraftPayload?
+    @AppStorage("lastSeenReleaseNotesVersion") private var lastSeenReleaseNotesVersion = ""
+    @State private var showWhatsNew = false
 
     private var preference: UserPreferences? { preferences.first }
     private var preferredColorScheme: ColorScheme? {
@@ -77,6 +79,9 @@ struct RootView: View {
             bootstrapScreenshotModeIfNeeded()
             handlePendingIntentNavigation()
         }
+        .task(id: preference?.onboardingCompleted) {
+            updateReleaseNotesPresentation()
+        }
         .task(id: siriDataFingerprint) {
             // Coalesce the group of model notifications emitted by a single save.
             try? await Task.sleep(for: .milliseconds(150))
@@ -120,6 +125,14 @@ struct RootView: View {
         .sheet(item: $pendingSiriDraft) { draft in
             SiriDraftConfirmationView(draft: draft)
         }
+        .sheet(isPresented: $showWhatsNew, onDismiss: {
+            lastSeenReleaseNotesVersion = AppVersionHistory.currentVersion
+        }) {
+            WhatsNewSheet {
+                lastSeenReleaseNotesVersion = AppVersionHistory.currentVersion
+            }
+            .environment(\.locale, preference?.language.locale ?? .autoupdatingCurrent)
+        }
     }
 
     private func bootstrapScreenshotModeIfNeeded() {
@@ -130,6 +143,17 @@ struct RootView: View {
                                          onboardingCompleted: true)
         modelContext.insert(preference)
         DemoDataService.load(into: modelContext, preferences: preference)
+    }
+
+    private func updateReleaseNotesPresentation() {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard preference?.onboardingCompleted == true else { return }
+        if arguments.contains("--screenshot-whats-new") {
+            showWhatsNew = true
+            return
+        }
+        guard !arguments.contains("--screenshot-demo"), lastSeenReleaseNotesVersion != AppVersionHistory.currentVersion else { return }
+        showWhatsNew = true
     }
 
     private func refreshSiriSnapshotAndShortcutParameters() {

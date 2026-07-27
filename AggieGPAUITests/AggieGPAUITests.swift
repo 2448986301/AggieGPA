@@ -140,6 +140,51 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Settings"].exists)
     }
 
+    func testAboutShowsCurrentVersionAndVersionHistory() {
+        let app = makeApp()
+        completeOnboarding(app: app)
+        app.tabBars.buttons["Settings"].tap()
+        let about = app.buttons["About"]
+        scrollTo(about, in: app)
+        about.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["appVersion"].waitForExistence(timeout: 5))
+        app.buttons["whatsNewLink"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["versionHistoryView"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Version 1.2.0"].exists)
+        XCTAssertTrue(app.staticTexts["Version 1.1.2"].exists)
+        XCTAssertTrue(app.staticTexts["Version 1.1.1"].exists)
+        XCTAssertTrue(app.staticTexts["Version 1.1.0"].exists)
+        XCTAssertTrue(app.staticTexts["Version 1.0"].exists)
+    }
+
+    func testWhatsNewAppearsOnceForAnExistingStudent() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest-in-memory", "--screenshot-demo", "--screenshot-whats-new", "-lastSeenReleaseNotesVersion", ""]
+        app.launch()
+        let sheet = app.descendants(matching: .any)["whatsNewSheet"]
+        XCTAssertTrue(sheet.waitForExistence(timeout: 5))
+        app.buttons["whatsNewGetStarted"].tap()
+        XCTAssertFalse(sheet.exists)
+
+        app.terminate()
+        app.launchArguments = ["--uitest-in-memory", "--screenshot-demo"]
+        app.launch()
+        XCTAssertFalse(sheet.waitForExistence(timeout: 2))
+    }
+
+    func testVersionHistoryAtLargestAccessibilityTextSize() {
+        let app = makeApp(extraArguments: [
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityExtraExtraExtraLarge",
+        ])
+        completeOnboarding(app: app)
+        app.tabBars.buttons["Settings"].tap()
+        let about = app.buttons["About"]
+        scrollTo(about, in: app)
+        about.tap()
+        app.buttons["whatsNewLink"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["versionHistoryView"].waitForExistence(timeout: 5))
+    }
+
     func testTodayGlobalAddShowsStudentActions() {
         let app = makeApp()
         completeOnboarding(app: app, loadDemo: true)

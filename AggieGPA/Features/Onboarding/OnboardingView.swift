@@ -4,6 +4,7 @@ import SwiftUI
 struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage("lastSeenReleaseNotesVersion") private var lastSeenReleaseNotesVersion = ""
     let existingPreferences: UserPreferences?
 
     @State private var page = 0
@@ -104,6 +105,9 @@ struct OnboardingView: View {
             preference.targetGPA = target
         }
         preference.onboardingCompleted = true
+        // A new student starts with the current version already acknowledged.
+        // Existing students receive the upgrade sheet from RootView instead.
+        lastSeenReleaseNotesVersion = AppVersionHistory.currentVersion
         if loadDemoData { DemoDataService.load(into: modelContext, preferences: preference) }
         try? modelContext.save()
     }

@@ -78,10 +78,7 @@ struct SettingsView: View {
                     NavigationLink("Import, Export & Backups") { DataManagementView(preferences: preferences) }
                 }
                 Section("About") {
-                    NavigationLink("Privacy") { InformationPage(title: "Privacy", text: "Privacy details") }
-                    NavigationLink("GPA Rules") { InformationPage(title: "GPA Rules", text: "GPA rules details") }
-                    NavigationLink("Disclaimer") { InformationPage(title: "Disclaimer", text: "Disclaimer details") }
-                    LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
+                    NavigationLink("About") { AboutView() }
                 }
                 Section { DisclaimerBanner() }
             }
@@ -396,7 +393,7 @@ struct DataManagementView: View {
     }
 }
 
-private struct InformationPage: View {
+struct InformationPage: View {
     let title: LocalizedStringKey
     let text: LocalizedStringKey
     var body: some View {
