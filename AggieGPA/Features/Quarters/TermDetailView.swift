@@ -66,13 +66,13 @@ struct TermDetailView: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding(DesignSystem.Spacing.medium)
-                .contentSurface()
+                .contentSurface(radius: DesignSystem.Radius.card)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(
                     top: DesignSystem.Spacing.small,
-                    leading: -(DesignSystem.Spacing.xSmall * 2),
+                    leading: 0,
                     bottom: DesignSystem.Spacing.small,
-                    trailing: -(DesignSystem.Spacing.xSmall * 2)
+                    trailing: 0
                 ))
             }
             Section("Courses") {

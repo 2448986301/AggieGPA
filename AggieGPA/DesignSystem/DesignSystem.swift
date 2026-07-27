@@ -44,6 +44,7 @@ enum DesignSystem {
 struct ContentSurfaceModifier: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var colorScheme
+    let radius: CGFloat
 
     func body(content: Content) -> some View {
         let fillOpacity = reduceTransparency ? 1.0 : (colorScheme == .dark ? 0.94 : 0.90)
@@ -51,10 +52,10 @@ struct ContentSurfaceModifier: ViewModifier {
         content
             .background(
                 Color(.secondarySystemGroupedBackground).opacity(fillOpacity),
-                in: RoundedRectangle(cornerRadius: DesignSystem.Radius.section, style: .continuous)
+                in: RoundedRectangle(cornerRadius: radius, style: .continuous)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.section, style: .continuous)
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
                     .strokeBorder(.primary.opacity(reduceTransparency ? 0.16 : 0.06), lineWidth: 1)
             }
     }
@@ -94,8 +95,8 @@ extension View {
         contentSurface()
     }
 
-    func contentSurface() -> some View {
-        modifier(ContentSurfaceModifier())
+    func contentSurface(radius: CGFloat = DesignSystem.Radius.section) -> some View {
+        modifier(ContentSurfaceModifier(radius: radius))
     }
 }
 
