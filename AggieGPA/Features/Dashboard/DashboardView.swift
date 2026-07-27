@@ -238,7 +238,7 @@ struct DashboardView: View {
             }
         }
         .padding(DesignSystem.Spacing.large)
-        .glassCard(tint: DesignSystem.ColorToken.ice)
+        .contentSurface()
     }
 
     private var secondaryMetrics: some View {
@@ -275,7 +275,7 @@ struct DashboardView: View {
             Text("Uses selected course forecast scenarios only where no official grade exists. Official GPA above is unchanged.")
                 .font(.caption).foregroundStyle(.secondary)
         }
-        .padding().glassCard(tint: DesignSystem.ColorToken.gold)
+        .padding(DesignSystem.Spacing.medium).contentSurface()
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Projected GPA")
         .accessibilityValue("Current quarter \(DecimalFormatters.string(projectedQuarter.projected.gpa, precision: preferences.decimalPrecision)), cumulative \(DecimalFormatters.string(projectedCumulative.projected.gpa, precision: preferences.decimalPrecision))")
@@ -298,7 +298,10 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
             Label("Attention Needed", systemImage: "exclamationmark.triangle").font(.headline)
             ForEach(attentionItems, id: \.self) { Text($0).font(.subheadline) }
-        }.frame(maxWidth: .infinity, alignment: .leading).padding().glassCard(tint: DesignSystem.ColorToken.warning)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(DesignSystem.Spacing.medium)
+        .contentSurface()
     }
 
     private func metricCard(_ title: LocalizedStringKey, result: GPAResult, icon: String) -> some View {

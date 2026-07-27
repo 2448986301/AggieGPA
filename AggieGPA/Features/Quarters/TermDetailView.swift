@@ -94,11 +94,10 @@ struct TermDetailView: View {
         }
         .navigationTitle(term.displayName)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button("Add Course", systemImage: "plus") { showAdd = true }
-                    .buttonStyle(.glass)
-                    .accessibilityIdentifier("addCourseButton")
-            }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Add Course", systemImage: "plus") { showAdd = true }
+                        .accessibilityIdentifier("addCourseButton")
+                }
         }
         .sheet(isPresented: $showAdd) { CourseEditorView(term: term) }
         .sheet(item: $editingCourse) { CourseEditorView(term: term, course: $0) }

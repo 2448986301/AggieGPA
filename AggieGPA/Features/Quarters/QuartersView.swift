@@ -93,7 +93,6 @@ struct QuartersView: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button("Add Quarter", systemImage: "plus") { showNewTerm = true }
-                        .buttonStyle(.glass)
                         .accessibilityIdentifier("addQuarterButton")
                 }
             }

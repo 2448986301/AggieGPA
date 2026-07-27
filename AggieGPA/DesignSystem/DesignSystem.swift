@@ -83,27 +83,15 @@ struct CampusBackground: View {
     }
 }
 
-struct GlassCardModifier: ViewModifier {
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    var tint: Color?
-    var interactive: Bool
-
-    func body(content: Content) -> some View {
-        if reduceTransparency {
-            content
-                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card))
-        } else {
-            content.glassEffect(
-                .regular.tint(tint?.opacity(0.16)).interactive(interactive),
-                in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card)
-            )
-        }
-    }
-}
-
 extension View {
+    /// Legacy compatibility for existing content cards.
+    ///
+    /// Content must never be translucent over another material. Liquid Glass is reserved for
+    /// navigation chrome, floating primary actions, and brief status feedback; regular reading
+    /// surfaces always use `contentSurface()`.
+    @available(*, deprecated, message: "Use contentSurface() for content. Liquid Glass is reserved for floating chrome.")
     func glassCard(tint: Color? = nil, interactive: Bool = false) -> some View {
-        modifier(GlassCardModifier(tint: tint, interactive: interactive))
+        contentSurface()
     }
 
     func contentSurface() -> some View {

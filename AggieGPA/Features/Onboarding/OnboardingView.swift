@@ -85,7 +85,7 @@ struct OnboardingView: View {
             }
             .textFieldStyle(.roundedBorder)
             .padding(DesignSystem.Spacing.large)
-            .glassCard(tint: DesignSystem.ColorToken.ice)
+            .contentSurface()
             .padding(.vertical, DesignSystem.Spacing.xLarge)
         }
         .scrollDismissesKeyboard(.interactively)
