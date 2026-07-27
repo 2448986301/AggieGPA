@@ -30,8 +30,7 @@ struct CourseDetailView: View {
     @State private var showForecastEditor = false
     @State private var showSyllabusImport = false
     @State private var showSetup = false
-    @State private var showQuickAssignment = false
-    @State private var showQuickExam = false
+    @State private var quickCategory: GradingCategory?
     @State private var scoringItem: GradeItem?
     @State private var showTargetPicker = false
     @State private var editingForecast: ForecastScenario?
@@ -131,8 +130,9 @@ struct CourseDetailView: View {
             SyllabusImportView(course: course)
         }
         .sheet(isPresented: $showSetup) { GradeBreakdownSetupView(course: course) }
-        .sheet(isPresented: $showQuickAssignment) { QuickGradeItemView(course: course, categories: courseCategories, isExam: false) }
-        .sheet(isPresented: $showQuickExam) { QuickGradeItemView(course: course, categories: courseCategories, isExam: true) }
+        .sheet(item: $quickCategory) { category in
+            QuickGradeItemView(course: course, categories: courseCategories, category: category)
+        }
         .sheet(item: $scoringItem) { item in
             RecordScoreView(item: item) {
                 showScoreUpdate = true
@@ -224,8 +224,13 @@ struct CourseDetailView: View {
                 Text("Assignments & Exams").font(.title2.bold())
                 Spacer()
                 Menu("Add", systemImage: "plus") {
-                    Button("Add Assignment", systemImage: "square.and.pencil") { showQuickAssignment = true }
-                    Button("Add Exam", systemImage: "calendar.badge.plus") { showQuickExam = true }
+                    if courseCategories.isEmpty {
+                        Button("Add Grade Item", systemImage: "plus") { editingItem = nil; showItemEditor = true }
+                    } else {
+                        ForEach(courseCategories) { category in
+                            Button(category.name, systemImage: category.addSymbol) { quickCategory = category }
+                        }
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .accessibilityLabel("Add assignment or exam")
@@ -506,6 +511,24 @@ struct CourseDetailView: View {
         if item.isDropped { parts.append("dropped") }
         if item.isExcused { parts.append("excused") }
         return parts.joined(separator: ", ")
+    }
+}
+
+private extension GradingCategory {
+    var addSymbol: String {
+        switch categoryType {
+        case .homework: "square.and.pencil"
+        case .quiz: "questionmark.circle"
+        case .lab: "testtube.2"
+        case .midterm, .finalExam: "calendar.badge.plus"
+        case .project: "folder.badge.plus"
+        case .discussion: "bubble.left.and.bubble.right"
+        case .participation: "person.2"
+        case .attendance: "checkmark.circle"
+        case .presentation: "rectangle.on.rectangle"
+        case .extraCredit: "plus.circle.fill"
+        case .custom: "plus.circle"
+        }
     }
 }
 

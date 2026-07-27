@@ -514,11 +514,15 @@ private struct QuickGradeItemDestination: View {
     }
 
     var body: some View {
-        QuickGradeItemView(
-            course: course,
-            categories: gradingCategories.filter { belongsToCourse($0.course) }.sorted { $0.sortOrder < $1.sortOrder },
-            isExam: isExam
-        )
+        let categories = gradingCategories.filter { belongsToCourse($0.course) }.sorted { $0.sortOrder < $1.sortOrder }
+        if let category = categories.first(where: { isExam
+            ? ($0.categoryType == .midterm || $0.categoryType == .finalExam)
+            : $0.categoryType == .homework
+        }) ?? categories.first {
+            QuickGradeItemView(course: course, categories: categories, category: category)
+        } else {
+            GradeItemEditorView(course: course, categories: [], item: nil)
+        }
     }
 }
 

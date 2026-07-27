@@ -102,7 +102,7 @@ struct QuickGradeItemView: View {
     @Environment(\.modelContext) private var modelContext
     let course: CourseRecord
     let categories: [GradingCategory]
-    let isExam: Bool
+    let category: GradingCategory
     @State private var title = ""
     @State private var dueDate = Date()
     @State private var possible = "100"
@@ -113,11 +113,9 @@ struct QuickGradeItemView: View {
 
     private enum Field { case title, points }
 
-    init(course: CourseRecord, categories: [GradingCategory], isExam: Bool) {
-        self.course = course; self.categories = categories; self.isExam = isExam
-        let preferredTypes: Set<GradeCategoryType> = isExam ? [.midterm, .finalExam] : [.homework]
-        let preferredID = categories.first { preferredTypes.contains($0.categoryType) }?.id
-        _categoryID = State(initialValue: preferredID ?? categories.first?.id)
+    init(course: CourseRecord, categories: [GradingCategory], category: GradingCategory) {
+        self.course = course; self.categories = categories; self.category = category
+        _categoryID = State(initialValue: category.id)
     }
 
     var body: some View {
@@ -144,13 +142,14 @@ struct QuickGradeItemView: View {
                 }
             }
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(isExam ? "Add Exam" : "Add Assignment")
+            .navigationTitle(isExam ? "Add Exam" : "Add Grade Item")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationBackground(Color(.systemGroupedBackground))
         .safeAreaInset(edge: .bottom) {
             Button("Save") {
                 focusedField = nil
@@ -164,6 +163,10 @@ struct QuickGradeItemView: View {
             .background(.bar)
             .accessibilityIdentifier("saveQuickGradeItemButton")
         }
+    }
+
+    private var isExam: Bool {
+        category.categoryType == .midterm || category.categoryType == .finalExam
     }
 
     private func save() {
@@ -224,6 +227,7 @@ struct RecordScoreView: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationBackground(Color(.systemGroupedBackground))
         .safeAreaInset(edge: .bottom) {
             Button("Save") {
                 focusedField = nil
