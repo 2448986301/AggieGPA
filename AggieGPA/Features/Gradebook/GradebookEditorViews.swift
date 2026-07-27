@@ -183,7 +183,8 @@ struct GradeItemEditorView: View {
             Label("Save", systemImage: "checkmark")
                 .fontWeight(.semibold)
         }
-        .buttonStyle(.glass)
+        .buttonStyle(.plain)
+        .foregroundStyle(DesignSystem.ColorToken.gold)
         .accessibilityIdentifier("saveGradeItemButton")
     }
 
