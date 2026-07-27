@@ -169,9 +169,7 @@ struct GradeItemEditorView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-            }
-            .safeAreaInset(edge: .bottom) {
-                saveButton
+                ToolbarItem(placement: .confirmationAction) { saveButton }
             }
         }
         .presentationDetents([.large])
@@ -185,13 +183,8 @@ struct GradeItemEditorView: View {
             Label("Save", systemImage: "checkmark")
                 .fontWeight(.semibold)
         }
-        .frame(maxWidth: .infinity)
         .buttonStyle(.glass)
-        .controlSize(.large)
         .accessibilityIdentifier("saveGradeItemButton")
-        .padding(.horizontal, DesignSystem.Spacing.medium)
-        .padding(.bottom, DesignSystem.Spacing.medium)
-        .offset(y: -DesignSystem.Spacing.small)
     }
 
     private func save() {

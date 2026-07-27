@@ -148,13 +148,13 @@ struct QuickGradeItemView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    saveButton(identifier: "saveQuickGradeItemButton")
+                }
             }
             .onChange(of: title) { _, _ in validation = nil }
             .onChange(of: possible) { _, _ in validation = nil }
             .onChange(of: categoryID) { _, _ in validation = nil }
-            .safeAreaInset(edge: .bottom) {
-                saveButton(identifier: "saveQuickGradeItemButton")
-            }
         }
         .presentationDetents([.medium, .large])
     }
@@ -175,13 +175,8 @@ struct QuickGradeItemView: View {
             Label("Save", systemImage: "checkmark")
                 .fontWeight(.semibold)
         }
-        .frame(maxWidth: .infinity)
         .buttonStyle(.glass)
-        .controlSize(.large)
         .accessibilityIdentifier(identifier)
-        .padding(.horizontal, DesignSystem.Spacing.medium)
-        .padding(.bottom, DesignSystem.Spacing.medium)
-        .offset(y: -DesignSystem.Spacing.small)
     }
 
     private func save() {
@@ -239,12 +234,10 @@ struct RecordScoreView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { saveButton }
             }
             .onChange(of: earned) { _, _ in validation = nil }
             .onChange(of: possible) { _, _ in validation = nil }
-            .safeAreaInset(edge: .bottom) {
-                saveButton
-            }
         }
         .presentationDetents([.medium, .large])
     }
@@ -257,13 +250,8 @@ struct RecordScoreView: View {
             Label("Save", systemImage: "checkmark")
                 .fontWeight(.semibold)
         }
-        .frame(maxWidth: .infinity)
         .buttonStyle(.glass)
-        .controlSize(.large)
         .accessibilityIdentifier("saveRecordedScoreButton")
-        .padding(.horizontal, DesignSystem.Spacing.medium)
-        .padding(.bottom, DesignSystem.Spacing.medium)
-        .offset(y: -DesignSystem.Spacing.small)
     }
 
     private func save() {
