@@ -79,14 +79,20 @@ struct PlannerView: View {
             Label("GPA overview", systemImage: "chart.line.uptrend.xyaxis")
                 .font(.headline)
 
+            Text("Official results")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
             HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.medium) {
-                gpaValue("Official GPA", value: officialCumulative.gpa, detail: AppCopy.units(officialCumulative.attemptedUnits, locale: .current))
+                gpaValue("Cumulative GPA", value: officialCumulative.gpa, detail: AppCopy.units(officialCumulative.attemptedUnits, locale: .current))
                 Spacer(minLength: DesignSystem.Spacing.small)
-                gpaValue("This term", value: officialCurrent.gpa, detail: currentTerm?.displayName ?? "No current term", alignment: .trailing)
+                gpaValue("This term GPA", value: officialCurrent.gpa, detail: currentTerm?.displayName ?? "No current term", alignment: .trailing)
             }
 
             Divider()
 
+            Text("Estimated results")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
             HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.medium) {
                 projectedValue("Estimated term", result: projectedCurrent)
                 Spacer(minLength: DesignSystem.Spacing.small)

@@ -2872,6 +2872,15 @@
     "Official GPA" : {
       "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正式 GPA" } } }
     },
+    "Official results" : {
+      "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正式成绩" } } }
+    },
+    "Estimated results" : {
+      "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "预计成绩" } } }
+    },
+    "This term GPA" : {
+      "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "本学期 GPA" } } }
+    },
     "Estimated term" : {
       "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "本学期预计" } } }
     },
