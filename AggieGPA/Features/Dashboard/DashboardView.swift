@@ -13,9 +13,9 @@ struct DashboardView: View {
     @Query private var gradeScales: [GradeScale]
     @Query private var forecasts: [ForecastScenario]
     let preferences: UserPreferences
+    let onOpenGPA: () -> Void
     @State private var showAddCourse = false
     @State private var showNewTerm = false
-    @State private var showAddMenu = false
     @State private var addAction: TodayAddAction?
 
     private var includedTerms: [AcademicTerm] {
@@ -94,19 +94,24 @@ struct DashboardView: View {
                 ScrollView {
                     LazyVStack(spacing: DesignSystem.Spacing.medium) {
                         todayTasks
-                        addButton
                         recentCourses
                         gpaSummary
                     }
-                    .padding()
+                    .padding(.horizontal, DesignSystem.Spacing.medium)
+                    .padding(.vertical, DesignSystem.Spacing.small)
                 }
-                .refreshable { try? await Task.sleep(for: .milliseconds(250)) }
+                .refreshable { await Task.yield() }
             }
             .navigationTitle("Today")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Add", systemImage: "plus") { showAddMenu = true }
-                        .buttonStyle(.glass)
+                    Menu("Add", systemImage: "plus") {
+                        Button("Add Assignment", systemImage: "square.and.pencil") { present(.assignment) }
+                        Button("Add Exam", systemImage: "calendar.badge.plus") { present(.exam) }
+                        Button("Add Course", systemImage: "book.closed") { present(.course) }
+                        Button("Record Score", systemImage: "checkmark.circle") { present(.score) }
+                        Button("Import Syllabus", systemImage: "doc.text.viewfinder") { present(.syllabus) }
+                    }
                         .accessibilityIdentifier("dashboardAddCourse")
                 }
             }
@@ -132,13 +137,6 @@ struct DashboardView: View {
             .sheet(isPresented: $showNewTerm) {
                 TermEditorView(defaultAcademicYear: preferences.firstAcademicYear)
             }
-            .confirmationDialog("Add", isPresented: $showAddMenu, titleVisibility: .visible) {
-                Button("Add Assignment") { present(.assignment) }
-                Button("Add Exam") { present(.exam) }
-                Button("Add Course") { present(.course) }
-                Button("Record Score") { present(.score) }
-                Button("Import Syllabus") { present(.syllabus) }
-            }
             .sheet(item: $addAction) { action in
                 TodayAddDestination(action: action, term: currentTerm, courses: courses)
             }
@@ -148,10 +146,7 @@ struct DashboardView: View {
     private var greeting: String { AppCopy.greeting(name: preferences.displayName, locale: locale) }
 
     private func present(_ action: TodayAddAction) {
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(200))
-            addAction = action
-        }
+        addAction = action
     }
 
     private var todayTasks: some View {
@@ -178,36 +173,31 @@ struct DashboardView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding().glassCard(tint: DesignSystem.ColorToken.ice)
-    }
-
-    private var addButton: some View {
-        Button("+ Add") { showAddMenu = true }
-            .font(.headline)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .buttonStyle(.glassProminent)
-            .accessibilityIdentifier("todayAddButton")
+        .padding(DesignSystem.Spacing.medium)
+        .contentSurface()
     }
 
     private var gpaSummary: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
             Text("GPA Summary").font(.title3.bold())
-            HStack {
-                VStack(alignment: .leading) {
-                    Text("Cumulative GPA").font(.caption).foregroundStyle(.secondary)
-                    Text(DecimalFormatters.string(cumulative.gpa, precision: preferences.decimalPrecision)).font(.title2.bold())
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    gpaMetric("Cumulative GPA", value: DecimalFormatters.string(cumulative.gpa, precision: preferences.decimalPrecision), alignment: .leading)
+                    Spacer(minLength: DesignSystem.Spacing.medium)
+                    gpaMetric("Projected GPA", value: DecimalFormatters.string(projectedQuarter.projected.gpa, precision: preferences.decimalPrecision), alignment: .trailing)
                 }
-                Spacer()
-                VStack(alignment: .trailing) {
-                    Text("Projected GPA").font(.caption).foregroundStyle(.secondary)
-                    Text(DecimalFormatters.string(projectedQuarter.projected.gpa, precision: preferences.decimalPrecision)).font(.title2.bold())
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
+                    gpaMetric("Cumulative GPA", value: DecimalFormatters.string(cumulative.gpa, precision: preferences.decimalPrecision), alignment: .leading)
+                    gpaMetric("Projected GPA", value: DecimalFormatters.string(projectedQuarter.projected.gpa, precision: preferences.decimalPrecision), alignment: .leading)
                 }
             }
-            NavigationLink("See more") { PlannerView(preferences: preferences) }
+            Button("See more", action: onOpenGPA)
                 .font(.subheadline.weight(.semibold))
         }
-        .padding().glassCard(tint: DesignSystem.ColorToken.gold)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(DesignSystem.Spacing.medium)
+        .contentSurface()
+        .accessibilityElement(children: .combine)
     }
 
     private var heroCard: some View {
@@ -392,8 +382,22 @@ struct DashboardView: View {
                 }
             }
         }
-        .padding()
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(DesignSystem.Spacing.medium)
+        .contentSurface()
+    }
+
+    private func gpaMetric(_ title: LocalizedStringKey, value: String, alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 2) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.title2.weight(.bold).monospacedDigit())
+                .contentTransition(.numericText())
+                .animation(reduceMotion ? nil : DesignSystem.Motion.interfaceSpring, value: value)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func gradeResult(for course: CourseRecord, forecast: ForecastScenario?) -> CourseGradeCalculationResult {

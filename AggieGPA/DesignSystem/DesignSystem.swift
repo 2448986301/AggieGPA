@@ -21,6 +21,7 @@ enum DesignSystem {
 
     enum Radius {
         static let compact: CGFloat = 12
+        static let section: CGFloat = 16
         static let card: CGFloat = 20
         static let hero: CGFloat = 28
     }
@@ -29,9 +30,34 @@ enum DesignSystem {
         static let quick = 0.18
         static let standard = 0.32
         static let spring = Animation.spring(duration: 0.42, bounce: 0.16)
+        /// The default for state-driven interface changes: smooth, immediate, and without overshoot.
+        static let interfaceSpring = Animation.spring(duration: 0.4, bounce: 0)
     }
 
     static let softShadow = Color.black.opacity(0.12)
+}
+
+/// A quiet, opaque-enough content surface for grouped information.
+///
+/// Liquid Glass is reserved for floating controls and navigation chrome. This keeps stacked
+/// content readable over `CampusBackground`, including with Reduce Transparency enabled.
+struct ContentSurfaceModifier: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        let fillOpacity = reduceTransparency ? 1.0 : (colorScheme == .dark ? 0.94 : 0.90)
+
+        content
+            .background(
+                Color(.secondarySystemGroupedBackground).opacity(fillOpacity),
+                in: RoundedRectangle(cornerRadius: DesignSystem.Radius.section, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.section, style: .continuous)
+                    .strokeBorder(.primary.opacity(reduceTransparency ? 0.16 : 0.06), lineWidth: 1)
+            }
+    }
 }
 
 struct CampusBackground: View {
@@ -79,6 +105,10 @@ extension View {
     func glassCard(tint: Color? = nil, interactive: Bool = false) -> some View {
         modifier(GlassCardModifier(tint: tint, interactive: interactive))
     }
+
+    func contentSurface() -> some View {
+        modifier(ContentSurfaceModifier())
+    }
 }
 
 struct DisclaimerBanner: View {
@@ -90,4 +120,3 @@ struct DisclaimerBanner: View {
             .accessibilityLabel("Unofficial student tool. Not affiliated with U C Davis.")
     }
 }
-

@@ -17,7 +17,9 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selection) {
             Tab("Today", systemImage: "sun.max", value: .dashboard) {
-                DashboardView(preferences: preferences)
+                DashboardView(preferences: preferences) {
+                    selection = .planner
+                }
             }
             Tab("Courses", systemImage: "books.vertical", value: .quarters) {
                 QuartersView(preferences: preferences, initialSearchQuery: siriSearchQuery)
