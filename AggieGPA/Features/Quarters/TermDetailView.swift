@@ -68,7 +68,12 @@ struct TermDetailView: View {
                 .padding(DesignSystem.Spacing.medium)
                 .contentSurface()
                 .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: DesignSystem.Spacing.small, leading: DesignSystem.Spacing.medium, bottom: DesignSystem.Spacing.small, trailing: DesignSystem.Spacing.medium))
+                .listRowInsets(EdgeInsets(
+                    top: DesignSystem.Spacing.small,
+                    leading: -(DesignSystem.Spacing.xSmall * 2),
+                    bottom: DesignSystem.Spacing.small,
+                    trailing: -(DesignSystem.Spacing.xSmall * 2)
+                ))
             }
             Section("Courses") {
                 if visibleCourses.isEmpty {
