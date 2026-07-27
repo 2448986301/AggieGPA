@@ -15,6 +15,7 @@ struct CategoryEditorView: View {
     @State private var dropLowest: Int
     @State private var isExtraCredit: Bool
     @State private var validation: String?
+    @State private var showMoreOptions = false
 
     init(course: CourseRecord, category: GradingCategory?, nextSortOrder: Int) {
         self.course = course; self.category = category; self.nextSortOrder = nextSortOrder
@@ -29,10 +30,13 @@ struct CategoryEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Category") {
+                Section("Required") {
                     TextField("Name", text: $name).accessibilityIdentifier("categoryNameField")
                     Picker("Type", selection: $type) { ForEach(GradeCategoryType.allCases) { Text($0.displayName).tag($0) } }
                     TextField("Weight percent", text: $weightText).keyboardType(.decimalPad)
+                }
+                Section("Optional") {
+                    DisclosureGroup("More Options", isExpanded: $showMoreOptions) {
                     Picker("Item calculation", selection: $mode) {
                         Text("Total points").tag(CategoryCalculationMode.totalPoints)
                         Text("Equal items").tag(CategoryCalculationMode.equalItems)
@@ -40,6 +44,7 @@ struct CategoryEditorView: View {
                     }
                     Stepper("Drop lowest: \(dropLowest)", value: $dropLowest, in: 0...20)
                     Toggle("Extra-credit category", isOn: $isExtraCredit)
+                    }
                 }
                 if let validation { Section { Text(validation).foregroundStyle(.red) } }
             }
@@ -90,6 +95,10 @@ struct GradeItemEditorView: View {
     @State private var customReminderDate: Date
     @State private var validation: String?
     @State private var saveAnother = false
+    @State private var showMoreOptions = false
+    @FocusState private var focusedField: Field?
+
+    private enum Field { case title, earned, possible }
 
     init(course: CourseRecord, categories: [GradingCategory], item: GradeItem?) {
         self.course = course; self.categories = categories; self.item = item
@@ -112,8 +121,10 @@ struct GradeItemEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Grade Item") {
-                    TextField("Title", text: $title).accessibilityIdentifier("gradeItemTitleField")
+                Section("Required") {
+                    TextField("Title", text: $title)
+                        .focused($focusedField, equals: .title)
+                        .accessibilityIdentifier("gradeItemTitleField")
                     Picker("Category", selection: $categoryID) {
                         Text("Unassigned").tag(nil as UUID?)
                         ForEach(categories) { Text($0.name).tag(Optional($0.id)) }
@@ -123,36 +134,56 @@ struct GradeItemEditorView: View {
                     if hasDueDate { DatePicker("Due", selection: $dueDate, displayedComponents: [.date, .hourAndMinute]) }
                 }
                 Section("Score") {
-                    TextField("Earned points (optional)", text: $earnedText).keyboardType(.decimalPad)
-                    TextField("Possible points", text: $possibleText).keyboardType(.decimalPad)
-                    Toggle("Extra credit", isOn: $extraCredit)
-                    Toggle("Excused", isOn: $excused)
-                    Toggle("Dropped", isOn: $dropped)
+                    TextField("Earned points (optional)", text: $earnedText)
+                        .keyboardType(.decimalPad)
+                        .focused($focusedField, equals: .earned)
+                    TextField("Possible points", text: $possibleText)
+                        .keyboardType(.decimalPad)
+                        .focused($focusedField, equals: .possible)
                 }
-                Section("Notes") { TextField("Optional notes", text: $notes, axis: .vertical) }
-                Section("Reminder") {
-                    Toggle("Remind me", isOn: $reminderEnabled)
-                    if reminderEnabled {
-                        Picker("Lead time", selection: $reminderLeadTime) {
-                            Text("1 day before").tag(ReminderLeadTime.oneDay)
-                            Text("3 days before").tag(ReminderLeadTime.threeDays)
-                            Text("1 week before").tag(ReminderLeadTime.oneWeek)
-                            Text("Custom").tag(ReminderLeadTime.custom)
+                Section("Optional") {
+                    DisclosureGroup("More Options", isExpanded: $showMoreOptions) {
+                        Toggle("Extra credit", isOn: $extraCredit)
+                        Toggle("Excused", isOn: $excused)
+                        Toggle("Dropped", isOn: $dropped)
+                        TextField("Optional notes", text: $notes, axis: .vertical)
+                        Toggle("Remind me", isOn: $reminderEnabled)
+                        if reminderEnabled {
+                            Picker("Lead time", selection: $reminderLeadTime) {
+                                Text("1 day before").tag(ReminderLeadTime.oneDay)
+                                Text("3 days before").tag(ReminderLeadTime.threeDays)
+                                Text("1 week before").tag(ReminderLeadTime.oneWeek)
+                                Text("Custom").tag(ReminderLeadTime.custom)
+                            }
+                            if reminderLeadTime == .custom { DatePicker("Reminder date", selection: $customReminderDate) }
+                            Text("iOS will ask for notification permission when you save an enabled reminder.")
+                                .font(.caption).foregroundStyle(.secondary)
                         }
-                        if reminderLeadTime == .custom { DatePicker("Reminder date", selection: $customReminderDate) }
-                        Text("iOS will ask for notification permission when you save an enabled reminder.")
-                            .font(.caption).foregroundStyle(.secondary)
+                        if item == nil { Toggle("Save and add another", isOn: $saveAnother) }
                     }
                 }
-                if item == nil { Section { Toggle("Save and add another", isOn: $saveAnother) } }
                 if let validation { Section { Text(validation).foregroundStyle(.red) } }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle(item == nil ? "New Grade Item" : "Edit Grade Item")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.accessibilityIdentifier("saveGradeItemButton") }
             }
+        }
+        .presentationDetents([.large])
+        .safeAreaInset(edge: .bottom) {
+            Button("Save") {
+                focusedField = nil
+                save()
+            }
+            .frame(maxWidth: .infinity)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .padding(.horizontal, DesignSystem.Spacing.medium)
+            .padding(.vertical, DesignSystem.Spacing.small)
+            .background(.bar)
+            .accessibilityIdentifier("saveGradeItemButton")
         }
     }
 

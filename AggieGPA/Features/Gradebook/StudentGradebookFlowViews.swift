@@ -109,6 +109,9 @@ struct QuickGradeItemView: View {
     @State private var showMore = false
     @State private var categoryID: UUID?
     @State private var validation: String?
+    @FocusState private var focusedField: Field?
+
+    private enum Field { case title, points }
 
     init(course: CourseRecord, categories: [GradingCategory], isExam: Bool) {
         self.course = course; self.categories = categories; self.isExam = isExam
@@ -120,29 +123,46 @@ struct QuickGradeItemView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
+                Section("Required") {
                     TextField(isExam ? "Exam name" : "Assignment name", text: $title)
                         .accessibilityIdentifier("quickGradeItemTitleField")
+                        .focused($focusedField, equals: .title)
                     DatePicker(isExam ? "Exam date" : "Due date", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
                 }
-                Section {
+                Section("Optional") {
                     DisclosureGroup("More Options", isExpanded: $showMore) {
                         Picker("Category", selection: $categoryID) {
                             ForEach(categories) { Text($0.name).tag(Optional($0.id)) }
                         }
-                        TextField("Possible points", text: $possible).keyboardType(.decimalPad)
+                        TextField("Possible points", text: $possible)
+                            .keyboardType(.decimalPad)
+                            .focused($focusedField, equals: .points)
                     }
                 }
-                if let validation { Text(validation).foregroundStyle(.red) }
+                if let validation {
+                    Section { Label(validation, systemImage: "exclamationmark.circle.fill").foregroundStyle(.red) }
+                }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle(isExam ? "Add Exam" : "Add Assignment")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }.accessibilityIdentifier("saveQuickGradeItemButton")
-                }
             }
+        }
+        .presentationDetents([.medium, .large])
+        .safeAreaInset(edge: .bottom) {
+            Button("Save") {
+                focusedField = nil
+                save()
+            }
+            .frame(maxWidth: .infinity)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .padding(.horizontal, DesignSystem.Spacing.medium)
+            .padding(.vertical, DesignSystem.Spacing.small)
+            .background(.bar)
+            .accessibilityIdentifier("saveQuickGradeItemButton")
         }
     }
 
@@ -164,6 +184,9 @@ struct RecordScoreView: View {
     @State private var earned: String
     @State private var possible: String
     @State private var validation: String?
+    @FocusState private var focusedField: Field?
+
+    private enum Field { case earned, possible }
 
     init(item: GradeItem, onSaved: (() -> Void)? = nil) {
         self.item = item
@@ -176,17 +199,43 @@ struct RecordScoreView: View {
         NavigationStack {
             Form {
                 Section(item.title) {
-                    TextField("Earned points", text: $earned).keyboardType(.decimalPad).accessibilityIdentifier("recordEarnedPointsField")
-                    TextField("Possible points", text: $possible).keyboardType(.decimalPad).accessibilityIdentifier("recordPossiblePointsField")
+                    LabeledContent("Course", value: item.course?.courseCode ?? "Course")
+                        .foregroundStyle(.secondary)
                 }
-                if let validation { Text(validation).foregroundStyle(.red) }
+                Section("Required") {
+                    TextField("Earned points", text: $earned)
+                        .keyboardType(.decimalPad)
+                        .focused($focusedField, equals: .earned)
+                        .accessibilityIdentifier("recordEarnedPointsField")
+                    TextField("Possible points", text: $possible)
+                        .keyboardType(.decimalPad)
+                        .focused($focusedField, equals: .possible)
+                        .accessibilityIdentifier("recordPossiblePointsField")
+                }
+                if let validation {
+                    Section { Label(validation, systemImage: "exclamationmark.circle.fill").foregroundStyle(.red) }
+                }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Record Score")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.accessibilityIdentifier("saveRecordedScoreButton") }
             }
+        }
+        .presentationDetents([.medium, .large])
+        .safeAreaInset(edge: .bottom) {
+            Button("Save") {
+                focusedField = nil
+                save()
+            }
+            .frame(maxWidth: .infinity)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .padding(.horizontal, DesignSystem.Spacing.medium)
+            .padding(.vertical, DesignSystem.Spacing.small)
+            .background(.bar)
+            .accessibilityIdentifier("saveRecordedScoreButton")
         }
     }
 
