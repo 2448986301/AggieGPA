@@ -478,17 +478,17 @@ struct CourseDetailView: View {
                 .animation(DesignSystem.Motion.emphasized(reduceMotion: reduceMotion), value: score(item))
         }
         .contentShape(Rectangle())
-        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-            Button("Record Score", systemImage: "checkmark.circle") { scoringItem = item }
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            Button("Record Score") { scoringItem = item }
                 .tint(DesignSystem.ColorToken.navyRaised)
-            Button("Edit", systemImage: "square.and.pencil") {
+            Button("Edit") {
                 editingItem = item
                 showItemEditor = true
             }
             .tint(DesignSystem.ColorToken.gold)
         }
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button("Delete", systemImage: "trash") { requestDelete(item) }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button("Delete") { requestDelete(item) }
                 .tint(.red)
         }
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.compact, style: .continuous))
