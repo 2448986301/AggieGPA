@@ -27,7 +27,7 @@ private enum CourseDetailSection: String, CaseIterable, Identifiable {
 
 struct CourseDetailView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var policies: [CourseGradingPolicy]
     @Query private var categories: [GradingCategory]
     @Query private var items: [GradeItem]
@@ -52,6 +52,7 @@ struct CourseDetailView: View {
     @State private var showTargetPicker = false
     @State private var editingForecast: ForecastScenario?
     @State private var deletedItem: DeletedGradeItem?
+    @State private var itemPendingDeletion: GradeItem?
     @State private var showScoreUpdate = false
 
     init(course: CourseRecord, preferences: UserPreferences, initialItemID: UUID? = nil) {
@@ -89,30 +90,10 @@ struct CourseDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: DesignSystem.Spacing.medium) {
-                gradeHero
-                Picker("Course detail", selection: $section) {
-                    ForEach(CourseDetailSection.allCases) { section in
-                        Label(section.compactTitle, systemImage: section.symbol).tag(section)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("courseDetailSectionPicker")
-                .accessibilityHint("Switches between assignments, grade breakdown, and goal estimate")
-
-                switch section {
-                case .gradebook: gradebookContent
-                case .breakdown: breakdownContent
-                case .forecast: forecastContent
-                }
-                DisclaimerBanner().padding(.top, DesignSystem.Spacing.small)
-            }
-            .frame(maxWidth: horizontalSizeClass == .regular ? 980 : .infinity, alignment: .leading)
-            .padding(.horizontal, DesignSystem.Spacing.medium)
-            .padding(.vertical, DesignSystem.Spacing.medium)
+        ZStack {
+            CampusBackground().ignoresSafeArea()
+            secondaryDetailContent
         }
-        .background(CampusBackground())
         .navigationTitle(course.courseCode)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -129,10 +110,7 @@ struct CourseDetailView: View {
         .sheet(isPresented: $showCategoryEditor) {
             CategoryEditorView(course: course, category: editingCategory, nextSortOrder: courseCategories.count)
         }
-        .confirmationDialog("Delete this category?", isPresented: Binding(
-            get: { categoryPendingDeletion != nil },
-            set: { if !$0 { categoryPendingDeletion = nil } }
-        ), titleVisibility: .visible) {
+        .alert("Delete this category?", isPresented: isShowingCategoryDeletionAlert) {
             Button("Delete Category", role: .destructive) {
                 if let categoryPendingDeletion { deleteCategory(categoryPendingDeletion) }
                 categoryPendingDeletion = nil
@@ -140,6 +118,15 @@ struct CourseDetailView: View {
             Button("Cancel", role: .cancel) { categoryPendingDeletion = nil }
         } message: {
             Text("Assignments and scores in this category will be kept as unassigned work.")
+        }
+        .alert(itemDeletionTitle, isPresented: isShowingItemDeletionAlert) {
+            Button("Delete Assignment", role: .destructive) {
+                if let itemPendingDeletion { delete(itemPendingDeletion) }
+                itemPendingDeletion = nil
+            }
+            Button("Cancel", role: .cancel) { itemPendingDeletion = nil }
+        } message: {
+            Text(itemDeletionMessage)
         }
         .sheet(isPresented: $showItemEditor) {
             GradeItemEditorView(course: course, categories: courseCategories, item: editingItem)
@@ -163,22 +150,28 @@ struct CourseDetailView: View {
         .sheet(isPresented: $showForecastEditor) {
             ForecastEditorView(course: course, policy: policy, forecast: editingForecast)
         }
-        .task {
-            guard let initialItemID, let item = courseItems.first(where: { $0.id == initialItemID }) else { return }
-            section = .gradebook
-            editingItem = item
-            showItemEditor = true
-        }
-        .safeAreaInset(edge: .bottom) {
+        .task { openInitialItemIfNeeded() }
+        .safeAreaInset(edge: .bottom, spacing: DesignSystem.Spacing.small) {
             if deletedItem != nil {
-                HStack {
-                    Text("Grade item deleted")
-                    Spacer()
-                    Button("Undo") { undoDelete() }.bold()
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: DesignSystem.Spacing.small) {
+                        Label("Assignment deleted", systemImage: "trash")
+                            .lineLimit(1)
+                        Spacer(minLength: DesignSystem.Spacing.small)
+                        undoButton
+                    }
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
+                        Label("Assignment deleted", systemImage: "trash")
+                        undoButton
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
                 }
-                .padding()
+                .padding(DesignSystem.Spacing.medium)
                 .glassEffect(.regular, in: Capsule())
-                .padding(.horizontal)
+                .padding(.horizontal, DesignSystem.Spacing.medium)
+                .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("gradeItemUndoBanner")
             } else if showScoreUpdate {
                 HStack {
                     Text("Current course grade updated for \(course.courseCode).")
@@ -191,6 +184,149 @@ struct CourseDetailView: View {
             }
         }
         .appEntityIdentifier(EntityIdentifier(for: CourseEntity.self, identifier: course.id.uuidString))
+    }
+
+    private func openInitialItemIfNeeded() {
+        guard let initialItemID else { return }
+        guard let item = courseItems.first(where: { $0.id == initialItemID }) else { return }
+        section = .gradebook
+        editingItem = item
+        showItemEditor = true
+    }
+
+    private var isShowingCategoryDeletionAlert: Binding<Bool> {
+        Binding(
+            get: { categoryPendingDeletion != nil },
+            set: { if !$0 { categoryPendingDeletion = nil } }
+        )
+    }
+
+    private var isShowingItemDeletionAlert: Binding<Bool> {
+        Binding(
+            get: { itemPendingDeletion != nil },
+            set: { if !$0 { itemPendingDeletion = nil } }
+        )
+    }
+
+    @ViewBuilder private var secondaryDetailContent: some View {
+        if section == .gradebook {
+            gradebookList
+        } else {
+            secondaryScrollContent
+        }
+    }
+
+    private var secondaryScrollContent: some View {
+        GeometryReader { proxy in
+            let availableWidth = max(0, proxy.size.width - (DesignSystem.Spacing.medium * 2))
+            let readableWidth = min(1_180, availableWidth)
+
+            ScrollView {
+                LazyVStack(spacing: DesignSystem.Spacing.medium) {
+                    gradeHero
+                    Picker("Course detail", selection: $section) {
+                        ForEach(CourseDetailSection.allCases) { section in
+                            Label(section.compactTitle, systemImage: section.symbol).tag(section)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("courseDetailSectionPicker")
+                    .accessibilityHint("Switches between assignments, grade breakdown, and goal estimate")
+
+                    switch section {
+                    case .gradebook: EmptyView()
+                    case .breakdown: breakdownContent
+                    case .forecast: forecastContent
+                    }
+                    DisclaimerBanner().padding(.top, DesignSystem.Spacing.small)
+                }
+                .frame(maxWidth: readableWidth, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, DesignSystem.Spacing.medium)
+                .padding(.vertical, DesignSystem.Spacing.medium)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private var gradebookList: some View {
+        List {
+            Section {
+                gradeHero
+                    .listRowInsets(EdgeInsets(top: DesignSystem.Spacing.small, leading: 0, bottom: DesignSystem.Spacing.small, trailing: 0))
+                    .listRowBackground(Color.clear)
+
+                Picker("Course detail", selection: $section) {
+                    ForEach(CourseDetailSection.allCases) { section in
+                        Label(section.compactTitle, systemImage: section.symbol).tag(section)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("courseDetailSectionPicker")
+                .accessibilityHint("Switches between assignments, grade breakdown, and goal estimate")
+                .listRowBackground(Color.clear)
+            }
+
+            if policy == nil {
+                Section {
+                    ContentUnavailableView {
+                        Label("How is this course graded?", systemImage: "list.clipboard")
+                    } description: {
+                        Text("Import a syllabus, choose a template, or set it up manually.")
+                    } actions: {
+                        Button("Use a Template") { showSetup = true }.buttonStyle(.borderedProminent)
+                        Button("Import Syllabus") { showSyllabusImport = true }
+                        Button("Set It Up Manually") { showPolicyEditor = true }
+                    }
+                    .padding(.vertical, DesignSystem.Spacing.xLarge)
+                    .listRowBackground(Color.clear)
+                }
+            } else {
+                Section {
+                    HStack {
+                        Text("Assignments & Exams").font(.title2.bold())
+                        Spacer()
+                        addGradeItemMenu
+                    }
+                    .listRowBackground(Color.clear)
+                }
+
+                ForEach(courseCategories) { category in
+                    Section {
+                        let categoryItems = courseItems.filter { $0.category?.id == category.id }.sorted(by: itemSort)
+                        if categoryItems.isEmpty {
+                            Text("No assignments or exams yet")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(categoryItems) { itemRow($0) }
+                        }
+                    } header: {
+                        categoryListHeader(category)
+                    }
+                }
+
+                if courseCategories.isEmpty && courseItems.isEmpty {
+                    Section {
+                        ContentUnavailableView("No assignments or exams", systemImage: "tray", description: Text("Add your first item to start tracking scores."))
+                            .padding(.vertical, DesignSystem.Spacing.large)
+                    }
+                }
+
+                let unassigned = courseItems.filter { $0.category == nil }
+                if !unassigned.isEmpty {
+                    Section("Unassigned") {
+                        ForEach(unassigned.sorted(by: itemSort)) { itemRow($0) }
+                    }
+                }
+            }
+
+            Section { DisclaimerBanner() }
+                .listRowBackground(Color.clear)
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(CampusBackground().ignoresSafeArea())
     }
 
     private var gradeHero: some View {
@@ -317,41 +453,80 @@ struct CourseDetailView: View {
     }
 
     private func itemRow(_ item: GradeItem) -> some View {
-        Button {
-            scoringItem = item
-        } label: {
-            HStack(spacing: DesignSystem.Spacing.small) {
-                Image(systemName: item.status.icon).foregroundStyle(item.status.tint)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(item.title).foregroundStyle(.primary)
-                    HStack(spacing: 6) {
-                        Text(LocalizedStringKey(item.status.localizedLabelKey))
-                        if let due = item.dueDate { Text(due, style: .date) }
-                    }.font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer()
-                Text(score(item)).font(.subheadline.monospacedDigit()).foregroundStyle(.primary)
+        HStack(spacing: DesignSystem.Spacing.small) {
+            Image(systemName: item.status.icon).foregroundStyle(item.status.tint)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.title).foregroundStyle(.primary)
+                HStack(spacing: 6) {
+                    Text(LocalizedStringKey(item.status.localizedLabelKey))
+                    if let due = item.dueDate { Text(due, style: .date) }
+                }.font(.caption).foregroundStyle(.secondary)
             }
-            .contentShape(Rectangle())
+            Spacer()
+            Text(score(item)).font(.subheadline.monospacedDigit()).foregroundStyle(.primary)
         }
-        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            Button("Record Score", systemImage: "checkmark.circle") { scoringItem = item }
+                .tint(DesignSystem.ColorToken.navyRaised)
+            Button("Edit", systemImage: "square.and.pencil") {
+                editingItem = item
+                showItemEditor = true
+            }
+            .tint(DesignSystem.ColorToken.gold)
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button("Delete", systemImage: "trash", role: .destructive) { requestDelete(item) }
+        }
         .accessibilityElement(children: .ignore)
+        .accessibilityIdentifier("gradeItemRow-\(item.title)")
         .accessibilityLabel(itemAccessibilityLabel(item))
-        .accessibilityHint("Records or updates this score")
-        .contextMenu {
-            Button("Record Score", systemImage: "pencil") { scoringItem = item }
-            if item.status != .submitted {
-                Button("Mark Submitted", systemImage: "paperplane") { updateStatus(item, to: .submitted) }
+        .accessibilityHint("Swipe left for score, editing, and deletion actions.")
+    }
+
+    private var addGradeItemMenu: some View {
+        Menu {
+            if courseCategories.isEmpty {
+                Button("Add Grade Item", systemImage: "plus") {
+                    editingItem = nil
+                    showItemEditor = true
+                }
+            } else {
+                ForEach(courseCategories) { category in
+                    Button(category.name, systemImage: category.addSymbol) { quickCategory = category }
+                }
             }
-            if item.status != .missing {
-                Button("Mark Missing", systemImage: "exclamationmark.circle") { updateStatus(item, to: .missing) }
-            }
-            if item.status != .excused {
-                Button("Mark Excused", systemImage: "minus.circle") { updateStatus(item, to: .excused) }
-            }
-            Button("Edit", systemImage: "slider.horizontal.3") { editingItem = item; showItemEditor = true }
-            Button("Delete", systemImage: "trash", role: .destructive) { delete(item) }
+        } label: {
+            Label("Add", systemImage: "plus")
+                .font(.body.weight(.semibold))
+                .labelStyle(.titleAndIcon)
         }
+        .buttonStyle(.borderedProminent)
+        .accessibilityLabel("Add assignment or exam")
+    }
+
+    private func categoryListHeader(_ category: GradingCategory) -> some View {
+        HStack(spacing: DesignSystem.Spacing.small) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(category.name).font(.headline)
+                Text("Worth \(percent(category.weight)) of course")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Menu {
+                Button("Edit Category", systemImage: "pencil") {
+                    editingCategory = category
+                    showCategoryEditor = true
+                }
+                Button("Delete Category", systemImage: "trash", role: .destructive) {
+                    categoryPendingDeletion = category
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .accessibilityLabel("Options for \(category.name)")
+        }
+        .textCase(nil)
     }
 
     @ViewBuilder private var breakdownContent: some View {
@@ -478,11 +653,20 @@ struct CourseDetailView: View {
         }
     }
 
+    private func requestDelete(_ item: GradeItem) {
+        itemPendingDeletion = item
+    }
+
     private func delete(_ item: GradeItem) {
-        deletedItem = DeletedGradeItem(item)
-        GradeItemNotificationService.cancel(identifier: item.notificationIdentifier)
+        let snapshot = DeletedGradeItem(item)
         modelContext.delete(item)
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+            GradeItemNotificationService.cancel(identifier: snapshot.notificationIdentifier)
+            withAnimation(undoAnimation) { deletedItem = snapshot }
+        } catch {
+            modelContext.rollback()
+        }
     }
 
     private func deleteCategory(_ category: GradingCategory) {
@@ -510,8 +694,36 @@ struct CourseDetailView: View {
         guard let deletedItem else { return }
         let restored = deletedItem.restore(course: course, categories: courseCategories)
         modelContext.insert(restored)
-        try? modelContext.save()
-        self.deletedItem = nil
+        do {
+            try modelContext.save()
+            let reminder = GradeItemReminderSnapshot(restored)
+            Task { try? await GradeItemNotificationService.sync(reminder) }
+            withAnimation(undoAnimation) { self.deletedItem = nil }
+        } catch {
+            modelContext.rollback()
+        }
+    }
+
+    private var undoAnimation: Animation {
+        reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.32, dampingFraction: 1)
+    }
+
+    private var undoButton: some View {
+        Button("Undo") { undoDelete() }
+            .fontWeight(.semibold)
+            .accessibilityIdentifier("undoGradeItemDeleteButton")
+    }
+
+    private var itemDeletionTitle: LocalizedStringKey {
+        itemPendingDeletion.map(hasRecordedScore) == true ? "Delete this graded assignment?" : "Delete this assignment?"
+    }
+
+    private var itemDeletionMessage: LocalizedStringKey {
+        itemPendingDeletion.map(hasRecordedScore) == true ? "This assignment already has a recorded score. Delete it?" : "This assignment will be deleted."
+    }
+
+    private func hasRecordedScore(_ item: GradeItem) -> Bool {
+        item.status == .graded || item.earnedPoints != nil
     }
 
     private func itemSort(_ lhs: GradeItem, _ rhs: GradeItem) -> Bool {
@@ -588,21 +800,28 @@ private struct SimpleTargetPickerView: View {
 }
 
 private struct DeletedGradeItem {
-    let title: String; let categoryID: UUID?; let dueDate: Date?; let earned: Decimal?; let possible: Decimal
+    let id: UUID; let title: String; let categoryID: UUID?; let dueDate: Date?; let earned: Decimal?; let possible: Decimal
     let override: Decimal?; let status: GradeItemStatus; let included: Bool; let extra: Bool; let dropped: Bool
-    let excused: Bool; let multiplier: Decimal; let notes: String
+    let excused: Bool; let multiplier: Decimal; let notes: String; let reminderEnabled: Bool
+    let reminderLeadTime: ReminderLeadTime; let customReminderDate: Date?; let notificationIdentifier: String
+    let createdAt: Date; let updatedAt: Date
 
     init(_ item: GradeItem) {
-        title = item.title; categoryID = item.category?.id; dueDate = item.dueDate; earned = item.earnedPoints
+        id = item.id; title = item.title; categoryID = item.category?.id; dueDate = item.dueDate; earned = item.earnedPoints
         possible = item.possiblePoints; override = item.percentageOverride; status = item.status; included = item.isIncluded
         extra = item.isExtraCredit; dropped = item.isDropped; excused = item.isExcused; multiplier = item.multiplier; notes = item.notes
+        reminderEnabled = item.reminderEnabled; reminderLeadTime = item.reminderLeadTime
+        customReminderDate = item.customReminderDate; notificationIdentifier = item.notificationIdentifier
+        createdAt = item.createdAt; updatedAt = item.updatedAt
     }
 
     func restore(course: CourseRecord, categories: [GradingCategory]) -> GradeItem {
-        GradeItem(course: course, category: categories.first { $0.id == categoryID }, title: title, dueDate: dueDate,
+        GradeItem(id: id, course: course, category: categories.first { $0.id == categoryID }, title: title, dueDate: dueDate,
                   earnedPoints: earned, possiblePoints: possible, percentageOverride: override, status: status,
                   isIncluded: included, isExtraCredit: extra, isDropped: dropped, isExcused: excused,
-                  multiplier: multiplier, notes: notes)
+                  multiplier: multiplier, notes: notes, reminderEnabled: reminderEnabled,
+                  reminderLeadTime: reminderLeadTime, customReminderDate: customReminderDate,
+                  notificationIdentifier: notificationIdentifier, createdAt: createdAt, updatedAt: updatedAt)
     }
 }
 

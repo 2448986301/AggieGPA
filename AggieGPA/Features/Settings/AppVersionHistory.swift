@@ -26,6 +26,12 @@ enum AppVersionHistory {
 
     static let releases: [AppVersionRelease] = [
         AppVersionRelease(
+            version: "1.3.1",
+            status: "Current Version",
+            summary: "Resolved some known issues.",
+            highlights: []
+        ),
+        AppVersionRelease(
             version: "1.3.0",
             status: "Current Version",
             summary: "Reviewable on-device syllabus understanding, now with a native iPad workspace.",
@@ -266,17 +272,19 @@ struct WhatsNewSheet: View {
 
                         Divider()
 
-                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
-                            Text("Highlights")
-                                .font(.headline)
-                            ForEach(Array(current.highlights.prefix(4).enumerated()), id: \.offset) { index, highlight in
-                                VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
-                                    Label { Text(highlight) } icon: {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(DesignSystem.ColorToken.gold)
+                        if !current.highlights.isEmpty {
+                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
+                                Text("Highlights")
+                                    .font(.headline)
+                                ForEach(Array(current.highlights.prefix(4).enumerated()), id: \.offset) { index, highlight in
+                                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
+                                        Label { Text(highlight) } icon: {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundStyle(DesignSystem.ColorToken.gold)
+                                        }
+                                        .font(.body)
+                                        if index < current.highlights.prefix(4).count - 1 { Divider() }
                                     }
-                                    .font(.body)
-                                    if index < current.highlights.prefix(4).count - 1 { Divider() }
                                 }
                             }
                         }

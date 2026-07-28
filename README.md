@@ -1,8 +1,8 @@
 # Aggie GPA
 
-**Unofficial GPA Planner for UC Davis Students — 1.3.0 (Build 17)**
+**Unofficial GPA Planner for UC Davis Students — 1.3.1 (Build 18)**
 
-Aggie GPA 是一个供 UC Davis 学生个人使用的非官方、完全离线的 iPhone 和 iPad GPA 记录、课程成绩册与规划工具。v1.3 可以记录 category、作业、考试和分数，计算 Current Grade、Forecast 与 Projected GPA，并从 syllabus 提取待确认的评分规则。它没有账号、服务器或远程 AI。
+Aggie GPA 是一个供 UC Davis 学生个人使用的非官方、完全离线的 iPhone 和 iPad GPA 记录、课程成绩册与规划工具。v1.3.1 可以记录 category、作业、考试和分数，计算 Current Grade、Forecast 与 Projected GPA，并从 syllabus 提取待确认的评分规则。它没有账号、服务器或远程 AI。
 
 > Unofficial student tool. Not affiliated with UC Davis.
 
@@ -19,6 +19,7 @@ Aggie GPA 是一个供 UC Davis 学生个人使用的非官方、完全离线的
 - Decimal 精确 GPA engine；A+ = 4.0，中间结果不提前舍入。
 - Dashboard Hero、当前/专业/upper-division GPA、课程概览和 Charts 趋势。
 - Quarter 新建、复制、排序、搜索、按学年筛选；课程添加、编辑、复制、删除和 Undo。
+- 作业支持左滑编辑、右滑删除；删除已评分作业会确认，并可完整撤销。
 - What-If 与正式记录隔离；明确确认后才能 Save to Records。
 - Target GPA、Final Grade、Scenario Comparison、Future Quarter Planner。
 - UC Davis 本科 16-unit repeat replacement 估算和 manual-review 警告。

@@ -148,8 +148,12 @@ final class AggieGPAUITests: XCTestCase {
         scrollTo(about, in: app)
         about.tap()
         XCTAssertTrue(app.descendants(matching: .any)["appVersion"].waitForExistence(timeout: 5))
-        app.buttons["whatsNewLink"].tap()
+        let whatsNew = app.staticTexts["What’s New"]
+        XCTAssertTrue(whatsNew.waitForExistence(timeout: 5))
+        whatsNew.tap()
         XCTAssertTrue(app.descendants(matching: .any)["versionHistoryView"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Version 1.3.1"].exists)
+        XCTAssertTrue(app.staticTexts["Version 1.3.0"].exists)
         XCTAssertTrue(app.staticTexts["Version 1.2.0"].exists)
         XCTAssertTrue(app.staticTexts["Version 1.1.2"].exists)
         XCTAssertTrue(app.staticTexts["Version 1.1.1"].exists)
@@ -226,6 +230,24 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(gradedHomework.waitForExistence(timeout: 5))
     }
 
+    func testGradedAssignmentDeleteRequiresConfirmationAndCanUndo() {
+        let app = makeApp(extraArguments: ["--screenshot-demo"])
+        openDemoGradebook(app: app)
+
+        let homework = app.staticTexts["Homework 1"].firstMatch
+        XCTAssertTrue(homework.waitForExistence(timeout: 5))
+        homework.swipeLeft()
+        let delete = app.buttons["Delete"].firstMatch
+        XCTAssertTrue(delete.waitForExistence(timeout: 5))
+        delete.tap()
+        let deletionAlert = app.alerts.firstMatch
+        XCTAssertTrue(deletionAlert.waitForExistence(timeout: 5))
+        deletionAlert.buttons["Delete Assignment"].tap()
+        XCTAssertTrue(app.buttons["undoGradeItemDeleteButton"].waitForExistence(timeout: 5))
+        app.buttons["undoGradeItemDeleteButton"].tap()
+        XCTAssertTrue(homework.waitForExistence(timeout: 5))
+    }
+
     func testAppearancePickerHasDarkMode() {
         let app = makeApp()
         completeOnboarding(app: app)
@@ -266,7 +288,7 @@ final class AggieGPAUITests: XCTestCase {
 
     private func openDemoGradebook(app: XCUIApplication) {
         app.tabBars.buttons["Courses"].tap()
-        app.staticTexts["Fall 2026"].tap()
+        app.buttons.matching(NSPredicate(format: "label CONTAINS 'Fall 2026'")).firstMatch.tap()
         app.staticTexts["CHE 002A"].tap()
     }
 

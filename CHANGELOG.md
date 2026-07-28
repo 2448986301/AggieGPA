@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.1] — Unreleased
+
+### Fixed
+
+- Added native leading swipe edit and trailing swipe delete actions for assignments
+  and exams.
+- Added a second confirmation before deleting a scored item.
+- Restored deleted items with their original score, reminder configuration,
+  notification identifier, and category relationship when Undo is selected.
+- Moved the assignment Undo affordance into the bottom safe area so it stays above
+  tab navigation, including on iPad split views.
+
 ## [1.3.0] — Unreleased
 
 ### Added
