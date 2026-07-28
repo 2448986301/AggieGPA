@@ -280,14 +280,14 @@ struct CourseDetailView: View {
     }
 
     @ViewBuilder private var gradebookSections: some View {
-        Section {
-            HStack {
-                Text("Assignments & Exams").font(.title2.bold())
-                Spacer()
-                addGradeItemMenu
-            }
-            .listRowBackground(Color.clear)
+        HStack {
+            Text("Assignments & Exams").font(.title2.bold())
+            Spacer()
+            addGradeItemMenu
         }
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
 
         ForEach(courseCategories) { category in
             Section {
