@@ -4,6 +4,7 @@ import SwiftUI
 /// iPad's regular-width composition. It reuses the phone feature views and their
 /// SwiftData queries while giving navigation, selection, and detail their own space.
 struct IPadWorkspaceView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let preferences: UserPreferences
     @Binding var selection: AppTab
     @Binding var siriSearchQuery: String
@@ -14,7 +15,9 @@ struct IPadWorkspaceView: View {
             List {
                 ForEach(AppTab.allCases) { tab in
                     Button {
-                        selection = tab
+                        withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+                            selection = tab
+                        }
                     } label: {
                         Label(tab.title, systemImage: tab.symbol)
                     }
@@ -54,6 +57,7 @@ struct IPadWorkspaceView: View {
 }
 
 struct IPadCourseList: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \CourseRecord.updatedAt, order: .reverse) private var courses: [CourseRecord]
     let preferences: UserPreferences
     let searchQuery: String
@@ -79,7 +83,11 @@ struct IPadCourseList: View {
                         }
                         .tag(course.id)
                         .contextMenu {
-                            Button("Open Course", systemImage: "arrow.right") { selectedCourseID = course.id }
+                            Button("Open Course", systemImage: "arrow.right") {
+                                withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+                                    selectedCourseID = course.id
+                                }
+                            }
                         }
                     }
                 }
@@ -88,7 +96,11 @@ struct IPadCourseList: View {
         .searchable(text: $searchText, prompt: "Course")
         .navigationSplitViewColumnWidth(min: 240, ideal: 300, max: 340)
         .onChange(of: liveCourses.map(\.id), initial: true) { _, ids in
-            if selectedCourseID == nil || !ids.contains(selectedCourseID!) { selectedCourseID = ids.first }
+            if selectedCourseID == nil || !ids.contains(selectedCourseID!) {
+                withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+                    selectedCourseID = ids.first
+                }
+            }
         }
         .onChange(of: searchQuery, initial: true) { _, query in searchText = query }
     }

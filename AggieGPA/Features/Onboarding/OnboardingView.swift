@@ -34,7 +34,7 @@ struct OnboardingView: View {
 
                 Button(page < 3 ? "Continue" : "Start using Aggie GPA") {
                     if page < 3 {
-                        withAnimation(DesignSystem.Motion.spring) { page += 1 }
+                        withAnimation(DesignSystem.Motion.emphasized(reduceMotion: reduceMotion)) { page += 1 }
                     } else {
                         finish()
                     }

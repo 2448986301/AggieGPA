@@ -195,12 +195,21 @@ struct DashboardView: View {
                             .foregroundStyle(item.earnedPoints == nil ? DesignSystem.ColorToken.gold : .secondary)
                     }
                     .padding(.vertical, 4)
+                    .transition(
+                        reduceMotion
+                            ? .opacity
+                            : .opacity.combined(with: .offset(y: DesignSystem.Spacing.xSmall))
+                    )
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(DesignSystem.Spacing.medium)
         .contentSurface()
+        .animation(
+            DesignSystem.Motion.standard(reduceMotion: reduceMotion),
+            value: Array(upcomingItems.prefix(5)).map(\.id)
+        )
     }
 
     private var gpaSummary: some View {
@@ -243,7 +252,10 @@ struct DashboardView: View {
                 Text(DecimalFormatters.string(cumulative.gpa, precision: preferences.decimalPrecision))
                     .font(.system(.largeTitle, design: .rounded, weight: .bold))
                     .contentTransition(.numericText())
-                    .animation(reduceMotion ? nil : DesignSystem.Motion.spring, value: cumulative.gpa)
+                    .animation(
+                        DesignSystem.Motion.emphasized(reduceMotion: reduceMotion),
+                        value: cumulative.gpa
+                    )
                     .accessibilityLabel("Cumulative GPA \(DecimalFormatters.string(cumulative.gpa, precision: preferences.decimalPrecision))")
                 HStack {
                     Label {
@@ -401,6 +413,11 @@ struct DashboardView: View {
                             VStack(alignment: .trailing) {
                                 Text(result.calculatedCurrentPercentage.map { "\(compact($0))%" } ?? "No scores")
                                     .font(.headline)
+                                    .contentTransition(.numericText())
+                                    .animation(
+                                        DesignSystem.Motion.emphasized(reduceMotion: reduceMotion),
+                                        value: result.calculatedCurrentPercentage
+                                    )
                                 Text(result.currentLetterGrade?.rawValue ?? "").font(.caption).foregroundStyle(.secondary)
                             }
                         }
@@ -424,7 +441,7 @@ struct DashboardView: View {
             Text(value)
                 .font(.title2.weight(.bold).monospacedDigit())
                 .contentTransition(.numericText())
-                .animation(reduceMotion ? nil : DesignSystem.Motion.interfaceSpring, value: value)
+                .animation(DesignSystem.Motion.emphasized(reduceMotion: reduceMotion), value: value)
         }
         .accessibilityElement(children: .combine)
     }

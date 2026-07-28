@@ -24,6 +24,7 @@ private struct DeletedCourseSnapshot {
 struct TermDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.locale) private var locale
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var courses: [CourseRecord]
     @Query private var policies: [CourseGradingPolicy]
     @Query private var categories: [GradingCategory]
@@ -95,7 +96,10 @@ struct TermDetailView: View {
                         .swipeActions(edge: .trailing) { Button("Delete", role: .destructive) { remove(course) } }
                 }
             }
-            Section { DisclaimerBanner() }
+            Section {
+                DisclaimerBanner()
+                    .padding(.bottom, deleted == nil ? 0 : 68)
+            }
         }
         .navigationTitle(term.displayName)
         .toolbar {
@@ -106,18 +110,15 @@ struct TermDetailView: View {
         }
         .sheet(isPresented: $showAdd) { CourseEditorView(term: term) }
         .sheet(item: $editingCourse) { CourseEditorView(term: term, course: $0) }
-        .safeAreaInset(edge: .bottom) {
+        .overlay(alignment: .bottom) {
             if deleted != nil {
-                HStack {
-                    Text("Course deleted")
-                    Spacer()
-                    Button("Undo") { undoDelete() }.bold().accessibilityIdentifier("undoDeleteButton")
+                AggieFeedbackBanner("Course deleted", systemImage: "trash") {
+                    Button("Undo") { undoDelete() }
+                        .fontWeight(.semibold)
+                        .accessibilityIdentifier("undoDeleteButton")
                 }
-                .padding()
-                .glassEffect(.regular, in: Capsule())
-                .padding(.horizontal)
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("Course deleted. Undo is available.")
+                .padding(.bottom, DesignSystem.Spacing.small)
+                .transition(DesignSystem.Motion.feedbackTransition(reduceMotion: reduceMotion))
             }
         }
         .onDisappear { finalizePendingDelete() }
@@ -128,21 +129,26 @@ struct TermDetailView: View {
         func belongsToCourse(_ relatedCourse: CourseRecord?) -> Bool {
             relatedCourse?.persistentModelID == courseModelID
         }
-        deleted = DeletedCourseSnapshot(modelID: courseModelID, code: course.courseCode, title: course.courseTitle,
-                                        units: course.units, grade: course.grade, gradingBasis: course.gradingBasis,
-                                        institution: course.institution, isMajor: course.isMajorCourse,
-                                        isUpper: course.isUpperDivision, included: course.isIncludedInGPA,
-                                        transfer: course.isTransferCourse, notes: course.notes,
-                                        policies: policies.filter { belongsToCourse($0.course) },
-                                        categories: categories.filter { belongsToCourse($0.course) },
-                                        items: items.filter { belongsToCourse($0.course) },
-                                        scales: scales.filter { belongsToCourse($0.course) },
-                                        forecasts: forecasts.filter { belongsToCourse($0.course) })
+        let snapshot = DeletedCourseSnapshot(modelID: courseModelID, code: course.courseCode, title: course.courseTitle,
+                                             units: course.units, grade: course.grade, gradingBasis: course.gradingBasis,
+                                             institution: course.institution, isMajor: course.isMajorCourse,
+                                             isUpper: course.isUpperDivision, included: course.isIncludedInGPA,
+                                             transfer: course.isTransferCourse, notes: course.notes,
+                                             policies: policies.filter { belongsToCourse($0.course) },
+                                             categories: categories.filter { belongsToCourse($0.course) },
+                                             items: items.filter { belongsToCourse($0.course) },
+                                             scales: scales.filter { belongsToCourse($0.course) },
+                                             forecasts: forecasts.filter { belongsToCourse($0.course) })
+        withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+            deleted = snapshot
+        }
     }
 
     private func undoDelete() {
         guard deleted != nil else { return }
-        self.deleted = nil
+        withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+            self.deleted = nil
+        }
     }
 
     private func finalizePendingDelete() {

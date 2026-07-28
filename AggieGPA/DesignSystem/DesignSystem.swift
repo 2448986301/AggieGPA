@@ -27,11 +27,32 @@ enum DesignSystem {
     }
 
     enum Motion {
-        static let quick = 0.18
-        static let standard = 0.32
-        static let spring = Animation.spring(duration: 0.42, bounce: 0.16)
-        /// The default for state-driven interface changes: smooth, immediate, and without overshoot.
-        static let interfaceSpring = Animation.spring(duration: 0.4, bounce: 0)
+        /// Presses, menus, inline validation, and lightweight feedback.
+        static let quick = Animation.easeOut(duration: 0.18)
+        /// List insertion, removal, and ordinary content replacement.
+        static let standard = Animation.smooth(duration: 0.32)
+        /// Important grade changes. Critically damped so recorded scores never feel celebratory.
+        static let emphasized = Animation.spring(duration: 0.40, bounce: 0)
+        /// Direct-manipulation controls may inherit velocity, but should not overshoot.
+        static let interactive = Animation.interactiveSpring(response: 0.30, dampingFraction: 1)
+        /// A short non-spatial alternative that retains understandable state feedback.
+        static let reduced = Animation.easeInOut(duration: 0.16)
+
+        static func quick(reduceMotion: Bool) -> Animation {
+            reduceMotion ? reduced : quick
+        }
+
+        static func standard(reduceMotion: Bool) -> Animation {
+            reduceMotion ? reduced : standard
+        }
+
+        static func emphasized(reduceMotion: Bool) -> Animation? {
+            reduceMotion ? nil : emphasized
+        }
+
+        static func feedbackTransition(reduceMotion: Bool) -> AnyTransition {
+            reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity)
+        }
     }
 
     static let softShadow = Color.black.opacity(0.12)
@@ -97,6 +118,89 @@ extension View {
 
     func contentSurface(radius: CGFloat = DesignSystem.Radius.section) -> some View {
         modifier(ContentSurfaceModifier(radius: radius))
+    }
+}
+
+struct AggieFeedbackBanner<Action: View>: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    let title: LocalizedStringKey
+    let message: LocalizedStringKey?
+    let systemImage: String
+    let action: Action
+
+    init(
+        _ title: LocalizedStringKey,
+        message: LocalizedStringKey? = nil,
+        systemImage: String,
+        @ViewBuilder action: () -> Action
+    ) {
+        self.title = title
+        self.message = message
+        self.systemImage = systemImage
+        self.action = action()
+    }
+
+    var body: some View {
+        Group {
+            if reduceTransparency {
+                bannerContent
+                    .background(
+                        Color(.secondarySystemGroupedBackground),
+                        in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+                    )
+            } else {
+                bannerContent
+                    .glassEffect(
+                        .regular,
+                        in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+                    )
+            }
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+                .strokeBorder(.primary.opacity(reduceTransparency ? 0.14 : 0.06), lineWidth: 1)
+        }
+        .shadow(color: DesignSystem.softShadow, radius: 12, y: 4)
+        .padding(.horizontal, DesignSystem.Spacing.medium)
+        .containerShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous))
+        .accessibilityElement(children: .contain)
+    }
+
+    private var bannerContent: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: DesignSystem.Spacing.small) {
+                feedbackLabel
+                Spacer(minLength: DesignSystem.Spacing.small)
+                action
+            }
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
+                feedbackLabel
+                action.frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+        .font(.subheadline)
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.roundedRectangle(radius: DesignSystem.Radius.compact))
+        .controlSize(.regular)
+        .padding(.horizontal, DesignSystem.Spacing.medium)
+        .padding(.vertical, DesignSystem.Spacing.small)
+        .frame(maxWidth: 540)
+    }
+
+    private var feedbackLabel: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).fontWeight(.semibold)
+                if let message {
+                    Text(message)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } icon: {
+            Image(systemName: systemImage)
+                .foregroundStyle(DesignSystem.ColorToken.gold)
+        }
     }
 }
 

@@ -54,6 +54,7 @@ struct CourseDetailView: View {
     @State private var deletedItem: DeletedGradeItem?
     @State private var itemPendingDeletion: GradeItem?
     @State private var showScoreUpdate = false
+    @State private var scoreUpdateTitle = ""
 
     init(course: CourseRecord, preferences: UserPreferences, initialItemID: UUID? = nil) {
         self.course = course
@@ -94,6 +95,7 @@ struct CourseDetailView: View {
             CampusBackground().ignoresSafeArea()
             secondaryDetailContent
         }
+        .overlay(alignment: .bottom) { feedbackBanner }
         .navigationTitle(course.courseCode)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -143,7 +145,10 @@ struct CourseDetailView: View {
         }
         .sheet(item: $scoringItem) { item in
             RecordScoreView(item: item) {
-                showScoreUpdate = true
+                scoreUpdateTitle = "\(item.title) recorded"
+                withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+                    showScoreUpdate = true
+                }
             }
         }
         .sheet(isPresented: $showTargetPicker) { SimpleTargetPickerView(course: course, policy: policy) }
@@ -151,39 +156,39 @@ struct CourseDetailView: View {
             ForecastEditorView(course: course, policy: policy, forecast: editingForecast)
         }
         .task { openInitialItemIfNeeded() }
-        .safeAreaInset(edge: .bottom, spacing: DesignSystem.Spacing.small) {
-            if deletedItem != nil {
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: DesignSystem.Spacing.small) {
-                        Label("Assignment deleted", systemImage: "trash")
-                            .lineLimit(1)
-                        Spacer(minLength: DesignSystem.Spacing.small)
-                        undoButton
-                    }
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
-                        Label("Assignment deleted", systemImage: "trash")
-                        undoButton
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                    }
-                }
-                .padding(DesignSystem.Spacing.medium)
-                .glassEffect(.regular, in: Capsule())
-                .padding(.horizontal, DesignSystem.Spacing.medium)
-                .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("gradeItemUndoBanner")
-            } else if showScoreUpdate {
-                HStack {
-                    Text("Current course grade updated for \(course.courseCode).")
-                    Spacer()
-                    Button("Done") { showScoreUpdate = false }.bold()
-                }
-                .padding()
-                .glassEffect(.regular, in: Capsule())
-                .padding(.horizontal)
-            }
-        }
+        .sensoryFeedback(.success, trigger: showScoreUpdate)
+        .sensoryFeedback(.warning, trigger: deletedItem?.id)
         .appEntityIdentifier(EntityIdentifier(for: CourseEntity.self, identifier: course.id.uuidString))
+    }
+
+    @ViewBuilder private var feedbackBanner: some View {
+        if deletedItem != nil {
+            AggieFeedbackBanner(
+                "Assignment deleted",
+                message: "Undo restores the assignment and its recorded score.",
+                systemImage: "trash"
+            ) {
+                undoButton
+            }
+            .padding(.vertical, DesignSystem.Spacing.small)
+            .transition(DesignSystem.Motion.feedbackTransition(reduceMotion: reduceMotion))
+            .accessibilityIdentifier("gradeItemUndoBanner")
+        } else if showScoreUpdate {
+            AggieFeedbackBanner(
+                LocalizedStringKey(scoreUpdateTitle),
+                message: "Current course grade updated for \(course.courseCode).",
+                systemImage: "checkmark.circle.fill"
+            ) {
+                Button("Done") {
+                    withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+                        showScoreUpdate = false
+                    }
+                }
+                .fontWeight(.semibold)
+            }
+            .padding(.vertical, DesignSystem.Spacing.small)
+            .transition(DesignSystem.Motion.feedbackTransition(reduceMotion: reduceMotion))
+        }
     }
 
     private func openInitialItemIfNeeded() {
@@ -224,7 +229,7 @@ struct CourseDetailView: View {
             ScrollView {
                 LazyVStack(spacing: DesignSystem.Spacing.medium) {
                     gradeHero
-                    Picker("Course detail", selection: $section) {
+                    Picker("Course detail", selection: sectionBinding) {
                         ForEach(CourseDetailSection.allCases) { section in
                             Label(section.compactTitle, systemImage: section.symbol).tag(section)
                         }
@@ -238,7 +243,9 @@ struct CourseDetailView: View {
                     case .breakdown: breakdownContent
                     case .forecast: forecastContent
                     }
-                    DisclaimerBanner().padding(.top, DesignSystem.Spacing.small)
+                    DisclaimerBanner()
+                        .padding(.top, DesignSystem.Spacing.small)
+                        .padding(.bottom, feedbackIsVisible ? 76 : 0)
                 }
                 .frame(maxWidth: readableWidth, alignment: .leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -256,7 +263,7 @@ struct CourseDetailView: View {
                     .listRowInsets(EdgeInsets(top: DesignSystem.Spacing.small, leading: 0, bottom: DesignSystem.Spacing.small, trailing: 0))
                     .listRowBackground(Color.clear)
 
-                Picker("Course detail", selection: $section) {
+                Picker("Course detail", selection: sectionBinding) {
                     ForEach(CourseDetailSection.allCases) { section in
                         Label(section.compactTitle, systemImage: section.symbol).tag(section)
                     }
@@ -321,7 +328,10 @@ struct CourseDetailView: View {
                 }
             }
 
-            Section { DisclaimerBanner() }
+            Section {
+                DisclaimerBanner()
+                    .padding(.bottom, feedbackIsVisible ? 76 : 0)
+            }
                 .listRowBackground(Color.clear)
         }
         .listStyle(.insetGrouped)
@@ -464,6 +474,8 @@ struct CourseDetailView: View {
             }
             Spacer()
             Text(score(item)).font(.subheadline.monospacedDigit()).foregroundStyle(.primary)
+                .contentTransition(.numericText())
+                .animation(DesignSystem.Motion.emphasized(reduceMotion: reduceMotion), value: score(item))
         }
         .contentShape(Rectangle())
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
@@ -647,6 +659,11 @@ struct CourseDetailView: View {
             Text(percent(result.calculatedCurrentPercentage))
                 .font(.system(.largeTitle, design: .rounded, weight: .bold))
                 .monospacedDigit()
+                .contentTransition(.numericText())
+                .animation(
+                    DesignSystem.Motion.emphasized(reduceMotion: reduceMotion),
+                    value: result.calculatedCurrentPercentage
+                )
             Text(result.currentLetterGrade?.rawValue ?? "No letter prediction")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(result.requiresManualReview ? DesignSystem.ColorToken.warning : DesignSystem.ColorToken.gold)
@@ -663,7 +680,10 @@ struct CourseDetailView: View {
         do {
             try modelContext.save()
             GradeItemNotificationService.cancel(identifier: snapshot.notificationIdentifier)
-            withAnimation(undoAnimation) { deletedItem = snapshot }
+            withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+                deletedItem = snapshot
+                showScoreUpdate = false
+            }
         } catch {
             modelContext.rollback()
         }
@@ -698,14 +718,27 @@ struct CourseDetailView: View {
             try modelContext.save()
             let reminder = GradeItemReminderSnapshot(restored)
             Task { try? await GradeItemNotificationService.sync(reminder) }
-            withAnimation(undoAnimation) { self.deletedItem = nil }
+            withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+                self.deletedItem = nil
+            }
         } catch {
             modelContext.rollback()
         }
     }
 
-    private var undoAnimation: Animation {
-        reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.32, dampingFraction: 1)
+    private var feedbackIsVisible: Bool {
+        deletedItem != nil || showScoreUpdate
+    }
+
+    private var sectionBinding: Binding<CourseDetailSection> {
+        Binding(
+            get: { section },
+            set: { newValue in
+                withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+                    section = newValue
+                }
+            }
+        )
     }
 
     private var undoButton: some View {

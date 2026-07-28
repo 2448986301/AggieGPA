@@ -5,6 +5,7 @@ import UserNotifications
 struct CategoryEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let course: CourseRecord
     let category: GradingCategory?
     let nextSortOrder: Int
@@ -46,8 +47,13 @@ struct CategoryEditorView: View {
                     Toggle("Extra-credit category", isOn: $isExtraCredit)
                     }
                 }
-                if let validation { Section { Text(validation).foregroundStyle(.red) } }
+                if let validation {
+                    Section { Text(validation).foregroundStyle(.red) }
+                        .transition(.opacity)
+                }
             }
+            .animation(DesignSystem.Motion.quick(reduceMotion: reduceMotion), value: showMoreOptions)
+            .animation(DesignSystem.Motion.quick(reduceMotion: reduceMotion), value: validation)
             .navigationTitle(category == nil ? "New Category" : "Edit Category")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -76,6 +82,7 @@ struct CategoryEditorView: View {
 struct GradeItemEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let course: CourseRecord
     let categories: [GradingCategory]
     let item: GradeItem?
@@ -162,8 +169,13 @@ struct GradeItemEditorView: View {
                         if item == nil { Toggle("Save and add another", isOn: $saveAnother) }
                     }
                 }
-                if let validation { Section { Text(validation).foregroundStyle(.red) } }
+                if let validation {
+                    Section { Text(validation).foregroundStyle(.red) }
+                        .transition(.opacity)
+                }
             }
+            .animation(DesignSystem.Motion.quick(reduceMotion: reduceMotion), value: showMoreOptions)
+            .animation(DesignSystem.Motion.quick(reduceMotion: reduceMotion), value: validation)
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(item == nil ? "New Grade Item" : "Edit Grade Item")
             .navigationBarTitleDisplayMode(.inline)
@@ -232,6 +244,7 @@ struct GradeItemEditorView: View {
 struct GradingPolicyEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let course: CourseRecord
     let policy: CourseGradingPolicy?
     let scale: GradeScale?
@@ -278,8 +291,12 @@ struct GradingPolicyEditorView: View {
                     Text("The common scale is only a starting template. Confirm it matches this syllabus before relying on letter predictions.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-                if let validation { Section { Text(validation).foregroundStyle(.red) } }
+                if let validation {
+                    Section { Text(validation).foregroundStyle(.red) }
+                        .transition(.opacity)
+                }
             }
+            .animation(DesignSystem.Motion.quick(reduceMotion: reduceMotion), value: validation)
             .navigationTitle("Grading Policy")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -334,6 +351,7 @@ struct GradingPolicyEditorView: View {
 struct ForecastEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var allForecasts: [ForecastScenario]
     let course: CourseRecord
     let policy: CourseGradingPolicy?
@@ -369,8 +387,12 @@ struct ForecastEditorView: View {
                     TextField("Target course percentage", text: $targetText).keyboardType(.decimalPad)
                 }
                 Section { Text("This scenario is stored locally and can be changed without altering entered scores.").font(.footnote).foregroundStyle(.secondary) }
-                if let validation { Section { Text(validation).foregroundStyle(.red) } }
+                if let validation {
+                    Section { Text(validation).foregroundStyle(.red) }
+                        .transition(.opacity)
+                }
             }
+            .animation(DesignSystem.Motion.quick(reduceMotion: reduceMotion), value: validation)
             .navigationTitle("Forecast Scenario")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

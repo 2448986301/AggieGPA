@@ -100,6 +100,7 @@ struct GradeBreakdownSetupView: View {
 struct QuickGradeItemView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let course: CourseRecord
     let categories: [GradingCategory]
     let category: GradingCategory
@@ -140,9 +141,14 @@ struct QuickGradeItemView: View {
                     }
                 }
                 if let validation {
-                    Section { Label(validation, systemImage: "exclamationmark.circle.fill").foregroundStyle(.red) }
+                    Section {
+                        Label(validation, systemImage: "exclamationmark.circle.fill").foregroundStyle(.red)
+                    }
+                    .transition(.opacity)
                 }
             }
+            .animation(DesignSystem.Motion.quick(reduceMotion: reduceMotion), value: showMore)
+            .animation(DesignSystem.Motion.quick(reduceMotion: reduceMotion), value: validation)
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(isExam ? "Add Exam" : "Add Grade Item")
             .navigationBarTitleDisplayMode(.inline)
@@ -193,6 +199,7 @@ struct QuickGradeItemView: View {
 struct RecordScoreView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let item: GradeItem
     let onSaved: (() -> Void)?
     @State private var earned: String
@@ -227,9 +234,13 @@ struct RecordScoreView: View {
                         .accessibilityIdentifier("recordPossiblePointsField")
                 }
                 if let validation {
-                    Section { Label(validation, systemImage: "exclamationmark.circle.fill").foregroundStyle(.red) }
+                    Section {
+                        Label(validation, systemImage: "exclamationmark.circle.fill").foregroundStyle(.red)
+                    }
+                    .transition(.opacity)
                 }
             }
+            .animation(DesignSystem.Motion.quick(reduceMotion: reduceMotion), value: validation)
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Record Score")
             .navigationBarTitleDisplayMode(.inline)
