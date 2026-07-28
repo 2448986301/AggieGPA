@@ -1,8 +1,8 @@
 # Aggie GPA
 
-**Unofficial GPA Planner for UC Davis Students**
+**Unofficial GPA Planner for UC Davis Students — 1.3.1 (Build 18)**
 
-Aggie GPA 是一个供 UC Davis 学生个人使用的非官方、完全离线的 iPhone GPA 记录与规划工具。它可以记录每个 quarter 的课程与成绩，计算 cumulative / current / major / upper-division GPA，并提供 What-If、Target GPA、Final Grade、重复课程估算、JSON 备份和 CSV 导出。
+Aggie GPA 是一个供 UC Davis 学生个人使用的非官方、完全离线的 iPhone 和 iPad GPA 记录、课程成绩册与规划工具。v1.3.1 可以记录 category、作业、考试和分数，计算 Current Grade、Forecast 与 Projected GPA，并从 syllabus 提取待确认的评分规则。它没有账号、服务器或远程 AI。
 
 > Unofficial student tool. Not affiliated with UC Davis.
 
@@ -11,9 +11,15 @@ Aggie GPA 是一个供 UC Davis 学生个人使用的非官方、完全离线的
 ## 当前版本包含什么
 
 - SwiftData 本机课程、quarter、scenario、grading plan 和偏好设置。
+- 每门课的 Gradebook、category weights、作业/考试、提醒、drop lowest、extra credit 和可编辑分数线。
+- Official GPA、Current Grade、Projected Grade 与 Projected GPA 明确分开，预测绝不改写正式记录。
+- PDF 原始文字、图片、相机或粘贴文字的课程大纲理解；保存前必须人工确认。
+- 支持设备端 Foundation Models 时直接理解文字或扫描页；不使用 OCR，也不会把模型不可用伪装成解析成功。
+- Siri / Shortcuts 查询与草稿操作，默认关闭并按数据类别授权。
 - Decimal 精确 GPA engine；A+ = 4.0，中间结果不提前舍入。
 - Dashboard Hero、当前/专业/upper-division GPA、课程概览和 Charts 趋势。
 - Quarter 新建、复制、排序、搜索、按学年筛选；课程添加、编辑、复制、删除和 Undo。
+- 作业支持左滑编辑、右滑删除；删除已评分作业会确认，并可完整撤销。
 - What-If 与正式记录隔离；明确确认后才能 Save to Records。
 - Target GPA、Final Grade、Scenario Comparison、Future Quarter Planner。
 - UC Davis 本科 16-unit repeat replacement 估算和 manual-review 警告。
@@ -23,7 +29,7 @@ Aggie GPA 是一个供 UC Davis 学生个人使用的非官方、完全离线的
 - 应用内支持“跟随系统 / English / 简体中文”即时切换；课程代码和用户录入内容保持原样。
 - iOS 27 原生 `glassEffect` / Glass button style；长列表和表单不过度玻璃化。
 - 三套原创图标候选、第二轮正式方案、6 个独立 SVG 图层与系统模式预览。
-- 41 个 Unit Tests 和 10 个 UI Tests。
+- 83 个 Unit Tests 和 13 个 UI Tests。
 
 ## 开发环境
 
@@ -81,13 +87,37 @@ Planner > Target GPA Calculator，可自动使用本机记录，也可以手动�
 
 Planner > Final Grade Calculator。按 syllabus 输入 category weight、earned / possible points 和 final weight。应用不会假装存在统一的“UC Davis 官方百分比边界”。权重不为 100% 时结果会标记 partial setup。
 
+### Gradebook、作业和权重
+
+进入 Quarters，打开已有 quarter，再点一门课程。右上角菜单可先设置 Grading Policy，然后添加 Category 和 Grade Item。Category 可填写 Homework、Quiz、Midterm、Final 等名称和权重；Grade Item 可填写 earned / possible points、截止时间、状态、extra credit、excused、dropped 与提醒。
+
+未评分项目默认不按 0 分处理。若确实要把 missing work 算作 0，必须在 Grading Policy 中选择并再次确认。Current Grade 只反映你录入的规则和分数，不是 Registrar 的正式成绩。
+
+### 导入 syllabus
+
+课程右上角 > Import Grading Policy，可选择 PDF、图片或文字文件、使用相机扫描，或直接粘贴 grading rules。文字型 PDF 读取内嵌文字；扫描页作为图像由设备端 Foundation Models 分析，不使用 OCR。预览会显示 category、weight、作业/考试、来源页码、置信度和需要人工确认的规则。只有点 Confirm Import 后才会写入；已有数据只会追加已确认内容，绝不静默覆盖。
+
+支持 Apple Intelligence 的设备优先使用设备端模型。模型不可用、未下载或不支持当前语言时，App 会明确说明并提供手动建立和粘贴文字入口，不会返回假的解析结果。Private Cloud Compute 未完成真机稳定性验证，因此不作为 App 功能公开；课程大纲不会上传至云端。
+
+### Forecast、Official 与 Projected
+
+Official GPA 只使用课程正式记录中的 letter grade。Gradebook 的 Current Grade 是当前已录入任务的计算值；Forecast 是对剩余任务的情景估算；Dashboard 的 Projected GPA 只对尚无正式成绩的课程使用已选择 forecast。任何预测都不会修改 Official GPA。
+
+### 通知
+
+在 Grade Item 中设置截止时间并打开 Remind me，保存时 iOS 才会请求通知权限。可选择提前 1 天、3 天、1 周或自定义时间。修改截止时间会替换原提醒，删除项目会取消提醒。Settings > Assignment & Exam Reminders 可查看或请求权限。
+
+### Siri 与快捷指令
+
+Settings > Siri & Shortcuts Access 中先打开总开关，再单独允许作业摘要、详细分数、GPA 回答或草稿。私密查询需要本机身份验证。可以在 Siri 或 Shortcuts 中使用类似“查看 Aggie GPA 本周作业”“查询 Aggie GPA 课程成绩”“查询 Aggie GPA 累计 GPA”“在 Aggie GPA 添加作业草稿”的指令。草稿必须回到 App 内确认后才保存。
+
 ## 备份、恢复和 CSV
 
 Settings > Import, Export & Backups：
 
 - Export JSON Backup：保存完整可恢复备份。
 - Share latest JSON backup：打开系统 Share Sheet。
-- Import JSON Backup：先验证 schema 和内容，再显示 quarter / course / scenario 数量与潜在重复；可 Merge、Replace 或 Cancel。
+- Import JSON Backup：先验证 schema 和内容，再显示预览；可 Merge、Replace 或 Cancel。v2 包含成绩册、提醒、forecast 与 Siri 设置，仍可读取 v1 backup。
 - Export CSV：导出适合表格软件查看的课程明细。
 - 导入和 Reset 之前自动创建本地快照，最多保留 5 个。
 
@@ -98,6 +128,12 @@ Settings > Import, Export & Backups：
 正式数据位于 iOS 为 Aggie GPA 分配的 app sandbox 中，由 SwiftData 管理；本地 snapshot 位于该 sandbox 的 Application Support/AggieGPA/Snapshots。应用不使用 CloudKit 或服务器。
 
 删除 App 通常会删除本地 SwiftData 数据库与本地 snapshots。删除前请 Export JSON Backup。
+
+## 从 v1.0 原地升级
+
+v1.1 保持 `com.easonzhou.aggiegpa`、原 App 名称和同一 Signing Team，版本为 1.1.0（build 2）。使用 Xcode 选择原来安装 v1.0 的同一 iPhone 后直接 Run，不要卸载、删除 App 或清空数据。首次打开前会尝试创建可验证的 v1 JSON migration backup，再由 versioned SwiftData schema 进行轻量迁移。
+
+升级后先确认原 quarters、courses、正式 grades、GPA 和设置仍存在，再试用 Gradebook。若免费 Personal Team 签名到期，只需使用同一 Team 和 Bundle Identifier 重新 Build and Run；不要删除旧 App。
 
 ## 修改应用名称或 Bundle Identifier
 
@@ -142,6 +178,9 @@ Aggie GPA 不会直接宣称 Good Standing、Probation、Subject to Dismissal �
 ## 已知限制
 
 - 没有服务器和设备间自动同步；备份依赖手动 JSON export。
+- 课程大纲理解可能不完整，曲线、替代考试和复杂 extra credit 必须人工核对；App 不使用 OCR。
+- Foundation Models、Siri、Shortcuts 和通知的实际可用性取决于设备、语言、已下载模型、系统权限与 Personal Team 配置。
+- Siri 只提供有限本机数据；写操作只能创建待确认草稿。
 - Major / upper-division 标记由用户维护，应用不知道某个专业的官方 course list。
 - Repeat 只对安全的简单情况自动估算，复杂情况刻意要求人工核对。
 - 系统 icon appearance 由 iOS 管理；不是所有 appearance 都能由免费签名 App 在运行时切换。

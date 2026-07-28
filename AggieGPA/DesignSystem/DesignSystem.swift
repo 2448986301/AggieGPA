@@ -21,6 +21,7 @@ enum DesignSystem {
 
     enum Radius {
         static let compact: CGFloat = 12
+        static let section: CGFloat = 16
         static let card: CGFloat = 20
         static let hero: CGFloat = 28
     }
@@ -29,9 +30,35 @@ enum DesignSystem {
         static let quick = 0.18
         static let standard = 0.32
         static let spring = Animation.spring(duration: 0.42, bounce: 0.16)
+        /// The default for state-driven interface changes: smooth, immediate, and without overshoot.
+        static let interfaceSpring = Animation.spring(duration: 0.4, bounce: 0)
     }
 
     static let softShadow = Color.black.opacity(0.12)
+}
+
+/// A quiet, opaque-enough content surface for grouped information.
+///
+/// Liquid Glass is reserved for floating controls and navigation chrome. This keeps stacked
+/// content readable over `CampusBackground`, including with Reduce Transparency enabled.
+struct ContentSurfaceModifier: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
+    let radius: CGFloat
+
+    func body(content: Content) -> some View {
+        let fillOpacity = reduceTransparency ? 1.0 : (colorScheme == .dark ? 0.94 : 0.90)
+
+        content
+            .background(
+                Color(.secondarySystemGroupedBackground).opacity(fillOpacity),
+                in: RoundedRectangle(cornerRadius: radius, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .strokeBorder(.primary.opacity(reduceTransparency ? 0.16 : 0.06), lineWidth: 1)
+            }
+    }
 }
 
 struct CampusBackground: View {
@@ -57,27 +84,19 @@ struct CampusBackground: View {
     }
 }
 
-struct GlassCardModifier: ViewModifier {
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    var tint: Color?
-    var interactive: Bool
-
-    func body(content: Content) -> some View {
-        if reduceTransparency {
-            content
-                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card))
-        } else {
-            content.glassEffect(
-                .regular.tint(tint?.opacity(0.16)).interactive(interactive),
-                in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card)
-            )
-        }
-    }
-}
-
 extension View {
+    /// Legacy compatibility for existing content cards.
+    ///
+    /// Content must never be translucent over another material. Liquid Glass is reserved for
+    /// navigation chrome, floating primary actions, and brief status feedback; regular reading
+    /// surfaces always use `contentSurface()`.
+    @available(*, deprecated, message: "Use contentSurface() for content. Liquid Glass is reserved for floating chrome.")
     func glassCard(tint: Color? = nil, interactive: Bool = false) -> some View {
-        modifier(GlassCardModifier(tint: tint, interactive: interactive))
+        contentSurface()
+    }
+
+    func contentSurface(radius: CGFloat = DesignSystem.Radius.section) -> some View {
+        modifier(ContentSurfaceModifier(radius: radius))
     }
 }
 
@@ -90,4 +109,3 @@ struct DisclaimerBanner: View {
             .accessibilityLabel("Unofficial student tool. Not affiliated with U C Davis.")
     }
 }
-

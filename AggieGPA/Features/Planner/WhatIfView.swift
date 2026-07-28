@@ -70,14 +70,29 @@ struct WhatIfView: View {
                                             units: 4, grade: .a, included: true, major: false, upper: false))
                 }
             }
-            Section("Scenario") {
+            Section("Save this forecast") {
                 TextField("Scenario name", text: $scenarioName)
                 Button("Save Scenario", systemImage: "square.and.arrow.down") { saveScenario() }
                 Button("Reset Scenario", systemImage: "arrow.counterclockwise") { loadOfficial() }
+                Text("Saving a forecast never changes official grades or GPA.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            Section("Apply to official records") {
+                Label("This writes simulated grades to your official course records.", systemImage: "exclamationmark.triangle")
+                    .font(.footnote)
+                    .foregroundStyle(DesignSystem.ColorToken.warning)
                 Button("Save to Records", systemImage: "checkmark.seal") { showingApplyConfirmation = true }
                     .disabled(terms.isEmpty)
+                    .tint(DesignSystem.ColorToken.warning)
             }
-            if let statusMessage { Section { Text(LocalizedStringKey(statusMessage)).foregroundStyle(.secondary) } }
+            if let statusMessage {
+                Section {
+                    Label(LocalizedStringKey(statusMessage), systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(DesignSystem.ColorToken.success)
+                        .accessibilityElement(children: .combine)
+                }
+            }
             Section {
                 Text("What-If changes stay separate until you explicitly choose Save to Records.")
                     .font(.footnote).foregroundStyle(.secondary)

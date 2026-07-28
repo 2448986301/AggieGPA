@@ -3,6 +3,8 @@ import SwiftUI
 
 struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage("lastSeenReleaseNotesVersion") private var lastSeenReleaseNotesVersion = ""
     let existingPreferences: UserPreferences?
 
     @State private var page = 0
@@ -53,7 +55,9 @@ struct OnboardingView: View {
             Image(systemName: item.0)
                 .font(.system(size: 62, weight: .semibold))
                 .foregroundStyle(DesignSystem.ColorToken.gold)
-                .symbolEffect(.breathe, isActive: page < 3)
+                // A quiet symbol treatment gives the welcome flow life without creating a
+                // continuously moving focal point for people who reduce motion.
+                .symbolEffect(.breathe, isActive: page < 3 && !reduceMotion)
                 .accessibilityHidden(true)
             Text(item.1)
                 .font(.largeTitle.bold())
@@ -85,7 +89,7 @@ struct OnboardingView: View {
             }
             .textFieldStyle(.roundedBorder)
             .padding(DesignSystem.Spacing.large)
-            .glassCard(tint: DesignSystem.ColorToken.ice)
+            .contentSurface()
             .padding(.vertical, DesignSystem.Spacing.xLarge)
         }
         .scrollDismissesKeyboard(.interactively)
@@ -101,6 +105,9 @@ struct OnboardingView: View {
             preference.targetGPA = target
         }
         preference.onboardingCompleted = true
+        // A new student starts with the current version already acknowledged.
+        // Existing students receive the upgrade sheet from RootView instead.
+        lastSeenReleaseNotesVersion = AppVersionHistory.currentVersion
         if loadDemoData { DemoDataService.load(into: modelContext, preferences: preference) }
         try? modelContext.save()
     }

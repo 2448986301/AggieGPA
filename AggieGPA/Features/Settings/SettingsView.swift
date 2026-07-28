@@ -2,44 +2,49 @@ import LocalAuthentication
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
+import UIKit
+import UserNotifications
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var courses: [CourseRecord]
     let preferences: UserPreferences
+    @State private var dataError: String?
 
     var body: some View {
         @Bindable var preferences = preferences
         NavigationStack {
             Form {
-                Section("Profile") {
+                Section("App") {
                     TextField("Name or nickname", text: $preferences.displayName)
                     TextField("Major", text: $preferences.major)
                     TextField("First academic year", text: $preferences.firstAcademicYear)
+                }
+                Section("Grades & GPA") {
                     DecimalPreferenceField(title: "Target GPA", value: $preferences.targetGPA, range: 0...4)
                     Picker("Default grading basis", selection: $preferences.defaultGradingBasisRaw) {
                         ForEach(GradingBasis.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0.rawValue) }
                     }
-                }
-                Section("Display") {
-                    Picker("Language", selection: $preferences.languageRaw) {
-                        ForEach(AppLanguage.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0.rawValue) }
-                    }
                     Picker("GPA decimal places", selection: $preferences.decimalPrecision) {
                         Text("2").tag(2); Text("3").tag(3); Text("4").tag(4)
-                    }
-                    Picker("Appearance", selection: $preferences.appearanceRaw) {
-                        ForEach(AppAppearance.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0.rawValue) }
                     }
                     Toggle("Show Major GPA", isOn: $preferences.showMajorGPA)
                     Toggle("Show Upper-Division GPA", isOn: $preferences.showUpperDivisionGPA)
                     Toggle("Show repeat summary", isOn: $preferences.showRepeatSummary)
+                }
+                Section("App Preferences") {
+                    Picker("Language", selection: $preferences.languageRaw) {
+                        ForEach(AppLanguage.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0.rawValue) }
+                    }
+                    Picker("Appearance", selection: $preferences.appearanceRaw) {
+                        ForEach(AppAppearance.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0.rawValue) }
+                    }
                     Toggle("Haptics", isOn: $preferences.hapticsEnabled)
                     LabeledContent("App icon appearance", value: "Managed by iOS")
                     Text("Default, Dark, Clear, Tinted, and Monochrome appearances are selected by the iOS Home Screen. Aggie GPA does not pretend to switch unsupported system icon modes at runtime.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-                Section("Privacy Lock") {
+                Section("Privacy") {
                     Toggle("Require Face ID, Touch ID, or passcode", isOn: $preferences.privacyLockEnabled)
                         .accessibilityIdentifier("privacyLockToggle")
                     Picker("Lock delay", selection: $preferences.privacyLockDelayRaw) {
@@ -48,10 +53,24 @@ struct SettingsView: View {
                     Text("Aggie GPA never receives or stores biometric data. Authentication is performed by iOS.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-                Section("Data") {
+                Section("Notifications") {
+                    NavigationLink("Assignment & Exam Reminders") { NotificationSettingsView() }
+                    Text("Reminders are local to this device and can be enabled per grade item.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                Section("Siri AI") {
+                    NavigationLink("Siri AI") { SiriAccessSettingsView() }
+                    Text("Siri access is off by default. Each category of private data must be enabled explicitly.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                Section("Data & Backups") {
                     if preferences.demoDataLoaded {
                         Button("Clear Demo Data", role: .destructive) {
-                            DemoDataService.clear(from: modelContext, courses: courses, preferences: preferences)
+                            do {
+                                try DemoDataService.clear(from: modelContext, courses: courses, preferences: preferences)
+                            } catch {
+                                dataError = "Demo data could not be cleared. Your academic data was not changed."
+                            }
                         }
                     } else {
                         Button("Load Demo Data") { DemoDataService.load(into: modelContext, preferences: preferences) }
@@ -59,10 +78,7 @@ struct SettingsView: View {
                     NavigationLink("Import, Export & Backups") { DataManagementView(preferences: preferences) }
                 }
                 Section("About") {
-                    NavigationLink("Privacy") { InformationPage(title: "Privacy", text: "Privacy details") }
-                    NavigationLink("GPA Rules") { InformationPage(title: "GPA Rules", text: "GPA rules details") }
-                    NavigationLink("Disclaimer") { InformationPage(title: "Disclaimer", text: "Disclaimer details") }
-                    LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
+                    NavigationLink("About") { AboutView() }
                 }
                 Section { DisclaimerBanner() }
             }
@@ -72,10 +88,123 @@ struct SettingsView: View {
             .onChange(of: preferences.appearanceRaw) { _, _ in save() }
             .onChange(of: preferences.languageRaw) { _, _ in save() }
             .onChange(of: preferences.decimalPrecision) { _, _ in save() }
+            .alert("Couldn’t clear demo data", isPresented: Binding(
+                get: { dataError != nil }, set: { if !$0 { dataError = nil } }
+            )) { Button("OK") { dataError = nil } } message: {
+                Text(LocalizedStringKey(dataError ?? ""))
+            }
         }
     }
 
     private func save() { try? modelContext.save() }
+}
+
+private struct SiriAccessSettingsView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query private var records: [SiriAccessSettings]
+    @Query private var courses: [CourseRecord]
+    @Query private var gradeItems: [GradeItem]
+    private var settings: SiriAccessSettings? { records.first }
+    @State private var indexStatus = "Not verified"
+    @State private var diagnosticStatus = "Not verified"
+    @State private var lastSiriEvent = "No execution recorded"
+
+    var body: some View {
+        Form {
+            if let settings {
+                @Bindable var settings = settings
+                Section("Access") {
+                    Toggle("Enable Siri Access", isOn: $settings.isSiriAccessEnabled)
+                    Toggle("Allow Assignment Summaries", isOn: $settings.allowAssignmentSummaries).disabled(!settings.isSiriAccessEnabled)
+                    Toggle("Allow Detailed Scores", isOn: $settings.allowDetailedScores).disabled(!settings.isSiriAccessEnabled)
+                    Toggle("Allow GPA Responses", isOn: $settings.allowGPAResponses).disabled(!settings.isSiriAccessEnabled)
+                    Toggle("Allow Creating Drafts", isOn: $settings.allowCreatingDrafts).disabled(!settings.isSiriAccessEnabled)
+                }
+                Section("Try Siri") {
+                    Text("You do not need to create a Shortcut. Try: “What assignments are due this week in Aggie GPA?”, “What is my current grade in CHE 002A?”, or “Open CHE 002A.”")
+                }
+                Section("Siri Diagnostics") {
+                    LabeledContent("App Intents", value: "Registered after app launch")
+                    LabeledContent("Courses", value: "\(courses.filter { !$0.isDeleted }.count)")
+                    LabeledContent("Assignments and exams", value: "\(gradeItems.count)")
+                    LabeledContent("Search index", value: indexStatus)
+                    LabeledContent("Data access", value: diagnosticStatus)
+                    LabeledContent("Last Siri execution", value: lastSiriEvent)
+                    Button("Rebuild Search Index") {
+                        Task {
+                            do {
+                                try await SiriSpotlightIndex.rebuildAll()
+                                indexStatus = "Working"
+                            } catch {
+                                indexStatus = "Needs attention"
+                            }
+                        }
+                    }
+                    Button("Run Siri Diagnostics") {
+                        Task {
+                            do {
+                                _ = try await AppIntentDataService.shared.courses(ids: nil)
+                                diagnosticStatus = "Working"
+                            } catch {
+                                diagnosticStatus = "Needs attention"
+                            }
+                        }
+                    }
+                    Link("Open App Settings", destination: URL(string: UIApplication.openSettingsURLString)!)
+                }
+                Section { Text("Private intents require local device authentication. Draft intents never change scores until you confirm inside Aggie GPA.").font(.footnote).foregroundStyle(.secondary) }
+            } else {
+                ProgressView()
+            }
+        }
+        .navigationTitle("Siri AI")
+        .task {
+            if settings == nil { modelContext.insert(SiriAccessSettings()); try? modelContext.save() }
+            refreshLastSiriEvent()
+        }
+        .onDisappear { settings?.updatedAt = .now; try? modelContext.save() }
+    }
+
+    private func refreshLastSiriEvent() {
+        guard let event = SiriExecutionTrace.latestIntentExecution() ?? SiriExecutionTrace.latest() else {
+            lastSiriEvent = "No execution recorded"
+            return
+        }
+        let count = event.itemCount.map { " · \($0) item\($0 == 1 ? "" : "s")" } ?? ""
+        lastSiriEvent = "\(event.stage)\(count)"
+    }
+}
+
+private struct NotificationSettingsView: View {
+    @State private var status = "Checking…"
+    var body: some View {
+        Form {
+            Section("Permission") {
+                LabeledContent("Status", value: status)
+                Button("Request Notification Permission") {
+                    Task {
+                        _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
+                        await refresh()
+                    }
+                }
+            }
+            Section { Text("Changing a due date updates its reminder. Deleting an item cancels it. If permission is denied, the gradebook continues to work normally.").font(.footnote).foregroundStyle(.secondary) }
+        }
+        .navigationTitle("Reminders")
+        .task { await refresh() }
+    }
+
+    private func refresh() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        status = switch settings.authorizationStatus {
+        case .authorized: "Allowed"
+        case .denied: "Denied"
+        case .provisional: "Provisional"
+        case .ephemeral: "Temporary"
+        case .notDetermined: "Not requested"
+        @unknown default: "Unknown"
+        }
+    }
 }
 
 private struct DecimalPreferenceField: View {
@@ -85,21 +214,32 @@ private struct DecimalPreferenceField: View {
     @State private var text = ""
 
     var body: some View {
-        TextField(title, text: $text)
-            .keyboardType(.decimalPad)
-            .onAppear { text = DecimalFormatters.compact(value) }
-            .onChange(of: text) { _, newValue in
-                if let decimal = DecimalFormatters.decimal(from: newValue), range.contains(decimal) { value = decimal }
+        LabeledContent(title) {
+            TextField(title, text: $text)
+                .multilineTextAlignment(.trailing)
+                .keyboardType(.decimalPad)
+                .accessibilityLabel(title)
+                .onAppear { text = DecimalFormatters.compact(value) }
+                .onChange(of: text) { _, newValue in
+                    if let decimal = DecimalFormatters.decimal(from: newValue), range.contains(decimal) { value = decimal }
+                }
             }
-    }
+        }
 }
 
 struct DataManagementView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \AcademicTerm.sortOrder) private var terms: [AcademicTerm]
+    @Query private var courses: [CourseRecord]
     @Query(sort: \PlannerScenario.sortOrder) private var scenarios: [PlannerScenario]
     @Query(sort: \BackupSnapshot.createdAt, order: .reverse) private var snapshots: [BackupSnapshot]
     @Query private var gradePlans: [CourseGradePlan]
+    @Query private var gradingPolicies: [CourseGradingPolicy]
+    @Query private var gradingCategories: [GradingCategory]
+    @Query private var gradeItems: [GradeItem]
+    @Query private var gradeScales: [GradeScale]
+    @Query private var forecasts: [ForecastScenario]
+    @Query private var siriSettings: [SiriAccessSettings]
     let preferences: UserPreferences
 
     @State private var jsonDocument = JSONBackupDocument()
@@ -143,7 +283,13 @@ struct DataManagementView: View {
             Section("Danger Zone") {
                 Button("Reset All Academic Data", role: .destructive) { confirmReset = true }
             }
-            if let statusMessage { Section { Text(LocalizedStringKey(statusMessage)).foregroundStyle(.secondary) } }
+            if let statusMessage {
+                Section {
+                    Label(LocalizedStringKey(statusMessage), systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(DesignSystem.ColorToken.success)
+                        .accessibilityElement(children: .combine)
+                }
+            }
         }
         .navigationTitle("Data & Backups")
         .onAppear { prepareShareFile() }
@@ -158,7 +304,7 @@ struct DataManagementView: View {
                 defer { if accessed { url.stopAccessingSecurityScopedResource() } }
                 let data = try Data(contentsOf: url)
                 let envelope = try BackupService.decode(data)
-                importPreview = BackupService.preview(envelope, existingTerms: terms)
+                importPreview = BackupService.preview(envelope, existingTerms: terms, existingCourses: courses)
             } catch {
                 errorMessage = (error as? LocalizedError)?.errorDescription ?? "The backup could not be read. Your current data was not changed."
             }
@@ -183,7 +329,11 @@ struct DataManagementView: View {
         )) { Button("OK") { errorMessage = nil } } message: { Text(LocalizedStringKey(errorMessage ?? "Please try again.")) }
     }
 
-    private var envelope: BackupEnvelope { BackupService.makeEnvelope(terms: terms, scenarios: scenarios, preferences: preferences) }
+    private var envelope: BackupEnvelope {
+        BackupService.makeEnvelope(terms: terms, courses: courses, scenarios: scenarios, preferences: preferences,
+                                   policies: gradingPolicies, categories: gradingCategories, items: gradeItems,
+                                   scales: gradeScales, forecasts: forecasts, siriSettings: siriSettings.first)
+    }
 
     private func prepareJSONExport() {
         do { jsonDocument = JSONBackupDocument(data: try BackupService.encode(envelope)); exportingJSON = true }
@@ -191,7 +341,7 @@ struct DataManagementView: View {
     }
 
     private func prepareCSVExport() {
-        csvDocument = CSVExportDocument(text: CSVService.export(terms: terms)); exportingCSV = true
+        csvDocument = CSVExportDocument(text: CSVService.export(terms: terms, courses: courses)); exportingCSV = true
     }
 
     private func prepareShareFile() {
@@ -223,17 +373,27 @@ struct DataManagementView: View {
     private func resetAllData() {
         do {
             try SnapshotService.create(envelope: envelope, reason: "Before reset", context: modelContext, existing: snapshots)
+            let notificationIdentifiers = gradeItems.map(\.notificationIdentifier)
+            gradeItems.forEach(modelContext.delete)
+            gradingCategories.forEach(modelContext.delete)
+            gradingPolicies.forEach(modelContext.delete)
+            gradeScales.forEach(modelContext.delete)
+            forecasts.forEach(modelContext.delete)
             scenarios.forEach(modelContext.delete)
             gradePlans.forEach(modelContext.delete)
             terms.forEach(modelContext.delete)
             preferences.demoDataLoaded = false
             try modelContext.save()
+            notificationIdentifiers.forEach { GradeItemNotificationService.cancel(identifier: $0) }
             statusMessage = "Academic data reset. A local snapshot was created first."
-        } catch { errorMessage = "Reset could not be completed. Your existing data was preserved." }
+        } catch {
+            modelContext.rollback()
+            errorMessage = "Reset could not be completed. Your existing data was preserved."
+        }
     }
 }
 
-private struct InformationPage: View {
+struct InformationPage: View {
     let title: LocalizedStringKey
     let text: LocalizedStringKey
     var body: some View {
