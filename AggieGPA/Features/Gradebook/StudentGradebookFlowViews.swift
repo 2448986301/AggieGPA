@@ -196,12 +196,19 @@ struct QuickGradeItemView: View {
     }
 }
 
+struct RecordedScoreChange {
+    let previousEarnedPoints: Decimal?
+    let previousPossiblePoints: Decimal
+    let previousStatus: GradeItemStatus
+    let previousUpdatedAt: Date
+}
+
 struct RecordScoreView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let item: GradeItem
-    let onSaved: (() -> Void)?
+    let onSaved: ((RecordedScoreChange) -> Void)?
     @State private var earned: String
     @State private var possible: String
     @State private var validation: String?
@@ -209,7 +216,7 @@ struct RecordScoreView: View {
 
     private enum Field { case earned, possible }
 
-    init(item: GradeItem, onSaved: (() -> Void)? = nil) {
+    init(item: GradeItem, onSaved: ((RecordedScoreChange) -> Void)? = nil) {
         self.item = item
         self.onSaved = onSaved
         _earned = State(initialValue: item.earnedPoints.map(compact) ?? "")
@@ -271,9 +278,15 @@ struct RecordScoreView: View {
         guard let earnedValue = DecimalFormatters.decimal(from: earned), let possibleValue = DecimalFormatters.decimal(from: possible), possibleValue > 0 else {
             validation = "Enter valid earned and possible points."; return
         }
+        let change = RecordedScoreChange(
+            previousEarnedPoints: item.earnedPoints,
+            previousPossiblePoints: item.possiblePoints,
+            previousStatus: item.status,
+            previousUpdatedAt: item.updatedAt
+        )
         item.earnedPoints = earnedValue; item.possiblePoints = possibleValue; item.status = .graded; item.updatedAt = .now
         try? modelContext.save()
-        onSaved?()
+        onSaved?(change)
         dismiss()
     }
 }
