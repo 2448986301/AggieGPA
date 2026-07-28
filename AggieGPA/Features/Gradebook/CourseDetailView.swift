@@ -240,6 +240,7 @@ struct CourseDetailView: View {
             .listRowBackground(Color.clear)
         }
         .listStyle(.insetGrouped)
+        .listSectionSpacing(.custom(DesignSystem.Spacing.medium))
         .scrollContentBackground(.hidden)
         .scrollEdgeEffectHidden(true, for: [.leading, .trailing])
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
