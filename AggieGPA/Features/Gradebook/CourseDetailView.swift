@@ -241,6 +241,7 @@ struct CourseDetailView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
+        .scrollEdgeEffectHidden(true, for: [.leading, .trailing])
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
     }
 
