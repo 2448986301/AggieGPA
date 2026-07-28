@@ -504,8 +504,10 @@ struct CourseDetailView: View {
                 .font(.body.weight(.semibold))
                 .labelStyle(.titleAndIcon)
         }
-        .buttonStyle(.glass(.clear.tint(DesignSystem.ColorToken.gold.opacity(0.32)).interactive()))
-        .buttonBorderShape(.capsule)
+        .buttonStyle(LiquidGlassPressButtonStyle(
+            shape: .capsule,
+            tint: DesignSystem.ColorToken.gold.opacity(0.32)
+        ))
         .foregroundStyle(.primary)
         .accessibilityLabel("Add assignment or exam")
     }
@@ -578,8 +580,10 @@ struct CourseDetailView: View {
                 Spacer()
                 Button(policy?.targetPercentage.map { "\(compact($0))%" } ?? "Set target") { showTargetPicker = true }
                     .frame(minWidth: 72)
-                    .buttonStyle(.glass(.clear.tint(DesignSystem.ColorToken.gold.opacity(0.32)).interactive()))
-                    .buttonBorderShape(.capsule)
+                    .buttonStyle(LiquidGlassPressButtonStyle(
+                        shape: .capsule,
+                        tint: DesignSystem.ColorToken.gold.opacity(0.32)
+                    ))
                     .foregroundStyle(.primary)
             }
             if result.requiresManualReview {

@@ -121,6 +121,60 @@ extension View {
     }
 }
 
+enum LiquidGlassButtonShape {
+    case capsule
+    case circle
+    case roundedRectangle(CGFloat)
+
+    var shape: AnyShape {
+        switch self {
+        case .capsule:
+            AnyShape(Capsule())
+        case .circle:
+            AnyShape(Circle())
+        case .roundedRectangle(let radius):
+            AnyShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        }
+    }
+}
+
+/// Keeps the label above the glass material so the pressed highlight can never mask text.
+///
+/// The glass surface still responds physically: it compresses while held, then settles with
+/// a short spring. Reduce Motion keeps the state change but removes the elastic deformation.
+struct LiquidGlassPressButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    let shape: LiquidGlassButtonShape
+    var tint: Color?
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(.horizontal, shape == .circle ? 9 : 14)
+            .padding(.vertical, 8)
+            .background {
+                Color.clear
+                    .glassEffect(
+                        tint.map { Glass.clear.tint($0) } ?? .clear,
+                        in: shape.shape
+                    )
+            }
+            .contentShape(shape.shape)
+            .scaleEffect(
+                x: configuration.isPressed && !reduceMotion ? 0.97 : 1,
+                y: configuration.isPressed && !reduceMotion ? 0.92 : 1
+            )
+            .animation(
+                reduceMotion
+                    ? DesignSystem.Motion.reduced
+                    : .interactiveSpring(response: 0.24, dampingFraction: 0.72),
+                value: configuration.isPressed
+            )
+    }
+}
+
+extension LiquidGlassButtonShape: Equatable {}
+
 struct AggieFeedbackBanner<Action: View>: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     let title: LocalizedStringKey

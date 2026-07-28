@@ -58,8 +58,7 @@ struct ScoreImpactBanner: View {
                 Spacer()
                 Button("Close", systemImage: "xmark", action: dismiss)
                     .labelStyle(.iconOnly)
-                    .buttonStyle(.glass(.clear.interactive()))
-                    .buttonBorderShape(.circle)
+                    .buttonStyle(LiquidGlassPressButtonStyle(shape: .circle))
                     .accessibilityLabel("Dismiss score impact")
             }
 
@@ -106,12 +105,10 @@ struct ScoreImpactBanner: View {
                         showsDetails.toggle()
                     }
                 }
-                .buttonStyle(.glass(.clear.interactive()))
-                .buttonBorderShape(.capsule)
+                .buttonStyle(LiquidGlassPressButtonStyle(shape: .capsule))
                 Spacer()
                 Button("Undo", systemImage: "arrow.uturn.backward", action: undo)
-                    .buttonStyle(.glass(.clear.interactive()))
-                    .buttonBorderShape(.capsule)
+                    .buttonStyle(LiquidGlassPressButtonStyle(shape: .capsule))
                     .fontWeight(.semibold)
                     .accessibilityIdentifier("undoRecordedScoreButton")
             }

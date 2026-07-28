@@ -134,8 +134,7 @@ struct WhatIfPlaygroundView: View {
                     .font(.title3.bold())
                 Spacer()
                 Button("Reset", systemImage: "arrow.counterclockwise") { reset() }
-                    .buttonStyle(.glass(.clear.interactive()))
-                    .buttonBorderShape(.capsule)
+                    .buttonStyle(LiquidGlassPressButtonStyle(shape: .capsule))
                     .foregroundStyle(.primary)
             }
 
@@ -158,8 +157,9 @@ struct WhatIfPlaygroundView: View {
             } label: {
                 scenarioToolsLabel
             }
-            .buttonStyle(.glass(.clear.interactive()))
-            .buttonBorderShape(.roundedRectangle(radius: DesignSystem.Radius.compact))
+            .buttonStyle(LiquidGlassPressButtonStyle(
+                shape: .roundedRectangle(DesignSystem.Radius.compact)
+            ))
             .foregroundStyle(.primary)
 
             if showsScenarioTools {
@@ -200,8 +200,9 @@ struct WhatIfPlaygroundView: View {
                 } label: {
                     fineTuningLabel
                 }
-                .buttonStyle(.glass(.clear.interactive()))
-                .buttonBorderShape(.roundedRectangle(radius: DesignSystem.Radius.compact))
+                .buttonStyle(LiquidGlassPressButtonStyle(
+                    shape: .roundedRectangle(DesignSystem.Radius.compact)
+                ))
                 .foregroundStyle(.primary)
 
                 if showsFineTuning {
@@ -346,8 +347,9 @@ struct WhatIfPlaygroundView: View {
                                 }
                                 .frame(minWidth: 112, alignment: .leading)
                             }
-                            .buttonStyle(.glass(.clear.interactive()))
-                            .buttonBorderShape(.roundedRectangle(radius: DesignSystem.Radius.compact))
+                            .buttonStyle(LiquidGlassPressButtonStyle(
+                                shape: .roundedRectangle(DesignSystem.Radius.compact)
+                            ))
                             .foregroundStyle(.primary)
                         }
                     }
@@ -364,8 +366,10 @@ struct WhatIfPlaygroundView: View {
                     .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("whatIfScenarioName")
                 Button("Save Scenario", systemImage: "square.and.arrow.down") { saveScenario() }
-                    .buttonStyle(.glass(.clear.tint(.accentColor.opacity(0.24)).interactive()))
-                    .buttonBorderShape(.capsule)
+                    .buttonStyle(LiquidGlassPressButtonStyle(
+                        shape: .capsule,
+                        tint: .accentColor.opacity(0.24)
+                    ))
                     .foregroundStyle(.primary)
                     .disabled(scenarioName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityIdentifier("saveWhatIfScenario")
