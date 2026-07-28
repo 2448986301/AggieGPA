@@ -363,14 +363,11 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(whatsNew.waitForExistence(timeout: 5))
         whatsNew.tap()
         XCTAssertTrue(app.descendants(matching: .any)["versionHistoryView"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Version 1.4.0"].exists)
-        XCTAssertTrue(app.staticTexts["Version 1.3.1"].exists)
-        XCTAssertTrue(app.staticTexts["Version 1.3.0"].exists)
-        XCTAssertTrue(app.staticTexts["Version 1.2.0"].exists)
-        XCTAssertTrue(app.staticTexts["Version 1.1.2"].exists)
-        XCTAssertTrue(app.staticTexts["Version 1.1.1"].exists)
-        XCTAssertTrue(app.staticTexts["Version 1.1.0"].exists)
-        XCTAssertTrue(app.staticTexts["Version 1.0"].exists)
+        for version in ["1.4.0", "1.3.1", "1.3.0", "1.2.0", "1.1.2", "1.1.1", "1.1.0", "1.0"] {
+            let versionLabel = app.staticTexts["Version \(version)"]
+            scrollTo(versionLabel, in: app)
+            XCTAssertTrue(versionLabel.exists, "Version \(version) should appear in version history")
+        }
     }
 
     func testWhatsNewAppearsOnceForAnExistingStudent() {
