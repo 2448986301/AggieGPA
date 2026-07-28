@@ -52,7 +52,7 @@ struct CourseDetailView: View {
     @State private var editingItem: GradeItem?
     @State private var showCategoryEditor = false
     @State private var categoryPendingDeletion: GradingCategory?
-    @State private var showItemEditor = false
+    @State private var showNewItemEditor = false
     @State private var showPolicyEditor = false
     @State private var showForecastEditor = false
     @State private var showSyllabusImport = false
@@ -120,7 +120,7 @@ struct CourseDetailView: View {
                 Menu("Course Settings", systemImage: "ellipsis.circle") {
                     Button("Grading Policy", systemImage: "slider.horizontal.3") { showPolicyEditor = true }
                     Button("Add Category", systemImage: "folder.badge.plus") { editingCategory = nil; showCategoryEditor = true }
-                    Button("Add Grade Item", systemImage: "plus") { editingItem = nil; showItemEditor = true }
+                    Button("Add Grade Item", systemImage: "plus") { showNewItemEditor = true }
                     Divider()
                     Button("Import Grading Policy", systemImage: "doc.text.magnifyingglass") { showSyllabusImport = true }
                 }
@@ -147,8 +147,12 @@ struct CourseDetailView: View {
         } message: {
             Text(itemDeletionMessage)
         }
-        .sheet(isPresented: $showItemEditor) {
-            GradeItemEditorView(course: course, categories: courseCategories, item: editingItem)
+        .sheet(isPresented: $showNewItemEditor) {
+            GradeItemEditorView(course: course, categories: courseCategories, item: nil)
+        }
+        .sheet(item: $editingItem) { item in
+            GradeItemEditorView(course: course, categories: courseCategories, item: item)
+                .id(item.id)
         }
         .sheet(isPresented: $showPolicyEditor) {
             GradingPolicyEditorView(course: course, policy: policy, scale: scale)
@@ -211,7 +215,6 @@ struct CourseDetailView: View {
                   let item = courseItems.first(where: { $0.id == initialItemID }) {
             hasOpenedInitialDestination = true
             editingItem = item
-            showItemEditor = true
         }
     }
 
@@ -401,7 +404,7 @@ struct CourseDetailView: View {
                 Spacer()
                 Menu("Add", systemImage: "plus") {
                     if courseCategories.isEmpty {
-                        Button("Add Grade Item", systemImage: "plus") { editingItem = nil; showItemEditor = true }
+                        Button("Add Grade Item", systemImage: "plus") { showNewItemEditor = true }
                     } else {
                         ForEach(courseCategories) { category in
                             Button(category.name, systemImage: category.addSymbol) { quickCategory = category }
@@ -499,7 +502,6 @@ struct CourseDetailView: View {
         .contextMenu {
             Button("Edit Assignment Details", systemImage: "pencil") {
                 editingItem = item
-                showItemEditor = true
             }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -522,8 +524,7 @@ struct CourseDetailView: View {
         Menu {
             if courseCategories.isEmpty {
                 Button("Add Grade Item", systemImage: "plus") {
-                    editingItem = nil
-                    showItemEditor = true
+                    showNewItemEditor = true
                 }
             } else {
                 ForEach(courseCategories) { category in

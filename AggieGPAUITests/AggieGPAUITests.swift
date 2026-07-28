@@ -463,6 +463,23 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(unchangedRow.label.contains("18 / 20"))
     }
 
+    func testEditAssignmentDetailsOpensExistingItemInsteadOfNewItem() {
+        let app = makeApp(extraArguments: ["--screenshot-demo"])
+        openDemoGradebook(app: app)
+
+        let homework = app.staticTexts["Homework 1"].firstMatch
+        XCTAssertTrue(homework.waitForExistence(timeout: 5))
+        homework.press(forDuration: 1)
+
+        let editDetails = app.buttons["Edit Assignment Details"]
+        XCTAssertTrue(editDetails.waitForExistence(timeout: 5))
+        editDetails.tap()
+
+        XCTAssertTrue(app.navigationBars["Edit Grade Item"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.textFields["gradeItemTitleField"].value as? String, "Homework 1")
+        XCTAssertFalse(app.navigationBars["New Grade Item"].exists)
+    }
+
     func testGradedAssignmentDeleteRequiresConfirmationAndCanUndo() {
         let app = makeApp(extraArguments: ["--screenshot-demo"])
         openDemoGradebook(app: app)
