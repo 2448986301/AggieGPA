@@ -488,8 +488,15 @@ struct CourseDetailView: View {
             .tint(DesignSystem.ColorToken.gold)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button("Delete", systemImage: "trash", role: .destructive) { requestDelete(item) }
+            Button("Delete", systemImage: "trash") { requestDelete(item) }
+                .tint(.red)
         }
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.compact, style: .continuous))
+        .transition(
+            reduceMotion
+                ? .opacity
+                : .opacity.combined(with: .move(edge: .trailing))
+        )
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("gradeItemRow-\(item.title)")
         .accessibilityLabel(itemAccessibilityLabel(item))
@@ -676,16 +683,16 @@ struct CourseDetailView: View {
 
     private func delete(_ item: GradeItem) {
         let snapshot = DeletedGradeItem(item)
-        modelContext.delete(item)
-        do {
-            try modelContext.save()
-            GradeItemNotificationService.cancel(identifier: snapshot.notificationIdentifier)
-            withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+        withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+            modelContext.delete(item)
+            do {
+                try modelContext.save()
+                GradeItemNotificationService.cancel(identifier: snapshot.notificationIdentifier)
                 deletedItem = snapshot
                 showScoreUpdate = false
+            } catch {
+                modelContext.rollback()
             }
-        } catch {
-            modelContext.rollback()
         }
     }
 

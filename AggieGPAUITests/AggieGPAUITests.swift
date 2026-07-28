@@ -251,6 +251,8 @@ final class AggieGPAUITests: XCTestCase {
         delete.tap()
         let deletionAlert = app.alerts.firstMatch
         XCTAssertTrue(deletionAlert.waitForExistence(timeout: 5))
+        XCTAssertTrue(homework.exists, "The row must remain until destructive deletion is confirmed.")
+        XCTAssertFalse(app.buttons["undoGradeItemDeleteButton"].exists)
         deletionAlert.buttons["Delete Assignment"].tap()
         XCTAssertTrue(app.buttons["undoGradeItemDeleteButton"].waitForExistence(timeout: 5))
         app.buttons["undoGradeItemDeleteButton"].tap()
