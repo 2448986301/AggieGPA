@@ -116,11 +116,20 @@ final class AggieGPAUITests: XCTestCase {
         let app = makeApp()
         completeOnboarding(app: app, loadDemo: true)
         app.tabBars.buttons["GPA"].tap()
-        app.staticTexts["Projected GPA"].tap()
+        let whatIf = app.staticTexts["Try a GPA forecast"]
+        XCTAssertTrue(whatIf.waitForExistence(timeout: 5))
+        whatIf.tap()
         let saveScenario = app.buttons["Save Scenario"]
         scrollTo(saveScenario, in: app)
         saveScenario.tap()
-        XCTAssertTrue(app.staticTexts["Scenario saved. Official records were not changed."].exists)
+        XCTAssertTrue(app.staticTexts["Scenario saved. Estimated results were updated; official records were not changed."].waitForExistence(timeout: 5))
+
+        let saveToRecords = app.buttons["Save to Records"]
+        scrollTo(saveToRecords, in: app)
+        saveToRecords.tap()
+        let confirmation = app.alerts["Apply this scenario to official records?"]
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+        XCTAssertTrue(confirmation.buttons["Cancel"].exists)
     }
 
     func testExportDataFlow() {

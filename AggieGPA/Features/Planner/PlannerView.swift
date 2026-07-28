@@ -9,6 +9,7 @@ struct PlannerView: View {
     @Query private var items: [GradeItem]
     @Query private var scales: [GradeScale]
     @Query private var forecasts: [ForecastScenario]
+    @Query(sort: \PlannerScenario.sortOrder, order: .reverse) private var savedWhatIfScenarios: [PlannerScenario]
     let preferences: UserPreferences
 
     private var includedTerms: [AcademicTerm] {
@@ -27,12 +28,21 @@ struct PlannerView: View {
         guard let currentTerm else { return .empty }
         return GPAService.quarter(inputs, termID: currentTerm.id)
     }
+    private var activeWhatIfScenario: PlannerScenario? {
+        savedWhatIfScenarios.first { $0.scenarioType == .custom }
+    }
     private var projectedGrades: [UUID: CourseGrade] {
-        Dictionary(uniqueKeysWithValues: liveCourses.compactMap { course in
+        var grades: [UUID: CourseGrade] = Dictionary(uniqueKeysWithValues: liveCourses.compactMap { course -> (UUID, CourseGrade)? in
             guard let scenario = forecasts.first(where: { belongsToCourse($0.course, course) && $0.isSelectedForGPAForecast }),
                   let grade = ProjectedGPAService.courseGrade(from: gradeResult(for: course, forecast: scenario).projectedLetterGrade) else { return nil }
             return (course.id, grade)
         })
+        let liveCourseIDs = Set(liveCourses.map(\.id))
+        for simulated in activeWhatIfScenario?.simulatedCourses ?? [] {
+            guard let sourceCourseID = simulated.sourceCourseID, liveCourseIDs.contains(sourceCourseID) else { continue }
+            grades[sourceCourseID] = simulated.grade
+        }
+        return grades
     }
     private var projectedCurrent: ProjectedGPAResult {
         ProjectedGPAService.calculate(inputs, projectedGrades: projectedGrades, termID: currentTerm?.id)

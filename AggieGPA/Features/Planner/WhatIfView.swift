@@ -16,11 +16,13 @@ struct WhatIfView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var courses: [CourseRecord]
     @Query(sort: \AcademicTerm.sortOrder) private var terms: [AcademicTerm]
+    @Query(sort: \PlannerScenario.sortOrder) private var savedScenarios: [PlannerScenario]
     let preferences: UserPreferences
     @State private var items: [WhatIfItem] = []
     @State private var scenarioName = "Expected"
     @State private var showingApplyConfirmation = false
     @State private var statusMessage: String?
+    @State private var persistenceError: String?
 
     private var officialInputs: [CourseCalculationInput] { courses.map(CourseCalculationInput.init) }
     private var simulatedInputs: [CourseCalculationInput] {
@@ -100,12 +102,16 @@ struct WhatIfView: View {
         }
         .navigationTitle("What-If GPA")
         .onAppear { if items.isEmpty { loadOfficial() } }
-        .confirmationDialog("Apply this scenario to official records?", isPresented: $showingApplyConfirmation,
-                            titleVisibility: .visible) {
+        .alert("Apply this scenario to official records?", isPresented: $showingApplyConfirmation) {
             Button("Apply Changes") { applyToRecords() }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Existing matching courses will receive the simulated grades. New planned courses will be added to the most recent quarter.")
+        }
+        .alert("Couldn’t save scenario.", isPresented: isShowingPersistenceError) {
+            Button("OK", role: .cancel) { persistenceError = nil }
+        } message: {
+            Text(LocalizedStringKey(persistenceError ?? "Couldn’t complete that action"))
         }
     }
 
@@ -122,7 +128,9 @@ struct WhatIfView: View {
     }
 
     private func saveScenario() {
-        let scenario = PlannerScenario(name: scenarioName.isEmpty ? "Custom" : scenarioName)
+        let cleanName = scenarioName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let nextSortOrder = (savedScenarios.map(\.sortOrder).max() ?? -1) + 1
+        let scenario = PlannerScenario(name: cleanName.isEmpty ? "Custom" : cleanName, sortOrder: nextSortOrder)
         modelContext.insert(scenario)
         for item in items {
             modelContext.insert(SimulatedCourse(sourceCourseID: item.sourceID, courseCode: item.code,
@@ -130,8 +138,13 @@ struct WhatIfView: View {
                                                  isIncludedInGPA: item.included, isMajorCourse: item.major,
                                                  isUpperDivision: item.upper, scenario: scenario))
         }
-        try? modelContext.save()
-        statusMessage = "Scenario saved. Official records were not changed."
+        do {
+            try modelContext.save()
+            statusMessage = "Scenario saved. Estimated results were updated; official records were not changed."
+        } catch {
+            modelContext.rollback()
+            persistenceError = "Couldn’t save scenario."
+        }
     }
 
     private func applyToRecords() {
@@ -149,7 +162,19 @@ struct WhatIfView: View {
                                                  isIncludedInGPA: item.included))
             }
         }
-        try? modelContext.save()
-        statusMessage = "Scenario applied to records."
+        do {
+            try modelContext.save()
+            statusMessage = "Scenario applied to records."
+        } catch {
+            modelContext.rollback()
+            persistenceError = "Couldn’t save scenario."
+        }
+    }
+
+    private var isShowingPersistenceError: Binding<Bool> {
+        Binding(
+            get: { persistenceError != nil },
+            set: { if !$0 { persistenceError = nil } }
+        )
     }
 }
