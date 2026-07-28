@@ -100,6 +100,7 @@ struct GradeBreakdownSetupView: View {
 struct QuickGradeItemView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let course: CourseRecord
     let categories: [GradingCategory]
     let category: GradingCategory
@@ -140,9 +141,14 @@ struct QuickGradeItemView: View {
                     }
                 }
                 if let validation {
-                    Section { Label(validation, systemImage: "exclamationmark.circle.fill").foregroundStyle(.red) }
+                    Section {
+                        Label(validation, systemImage: "exclamationmark.circle.fill").foregroundStyle(.red)
+                    }
+                    .transition(.opacity)
                 }
             }
+            .animation(DesignSystem.Motion.quick(reduceMotion: reduceMotion), value: showMore)
+            .animation(DesignSystem.Motion.quick(reduceMotion: reduceMotion), value: validation)
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(isExam ? "Add Exam" : "Add Grade Item")
             .navigationBarTitleDisplayMode(.inline)
@@ -190,11 +196,19 @@ struct QuickGradeItemView: View {
     }
 }
 
+struct RecordedScoreChange {
+    let previousEarnedPoints: Decimal?
+    let previousPossiblePoints: Decimal
+    let previousStatus: GradeItemStatus
+    let previousUpdatedAt: Date
+}
+
 struct RecordScoreView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let item: GradeItem
-    let onSaved: (() -> Void)?
+    let onSaved: ((RecordedScoreChange) -> Void)?
     @State private var earned: String
     @State private var possible: String
     @State private var validation: String?
@@ -202,17 +216,21 @@ struct RecordScoreView: View {
 
     private enum Field { case earned, possible }
 
-    init(item: GradeItem, onSaved: (() -> Void)? = nil) {
+    init(item: GradeItem, onSaved: ((RecordedScoreChange) -> Void)? = nil) {
         self.item = item
         self.onSaved = onSaved
         _earned = State(initialValue: item.earnedPoints.map(compact) ?? "")
         _possible = State(initialValue: compact(item.possiblePoints))
     }
 
+    private var isEditingRecordedScore: Bool {
+        item.earnedPoints != nil
+    }
+
     var body: some View {
         NavigationStack {
             Form {
-                Section(item.title) {
+                Section {
                     LabeledContent("Course", value: item.course?.courseCode ?? "Course")
                         .foregroundStyle(.secondary)
                 }
@@ -226,12 +244,21 @@ struct RecordScoreView: View {
                         .focused($focusedField, equals: .possible)
                         .accessibilityIdentifier("recordPossiblePointsField")
                 }
+                Section {
+                    Text("Your recorded score stays unchanged until you tap Save.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 if let validation {
-                    Section { Label(validation, systemImage: "exclamationmark.circle.fill").foregroundStyle(.red) }
+                    Section {
+                        Label(validation, systemImage: "exclamationmark.circle.fill").foregroundStyle(.red)
+                    }
+                    .transition(.opacity)
                 }
             }
+            .animation(DesignSystem.Motion.quick(reduceMotion: reduceMotion), value: validation)
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle("Record Score")
+            .navigationTitle(isEditingRecordedScore ? "Edit Score" : "Record Score")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -260,9 +287,15 @@ struct RecordScoreView: View {
         guard let earnedValue = DecimalFormatters.decimal(from: earned), let possibleValue = DecimalFormatters.decimal(from: possible), possibleValue > 0 else {
             validation = "Enter valid earned and possible points."; return
         }
+        let change = RecordedScoreChange(
+            previousEarnedPoints: item.earnedPoints,
+            previousPossiblePoints: item.possiblePoints,
+            previousStatus: item.status,
+            previousUpdatedAt: item.updatedAt
+        )
         item.earnedPoints = earnedValue; item.possiblePoints = possibleValue; item.status = .graded; item.updatedAt = .now
         try? modelContext.save()
-        onSaved?()
+        onSaved?(change)
         dismiss()
     }
 }

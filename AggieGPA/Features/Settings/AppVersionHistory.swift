@@ -26,14 +26,28 @@ enum AppVersionHistory {
 
     static let releases: [AppVersionRelease] = [
         AppVersionRelease(
-            version: "1.3.1",
+            version: "1.4.0",
             status: "Current Version",
+            summary: "Explore grade momentum with clearer feedback and more fluid interactions.",
+            highlights: [
+                "Interactive grade simulations stay separate from recorded scores",
+                "Score changes show their effect on course grades and projected GPA",
+                "Today highlights up to three reliable tasks to focus on next",
+                "Semester Map organizes dated work by week with course and type filters",
+                "A new explanation shows how categories contribute to the current grade",
+                "More consistent motion, undo feedback, and iPhone and iPad layouts",
+                "Improved English, Simplified Chinese, Dynamic Type, and Reduce Motion support"
+            ]
+        ),
+        AppVersionRelease(
+            version: "1.3.1",
+            status: "Previous Version",
             summary: "Resolved some known issues.",
             highlights: []
         ),
         AppVersionRelease(
             version: "1.3.0",
-            status: "Current Version",
+            status: "Previous Version",
             summary: "Reviewable on-device syllabus understanding, now with a native iPad workspace.",
             highlights: [
                 "On-device AI reads syllabus text and scanned pages without OCR",
@@ -192,29 +206,46 @@ struct VersionHistoryView: View {
 
             Section("Version History") {
                 ForEach(AppVersionHistory.releases.filter { $0.version != AppVersionHistory.currentVersion }) { release in
-                    DisclosureGroup {
-                        VersionReleaseContent(release: release, isCurrent: false)
-                            .padding(.top, DesignSystem.Spacing.xSmall)
-                    } label: {
-                        HStack(spacing: DesignSystem.Spacing.small) {
-                            Image(systemName: "clock.arrow.circlepath")
-                                .foregroundStyle(.secondary)
-                                .accessibilityHidden(true)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Version \(release.version)")
-                                    .font(.headline)
-                                Text(release.status)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
+                    VersionHistoryDisclosureRow(release: release)
                 }
             }
         }
         .navigationTitle("What’s New")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("versionHistoryView")
+    }
+}
+
+private struct VersionHistoryDisclosureRow: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let release: AppVersionRelease
+    @State private var isExpanded = false
+
+    var body: some View {
+        DisclosureGroup(isExpanded: Binding(
+            get: { isExpanded },
+            set: { newValue in
+                withAnimation(reduceMotion ? nil : DesignSystem.Motion.standard) {
+                    isExpanded = newValue
+                }
+            }
+        )) {
+            VersionReleaseContent(release: release, isCurrent: false)
+                .padding(.top, DesignSystem.Spacing.xSmall)
+        } label: {
+            HStack(spacing: DesignSystem.Spacing.small) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Version \(release.version)")
+                        .font(.headline)
+                    Text(release.status)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 }
 

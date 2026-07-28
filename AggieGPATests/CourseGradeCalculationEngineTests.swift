@@ -187,6 +187,39 @@ final class CourseGradeCalculationEngineTests: XCTestCase {
         XCTAssertEqual(result.targetFeasibility, .achievable)
     }
 
+    func testForecastUsesPerItemAssumptionsWithoutChangingCurrentGrade() {
+        let projectID = UUID()
+        let finalID = UUID()
+        let graded = item("Midterm", earned: 50, possible: 100, status: .graded)
+        let project = GradeItemCalculationInput(
+            id: projectID,
+            title: "Project",
+            categoryType: .project,
+            possiblePoints: 50,
+            status: .upcoming
+        )
+        let final = GradeItemCalculationInput(
+            id: finalID,
+            title: "Final",
+            categoryType: .finalExam,
+            possiblePoints: 50,
+            status: .upcoming
+        )
+
+        let result = calculate(
+            .totalPoints,
+            categories: [category("All", weight: 100, items: [graded, project, final])],
+            forecast: CourseForecastInput(
+                assumedRemainingPercentage: 80,
+                itemPercentages: [projectID: 100, finalID: 40]
+            )
+        )
+
+        XCTAssertEqual(result.calculatedCurrentPercentage, 50)
+        XCTAssertEqual(result.projectedFinalPercentage, 60)
+        XCTAssertEqual(result.gradedWeight, 50)
+    }
+
     func testMultipleRemainingItemsUsesRequiredAverageNotFinalNeeded() {
         let completed = category("Completed", weight: 40, items: [
             item("Midterm", earned: 90, possible: 100, status: .graded)

@@ -25,6 +25,14 @@ private enum CourseDetailSection: String, CaseIterable, Identifiable {
     }
 }
 
+private struct ScoreImpactBaseline {
+    let itemID: UUID
+    let currentGrade: Decimal?
+    let projectedFinal: Decimal?
+    let projectedLetter: GradeLetter?
+    let termGPA: Decimal?
+}
+
 struct CourseDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -33,16 +41,18 @@ struct CourseDetailView: View {
     @Query private var items: [GradeItem]
     @Query private var scales: [GradeScale]
     @Query private var forecasts: [ForecastScenario]
+    @Query private var allCourses: [CourseRecord]
 
     let course: CourseRecord
     let preferences: UserPreferences
     let initialItemID: UUID?
+    let initialScoringItemID: UUID?
     @State private var section = CourseDetailSection.gradebook
     @State private var editingCategory: GradingCategory?
     @State private var editingItem: GradeItem?
     @State private var showCategoryEditor = false
     @State private var categoryPendingDeletion: GradingCategory?
-    @State private var showItemEditor = false
+    @State private var showNewItemEditor = false
     @State private var showPolicyEditor = false
     @State private var showForecastEditor = false
     @State private var showSyllabusImport = false
@@ -53,12 +63,20 @@ struct CourseDetailView: View {
     @State private var editingForecast: ForecastScenario?
     @State private var deletedItem: DeletedGradeItem?
     @State private var itemPendingDeletion: GradeItem?
-    @State private var showScoreUpdate = false
+    @State private var scoreBaseline: ScoreImpactBaseline?
+    @State private var scoreImpact: ScoreImpactPresentation?
+    @State private var hasOpenedInitialDestination = false
 
-    init(course: CourseRecord, preferences: UserPreferences, initialItemID: UUID? = nil) {
+    init(
+        course: CourseRecord,
+        preferences: UserPreferences,
+        initialItemID: UUID? = nil,
+        initialScoringItemID: UUID? = nil
+    ) {
         self.course = course
         self.preferences = preferences
         self.initialItemID = initialItemID
+        self.initialScoringItemID = initialScoringItemID
     }
 
     private func belongsToCourse(_ relatedCourse: CourseRecord?) -> Bool {
@@ -91,9 +109,10 @@ struct CourseDetailView: View {
 
     var body: some View {
         ZStack {
-            CampusBackground().ignoresSafeArea()
+            Color(.systemGroupedBackground).ignoresSafeArea()
             secondaryDetailContent
         }
+        .overlay(alignment: .bottom) { feedbackBanner }
         .navigationTitle(course.courseCode)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -101,7 +120,7 @@ struct CourseDetailView: View {
                 Menu("Course Settings", systemImage: "ellipsis.circle") {
                     Button("Grading Policy", systemImage: "slider.horizontal.3") { showPolicyEditor = true }
                     Button("Add Category", systemImage: "folder.badge.plus") { editingCategory = nil; showCategoryEditor = true }
-                    Button("Add Grade Item", systemImage: "plus") { editingItem = nil; showItemEditor = true }
+                    Button("Add Grade Item", systemImage: "plus") { showNewItemEditor = true }
                     Divider()
                     Button("Import Grading Policy", systemImage: "doc.text.magnifyingglass") { showSyllabusImport = true }
                 }
@@ -128,8 +147,12 @@ struct CourseDetailView: View {
         } message: {
             Text(itemDeletionMessage)
         }
-        .sheet(isPresented: $showItemEditor) {
-            GradeItemEditorView(course: course, categories: courseCategories, item: editingItem)
+        .sheet(isPresented: $showNewItemEditor) {
+            GradeItemEditorView(course: course, categories: courseCategories, item: nil)
+        }
+        .sheet(item: $editingItem) { item in
+            GradeItemEditorView(course: course, categories: courseCategories, item: item)
+                .id(item.id)
         }
         .sheet(isPresented: $showPolicyEditor) {
             GradingPolicyEditorView(course: course, policy: policy, scale: scale)
@@ -142,56 +165,57 @@ struct CourseDetailView: View {
             QuickGradeItemView(course: course, categories: courseCategories, category: category)
         }
         .sheet(item: $scoringItem) { item in
-            RecordScoreView(item: item) {
-                showScoreUpdate = true
+            RecordScoreView(item: item) { change in
+                completeScoreUpdate(item, change: change)
             }
+            .id(item.id)
         }
         .sheet(isPresented: $showTargetPicker) { SimpleTargetPickerView(course: course, policy: policy) }
         .sheet(isPresented: $showForecastEditor) {
             ForecastEditorView(course: course, policy: policy, forecast: editingForecast)
         }
-        .task { openInitialItemIfNeeded() }
-        .safeAreaInset(edge: .bottom, spacing: DesignSystem.Spacing.small) {
-            if deletedItem != nil {
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: DesignSystem.Spacing.small) {
-                        Label("Assignment deleted", systemImage: "trash")
-                            .lineLimit(1)
-                        Spacer(minLength: DesignSystem.Spacing.small)
-                        undoButton
-                    }
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
-                        Label("Assignment deleted", systemImage: "trash")
-                        undoButton
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                    }
-                }
-                .padding(DesignSystem.Spacing.medium)
-                .glassEffect(.regular, in: Capsule())
-                .padding(.horizontal, DesignSystem.Spacing.medium)
-                .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("gradeItemUndoBanner")
-            } else if showScoreUpdate {
-                HStack {
-                    Text("Current course grade updated for \(course.courseCode).")
-                    Spacer()
-                    Button("Done") { showScoreUpdate = false }.bold()
-                }
-                .padding()
-                .glassEffect(.regular, in: Capsule())
-                .padding(.horizontal)
-            }
-        }
+        .task(id: courseItems.map(\.id)) { openInitialDestinationIfNeeded() }
+        .task(id: scoreImpact?.id) { await autoDismissScoreImpact() }
+        .sensoryFeedback(.success, trigger: scoreImpact?.id)
+        .sensoryFeedback(.warning, trigger: deletedItem?.id)
         .appEntityIdentifier(EntityIdentifier(for: CourseEntity.self, identifier: course.id.uuidString))
     }
 
-    private func openInitialItemIfNeeded() {
-        guard let initialItemID else { return }
-        guard let item = courseItems.first(where: { $0.id == initialItemID }) else { return }
+    @ViewBuilder private var feedbackBanner: some View {
+        if deletedItem != nil {
+            AggieFeedbackBanner(
+                "Assignment deleted",
+                message: "Undo restores the assignment and its recorded score.",
+                systemImage: "trash"
+            ) {
+                undoButton
+            }
+            .padding(.vertical, DesignSystem.Spacing.small)
+            .transition(DesignSystem.Motion.feedbackTransition(reduceMotion: reduceMotion))
+            .accessibilityIdentifier("gradeItemUndoBanner")
+        } else if let scoreImpact {
+            ScoreImpactBanner(
+                impact: scoreImpact,
+                undo: undoScoreUpdate,
+                dismiss: dismissScoreImpact
+            )
+            .padding(.vertical, DesignSystem.Spacing.small)
+            .transition(DesignSystem.Motion.feedbackTransition(reduceMotion: reduceMotion))
+        }
+    }
+
+    private func openInitialDestinationIfNeeded() {
+        guard !hasOpenedInitialDestination else { return }
         section = .gradebook
-        editingItem = item
-        showItemEditor = true
+        if let initialScoringItemID,
+           let item = courseItems.first(where: { $0.id == initialScoringItemID }) {
+            hasOpenedInitialDestination = true
+            beginScoring(item)
+        } else if let initialItemID,
+                  let item = courseItems.first(where: { $0.id == initialItemID }) {
+            hasOpenedInitialDestination = true
+            editingItem = item
+        }
     }
 
     private var isShowingCategoryDeletionAlert: Binding<Bool> {
@@ -208,55 +232,14 @@ struct CourseDetailView: View {
         )
     }
 
-    @ViewBuilder private var secondaryDetailContent: some View {
-        if section == .gradebook {
-            gradebookList
-        } else {
-            secondaryScrollContent
-        }
-    }
-
-    private var secondaryScrollContent: some View {
-        GeometryReader { proxy in
-            let availableWidth = max(0, proxy.size.width - (DesignSystem.Spacing.medium * 2))
-            let readableWidth = min(1_180, availableWidth)
-
-            ScrollView {
-                LazyVStack(spacing: DesignSystem.Spacing.medium) {
-                    gradeHero
-                    Picker("Course detail", selection: $section) {
-                        ForEach(CourseDetailSection.allCases) { section in
-                            Label(section.compactTitle, systemImage: section.symbol).tag(section)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .accessibilityIdentifier("courseDetailSectionPicker")
-                    .accessibilityHint("Switches between assignments, grade breakdown, and goal estimate")
-
-                    switch section {
-                    case .gradebook: EmptyView()
-                    case .breakdown: breakdownContent
-                    case .forecast: forecastContent
-                    }
-                    DisclaimerBanner().padding(.top, DesignSystem.Spacing.small)
-                }
-                .frame(maxWidth: readableWidth, alignment: .leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, DesignSystem.Spacing.medium)
-                .padding(.vertical, DesignSystem.Spacing.medium)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-
-    private var gradebookList: some View {
+    private var secondaryDetailContent: some View {
         List {
             Section {
                 gradeHero
                     .listRowInsets(EdgeInsets(top: DesignSystem.Spacing.small, leading: 0, bottom: DesignSystem.Spacing.small, trailing: 0))
                     .listRowBackground(Color.clear)
 
-                Picker("Course detail", selection: $section) {
+                Picker("Course detail", selection: sectionBinding) {
                     ForEach(CourseDetailSection.allCases) { section in
                         Label(section.compactTitle, systemImage: section.symbol).tag(section)
                     }
@@ -267,6 +250,24 @@ struct CourseDetailView: View {
                 .listRowBackground(Color.clear)
             }
 
+            activeSectionContent
+
+            Section {
+                DisclaimerBanner()
+                    .padding(.bottom, feedbackIsVisible ? 76 : 0)
+            }
+            .listRowBackground(Color.clear)
+        }
+        .listStyle(.insetGrouped)
+        .listSectionSpacing(.custom(DesignSystem.Spacing.small))
+        .scrollContentBackground(.hidden)
+        .scrollEdgeEffectHidden(true, for: [.top, .leading, .trailing])
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+    }
+
+    @ViewBuilder private var activeSectionContent: some View {
+        switch section {
+        case .gradebook:
             if policy == nil {
                 Section {
                     ContentUnavailableView {
@@ -274,7 +275,7 @@ struct CourseDetailView: View {
                     } description: {
                         Text("Import a syllabus, choose a template, or set it up manually.")
                     } actions: {
-                        Button("Use a Template") { showSetup = true }.buttonStyle(.borderedProminent)
+                        Button("Use a Template") { showSetup = true }.buttonStyle(.glass)
                         Button("Import Syllabus") { showSyllabusImport = true }
                         Button("Set It Up Manually") { showPolicyEditor = true }
                     }
@@ -282,51 +283,72 @@ struct CourseDetailView: View {
                     .listRowBackground(Color.clear)
                 }
             } else {
-                Section {
-                    HStack {
-                        Text("Assignments & Exams").font(.title2.bold())
-                        Spacer()
-                        addGradeItemMenu
-                    }
-                    .listRowBackground(Color.clear)
-                }
-
-                ForEach(courseCategories) { category in
-                    Section {
-                        let categoryItems = courseItems.filter { $0.category?.id == category.id }.sorted(by: itemSort)
-                        if categoryItems.isEmpty {
-                            Text("No assignments or exams yet")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            ForEach(categoryItems) { itemRow($0) }
-                        }
-                    } header: {
-                        categoryListHeader(category)
-                    }
-                }
-
-                if courseCategories.isEmpty && courseItems.isEmpty {
-                    Section {
-                        ContentUnavailableView("No assignments or exams", systemImage: "tray", description: Text("Add your first item to start tracking scores."))
-                            .padding(.vertical, DesignSystem.Spacing.large)
-                    }
-                }
-
-                let unassigned = courseItems.filter { $0.category == nil }
-                if !unassigned.isEmpty {
-                    Section("Unassigned") {
-                        ForEach(unassigned.sorted(by: itemSort)) { itemRow($0) }
-                    }
-                }
+                gradebookSections
             }
-
-            Section { DisclaimerBanner() }
+        case .breakdown:
+            breakdownContent
+                .listRowInsets(detailModuleRowInsets)
                 .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+        case .forecast:
+            forecastContent
+                .listRowInsets(detailModuleRowInsets)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
         }
-        .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
-        .background(CampusBackground().ignoresSafeArea())
+    }
+
+    private var detailModuleRowInsets: EdgeInsets {
+        EdgeInsets(
+            top: 0,
+            leading: DesignSystem.Spacing.medium,
+            bottom: 0,
+            trailing: DesignSystem.Spacing.medium
+        )
+    }
+
+    @ViewBuilder private var gradebookSections: some View {
+        HStack {
+            Text("Assignments & Exams").font(.title2.bold())
+            Spacer()
+            addGradeItemMenu
+        }
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+
+        ForEach(courseCategories) { category in
+            Section {
+                let categoryItems = courseItems.filter { $0.category?.id == category.id }.sorted(by: itemSort)
+                if categoryItems.isEmpty {
+                    Text("No assignments or exams yet")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(categoryItems) { itemRow($0) }
+                }
+            } header: {
+                categoryListHeader(category)
+            }
+        }
+
+        if courseCategories.isEmpty && courseItems.isEmpty {
+            Section {
+                ContentUnavailableView(
+                    "No assignments or exams",
+                    systemImage: "tray",
+                    description: Text("Add your first item to start tracking scores.")
+                )
+                .padding(.vertical, DesignSystem.Spacing.large)
+            }
+        }
+
+        let unassigned = courseItems.filter { $0.category == nil }
+        if !unassigned.isEmpty {
+            Section("Unassigned") {
+                ForEach(unassigned.sorted(by: itemSort)) { itemRow($0) }
+            }
+        }
     }
 
     private var gradeHero: some View {
@@ -382,7 +404,7 @@ struct CourseDetailView: View {
                 Spacer()
                 Menu("Add", systemImage: "plus") {
                     if courseCategories.isEmpty {
-                        Button("Add Grade Item", systemImage: "plus") { editingItem = nil; showItemEditor = true }
+                        Button("Add Grade Item", systemImage: "plus") { showNewItemEditor = true }
                     } else {
                         ForEach(courseCategories) { category in
                             Button(category.name, systemImage: category.addSymbol) { quickCategory = category }
@@ -410,7 +432,7 @@ struct CourseDetailView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(category.name).font(.headline)
+                    Text(LocalizedStringKey(category.name)).font(.headline)
                     Text("Worth \(percent(category.weight)) of course")
                         .font(.caption).foregroundStyle(.secondary)
                 }
@@ -464,32 +486,45 @@ struct CourseDetailView: View {
             }
             Spacer()
             Text(score(item)).font(.subheadline.monospacedDigit()).foregroundStyle(.primary)
+                .contentTransition(.numericText())
+                .animation(DesignSystem.Motion.emphasized(reduceMotion: reduceMotion), value: score(item))
         }
         .contentShape(Rectangle())
-        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-            Button("Record Score", systemImage: "checkmark.circle") { scoringItem = item }
-                .tint(DesignSystem.ColorToken.navyRaised)
-            Button("Edit", systemImage: "square.and.pencil") {
-                editingItem = item
-                showItemEditor = true
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            if hasRecordedScore(item) {
+                Button("Edit Score") { beginScoring(item) }
+                    .tint(DesignSystem.ColorToken.navyRaised)
+            } else {
+                Button("Record Score") { beginScoring(item) }
+                    .tint(DesignSystem.ColorToken.navyRaised)
             }
-            .tint(DesignSystem.ColorToken.gold)
         }
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button("Delete", systemImage: "trash", role: .destructive) { requestDelete(item) }
+        .contextMenu {
+            Button("Edit Assignment Details", systemImage: "pencil") {
+                editingItem = item
+            }
         }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button("Delete") { requestDelete(item) }
+                .tint(.red)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.compact, style: .continuous))
+        .transition(
+            reduceMotion
+                ? .opacity
+                : .opacity.combined(with: .move(edge: .trailing))
+        )
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("gradeItemRow-\(item.title)")
         .accessibilityLabel(itemAccessibilityLabel(item))
-        .accessibilityHint("Swipe left for score, editing, and deletion actions.")
+        .accessibilityHint("Swipe right to record or edit the score. Swipe left to delete. Long press to edit assignment details.")
     }
 
     private var addGradeItemMenu: some View {
         Menu {
             if courseCategories.isEmpty {
                 Button("Add Grade Item", systemImage: "plus") {
-                    editingItem = nil
-                    showItemEditor = true
+                    showNewItemEditor = true
                 }
             } else {
                 ForEach(courseCategories) { category in
@@ -501,14 +536,16 @@ struct CourseDetailView: View {
                 .font(.body.weight(.semibold))
                 .labelStyle(.titleAndIcon)
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.glass(.regular.tint(DesignSystem.ColorToken.gold.opacity(0.32)).interactive()))
+        .buttonBorderShape(.capsule)
+        .foregroundStyle(.primary)
         .accessibilityLabel("Add assignment or exam")
     }
 
     private func categoryListHeader(_ category: GradingCategory) -> some View {
         HStack(spacing: DesignSystem.Spacing.small) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(category.name).font(.headline)
+                Text(LocalizedStringKey(category.name)).font(.headline)
                 Text("Worth \(percent(category.weight)) of course")
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -531,14 +568,16 @@ struct CourseDetailView: View {
 
     @ViewBuilder private var breakdownContent: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
-            Text("Grade Breakdown").font(.title2.bold())
+            Text("Grade Breakdown")
+                .font(.title2.bold())
+                .accessibilityIdentifier("gradeBreakdownTitle")
             if result.categoryBreakdown.isEmpty {
                 ContentUnavailableView("No breakdown yet", systemImage: "chart.bar.xaxis", description: Text("Add grading categories and scores first."))
             }
             ForEach(result.categoryBreakdown, id: \.id) { category in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text(category.name).font(.headline)
+                        Text(LocalizedStringKey(category.name)).font(.headline)
                         Spacer()
                         Text(percent(category.average)).font(.headline.monospacedDigit())
                     }
@@ -553,6 +592,7 @@ struct CourseDetailView: View {
                 }
                 .padding(DesignSystem.Spacing.medium).contentSurface()
             }
+            gradeExplanation
             if !result.issues.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Calculation Details", systemImage: "checklist") .font(.headline)
@@ -566,54 +606,143 @@ struct CourseDetailView: View {
         }
     }
 
+    private var gradeExplanation: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
+            Label("Why This Grade?", systemImage: "questionmark.circle")
+                .font(.headline)
+
+            ForEach(result.categoryBreakdown, id: \.id) { category in
+                HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.small) {
+                    Text(LocalizedStringKey(category.name))
+                        .lineLimit(2)
+                    Spacer(minLength: DesignSystem.Spacing.small)
+                    if let average = category.average {
+                        Text(
+                            "\(percent(average)) × \(percent(category.weight)) = \(percent(category.contribution))"
+                        )
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: true, vertical: false)
+                    } else {
+                        Text("Not graded yet")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Divider()
+
+            Text(
+                String(
+                    format: String(localized: "%@ of the course weight has graded work."),
+                    percent(result.gradedWeight)
+                )
+            )
+            .font(.subheadline)
+
+            Label(
+                "Ungraded work is excluded from the current grade, not counted as zero.",
+                systemImage: "checkmark.shield"
+            )
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+
+            if let category = highestContributionCategory {
+                Text(
+                    String(
+                        format: String(localized: "%@ currently contributes the most to this grade."),
+                        category.name
+                    )
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
+
+            if let lowest = result.worstPossiblePercentage,
+               let highest = result.bestPossiblePercentage {
+                HStack {
+                    Text("Possible final range")
+                    Spacer()
+                    Text("\(percent(lowest)) – \(percent(highest))")
+                        .fontWeight(.semibold)
+                        .monospacedDigit()
+                }
+                .font(.subheadline)
+            }
+        }
+        .padding(DesignSystem.Spacing.medium)
+        .contentSurface()
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("gradeExplanation")
+    }
+
+    private var highestContributionCategory: CategoryGradeBreakdown? {
+        result.categoryBreakdown
+            .filter { $0.average != nil }
+            .max { $0.contribution < $1.contribution }
+    }
+
     @ViewBuilder private var forecastContent: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
-            HStack {
-                Text("I want to finish with").font(.title2.bold())
-                Spacer()
-                Button(policy?.targetPercentage.map { "\(compact($0))%" } ?? "Set target") { showTargetPicker = true }
-                    .buttonStyle(.borderedProminent)
-            }
-            if courseForecasts.count > 1 {
-                ScrollView(.horizontal) {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: DesignSystem.Spacing.medium) {
+                    forecastGoalTitle
+                    Spacer(minLength: DesignSystem.Spacing.small)
+                    forecastTargetButton
+                }
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
+                    forecastGoalTitle
                     HStack {
-                        ForEach(courseForecasts) { scenario in
-                            Button {
-                                select(scenario)
-                            } label: {
-                                Label(scenario.name, systemImage: scenario.id == forecast?.id ? "checkmark.circle.fill" : "circle")
-                            }
-                            .buttonStyle(.bordered)
-                        }
+                        Spacer(minLength: 0)
+                        forecastTargetButton
                     }
-                }.scrollIndicators(.hidden)
+                }
             }
             if result.requiresManualReview {
                 ContentUnavailableView("Goal estimate unavailable", systemImage: "exclamationmark.triangle", description: Text("Check the course setup first."))
-            } else if policy?.targetPercentage == nil {
-                ContentUnavailableView("Set a target", systemImage: "chart.line.uptrend.xyaxis", description: Text("Choose the course percentage you want, and we’ll show what you need on remaining work."))
             } else {
-                if let required = result.requiredRemainingAverage {
-                    forecastMetric("You need on remaining work", value: percent(required), detail: result.targetFeasibility.displayName)
-                }
-                if let finalNeeded = result.finalExamNeeded {
-                    forecastMetric("You need on the final", value: percent(finalNeeded), detail: "Only when one final remains")
-                }
+                WhatIfPlaygroundView(
+                    course: course,
+                    policy: policy,
+                    categories: courseCategories,
+                    items: courseItems,
+                    gradeScale: scale,
+                    scenarios: courseForecasts,
+                    allCourses: allCourses,
+                    selectedScenario: forecast
+                )
             }
             Text("This is an estimate based on your setup and recorded scores. It is not an official final grade.")
                 .font(.footnote).foregroundStyle(.secondary)
         }
     }
 
-    private func forecastMetric(_ title: String, value: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(value).font(.title2.bold().monospacedDigit())
-            Text(detail).font(.caption2).foregroundStyle(.secondary)
+    private var forecastGoalTitle: some View {
+        Text("I want to finish with")
+            .font(.title2.bold())
+            .fixedSize(horizontal: true, vertical: false)
+            .layoutPriority(1)
+            .accessibilityIdentifier("forecastGoalTitle")
+    }
+
+    private var forecastTargetButton: some View {
+        Button {
+            showTargetPicker = true
+        } label: {
+            Text(policy?.targetPercentage.map { "\(compact($0))%" } ?? "Set target")
+                .padding(.horizontal, DesignSystem.Spacing.medium)
+                .padding(.vertical, DesignSystem.Spacing.small)
+                .contentShape(.interaction, Capsule())
+                .glassEffect(
+                    .regular.tint(DesignSystem.ColorToken.gold.opacity(0.32)).interactive(),
+                    in: Capsule()
+                )
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(DesignSystem.Spacing.medium)
-        .contentSurface()
+        .buttonStyle(.plain)
+        .fixedSize()
+        .foregroundStyle(.primary)
+        .accessibilityIdentifier("forecastTargetButton")
     }
 
     @ViewBuilder private func courseIdentityAndGrade(horizontal: Bool) -> some View {
@@ -647,6 +776,11 @@ struct CourseDetailView: View {
             Text(percent(result.calculatedCurrentPercentage))
                 .font(.system(.largeTitle, design: .rounded, weight: .bold))
                 .monospacedDigit()
+                .contentTransition(.numericText())
+                .animation(
+                    DesignSystem.Motion.emphasized(reduceMotion: reduceMotion),
+                    value: result.calculatedCurrentPercentage
+                )
             Text(result.currentLetterGrade?.rawValue ?? "No letter prediction")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(result.requiresManualReview ? DesignSystem.ColorToken.warning : DesignSystem.ColorToken.gold)
@@ -659,13 +793,16 @@ struct CourseDetailView: View {
 
     private func delete(_ item: GradeItem) {
         let snapshot = DeletedGradeItem(item)
-        modelContext.delete(item)
-        do {
-            try modelContext.save()
-            GradeItemNotificationService.cancel(identifier: snapshot.notificationIdentifier)
-            withAnimation(undoAnimation) { deletedItem = snapshot }
-        } catch {
-            modelContext.rollback()
+        withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+            modelContext.delete(item)
+            do {
+                try modelContext.save()
+                GradeItemNotificationService.cancel(identifier: snapshot.notificationIdentifier)
+                deletedItem = snapshot
+                scoreImpact = nil
+            } catch {
+                modelContext.rollback()
+            }
         }
     }
 
@@ -698,14 +835,93 @@ struct CourseDetailView: View {
             try modelContext.save()
             let reminder = GradeItemReminderSnapshot(restored)
             Task { try? await GradeItemNotificationService.sync(reminder) }
-            withAnimation(undoAnimation) { self.deletedItem = nil }
+            withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+                self.deletedItem = nil
+            }
         } catch {
             modelContext.rollback()
         }
     }
 
-    private var undoAnimation: Animation {
-        reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.32, dampingFraction: 1)
+    private func beginScoring(_ item: GradeItem) {
+        scoreBaseline = ScoreImpactBaseline(
+            itemID: item.id,
+            currentGrade: result.calculatedCurrentPercentage,
+            projectedFinal: result.projectedFinalPercentage,
+            projectedLetter: result.projectedLetterGrade,
+            termGPA: projectedTermGPA(for: result.projectedLetterGrade)
+        )
+        scoringItem = item
+    }
+
+    private func completeScoreUpdate(_ item: GradeItem, change: RecordedScoreChange) {
+        guard let baseline = scoreBaseline, baseline.itemID == item.id else { return }
+        let updated = result
+        let impact = ScoreImpactPresentation(
+            itemID: item.id,
+            itemTitle: item.title,
+            change: change,
+            currentGradeBefore: baseline.currentGrade,
+            currentGradeAfter: updated.calculatedCurrentPercentage,
+            projectedFinalBefore: baseline.projectedFinal,
+            projectedFinalAfter: updated.projectedFinalPercentage,
+            projectedLetterBefore: baseline.projectedLetter,
+            projectedLetterAfter: updated.projectedLetterGrade,
+            termGPABefore: baseline.termGPA,
+            termGPAAfter: projectedTermGPA(for: updated.projectedLetterGrade)
+        )
+        scoreBaseline = nil
+        withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+            scoreImpact = impact
+        }
+    }
+
+    private func projectedTermGPA(for letter: GradeLetter?) -> Decimal? {
+        guard let projectedGrade = ProjectedGPAService.courseGrade(from: letter) else { return nil }
+        return ProjectedGPAService.calculate(
+            allCourses.filter { !$0.isDeleted }.map(CourseCalculationInput.init),
+            projectedGrades: [course.id: projectedGrade],
+            termID: course.term?.id
+        ).projected.gpa
+    }
+
+    private func undoScoreUpdate() {
+        guard let impact = scoreImpact,
+              let item = courseItems.first(where: { $0.id == impact.itemID }) else { return }
+        item.earnedPoints = impact.change.previousEarnedPoints
+        item.possiblePoints = impact.change.previousPossiblePoints
+        item.status = impact.change.previousStatus
+        item.updatedAt = impact.change.previousUpdatedAt
+        do {
+            try modelContext.save()
+            dismissScoreImpact()
+        } catch {
+            modelContext.rollback()
+        }
+    }
+
+    private func dismissScoreImpact() {
+        withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+            scoreImpact = nil
+        }
+    }
+
+    private func autoDismissScoreImpact() async {
+        guard let id = scoreImpact?.id else { return }
+        try? await Task.sleep(for: .seconds(8))
+        guard !Task.isCancelled, scoreImpact?.id == id else { return }
+        dismissScoreImpact()
+    }
+
+    private var feedbackIsVisible: Bool {
+        deletedItem != nil || scoreImpact != nil
+    }
+
+    private var sectionBinding: Binding<CourseDetailSection> {
+        Binding(
+            get: { section },
+            set: { section = $0 }
+        )
     }
 
     private var undoButton: some View {

@@ -2,6 +2,10 @@ import Charts
 import SwiftData
 import SwiftUI
 
+private enum DashboardDestination: Hashable {
+    case semesterMap
+}
+
 struct DashboardView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.locale) private var locale
@@ -18,6 +22,9 @@ struct DashboardView: View {
     @State private var showNewTerm = false
     @State private var addAction: TodayAddAction?
     @State private var availableWidth: CGFloat = 0
+    @State private var navigationPath = NavigationPath()
+    @State private var didOpenScreenshotSemesterMap = false
+    @AppStorage("showFocusNext") private var showFocusNext = true
 
     private var includedTerms: [AcademicTerm] {
         terms.filter { !$0.isDeleted && $0.isIncludedInCumulativeGPA }
@@ -87,9 +94,23 @@ struct DashboardView: View {
         }
         return Array(messages.prefix(5))
     }
+    private var focusRecommendations: [GradeItem] {
+        liveGradeItems
+            .filter { item in
+                item.earnedPoints == nil
+                    && item.dueDate != nil
+                    && item.isIncluded
+                    && !item.isDropped
+                    && !item.isExcused
+                    && item.course != nil
+            }
+            .sorted { focusScore($0) > focusScore($1) }
+            .prefix(3)
+            .map { $0 }
+    }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             ZStack {
                 CampusBackground()
                 ScrollView {
@@ -98,6 +119,9 @@ struct DashboardView: View {
                             HStack(alignment: .top, spacing: DesignSystem.Spacing.large) {
                                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
                                     todayTasks
+                                    if showFocusNext && !focusRecommendations.isEmpty {
+                                        focusNextSection
+                                    }
                                     gpaSummary
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -110,6 +134,9 @@ struct DashboardView: View {
                         } else {
                             LazyVStack(spacing: DesignSystem.Spacing.medium) {
                                 todayTasks
+                                if showFocusNext && !focusRecommendations.isEmpty {
+                                    focusNextSection
+                                }
                                 recentCourses
                                 gpaSummary
                             }
@@ -130,6 +157,12 @@ struct DashboardView: View {
             }
             .navigationTitle("Today")
             .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    NavigationLink(value: DashboardDestination.semesterMap) {
+                        Label("Semester Map", systemImage: "calendar.day.timeline.leading")
+                    }
+                    .accessibilityIdentifier("semesterMapButton")
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Menu("Add", systemImage: "plus") {
                         Button("Add Assignment", systemImage: "square.and.pencil") { present(.assignment) }
@@ -166,6 +199,20 @@ struct DashboardView: View {
             .sheet(item: $addAction) { action in
                 TodayAddDestination(action: action, term: currentTerm, courses: courses)
             }
+            .navigationDestination(for: DashboardDestination.self) { destination in
+                switch destination {
+                case .semesterMap:
+                    SemesterMapView(preferences: preferences)
+                }
+            }
+            .task {
+                guard ProcessInfo.processInfo.arguments.contains("--screenshot-semester-map"),
+                      !didOpenScreenshotSemesterMap
+                else { return }
+                didOpenScreenshotSemesterMap = true
+                await Task.yield()
+                navigationPath.append(DashboardDestination.semesterMap)
+            }
         }
     }
 
@@ -195,12 +242,21 @@ struct DashboardView: View {
                             .foregroundStyle(item.earnedPoints == nil ? DesignSystem.ColorToken.gold : .secondary)
                     }
                     .padding(.vertical, 4)
+                    .transition(
+                        reduceMotion
+                            ? .opacity
+                            : .opacity.combined(with: .offset(y: DesignSystem.Spacing.xSmall))
+                    )
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(DesignSystem.Spacing.medium)
         .contentSurface()
+        .animation(
+            DesignSystem.Motion.standard(reduceMotion: reduceMotion),
+            value: Array(upcomingItems.prefix(5)).map(\.id)
+        )
     }
 
     private var gpaSummary: some View {
@@ -226,6 +282,156 @@ struct DashboardView: View {
         .accessibilityElement(children: .combine)
     }
 
+    private var focusNextSection: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
+            HStack {
+                Label("Focus Next", systemImage: "scope")
+                    .font(.headline)
+                    .accessibilityIdentifier("focusNextTitle")
+                Spacer()
+                Button("Hide Focus Next", systemImage: "xmark") {
+                    withAnimation(DesignSystem.Motion.quick(reduceMotion: reduceMotion)) {
+                        showFocusNext = false
+                    }
+                }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("hideFocusNextButton")
+            }
+
+            ForEach(focusRecommendations) { item in
+                if let course = item.course {
+                    NavigationLink {
+                        CourseDetailView(
+                            course: course,
+                            preferences: preferences,
+                            initialScoringItemID: item.id
+                        )
+                    } label: {
+                        HStack(alignment: .top, spacing: DesignSystem.Spacing.small) {
+                            Image(systemName: focusSymbol(for: item))
+                                .foregroundStyle(DesignSystem.ColorToken.gold)
+                                .frame(width: 22)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("\(course.courseCode) · \(item.title)")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                Text(focusReason(for: item))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer(minLength: DesignSystem.Spacing.small)
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("focusNextItem-\(item.title)")
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(DesignSystem.Spacing.medium)
+        .contentSurface()
+        .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: DesignSystem.Spacing.xSmall)))
+    }
+
+    private func focusScore(_ item: GradeItem) -> Double {
+        let calendar = Calendar.autoupdatingCurrent
+        let start = calendar.startOfDay(for: .now)
+        let due = calendar.startOfDay(for: item.dueDate ?? .distantFuture)
+        let days = calendar.dateComponents([.day], from: start, to: due).day ?? Int.max
+
+        var score = 0.0
+        if item.status == .missing || days < 0 {
+            score += 1_000
+        } else if days == 0 {
+            score += 600
+        } else if days <= 3 {
+            score += 400
+        } else if days <= 7 {
+            score += 220
+        }
+
+        let categoryWeight = item.category.map { decimalDouble($0.weight) } ?? 0
+        score += min(100, max(0, categoryWeight)) * 2
+
+        switch item.category?.categoryType {
+        case .finalExam:
+            score += 260
+        case .midterm:
+            score += 200
+        case .project, .presentation:
+            score += 120
+        default:
+            break
+        }
+        return score
+    }
+
+    private func focusReason(for item: GradeItem) -> String {
+        let dueDescription: String
+        if let due = item.dueDate {
+            let formatter = RelativeDateTimeFormatter()
+            formatter.locale = locale
+            formatter.unitsStyle = .full
+            let start = Calendar.autoupdatingCurrent.startOfDay(for: .now)
+            let dueDay = Calendar.autoupdatingCurrent.startOfDay(for: due)
+            dueDescription = formatter.localizedString(for: dueDay, relativeTo: start)
+        } else {
+            dueDescription = AppCopy.isChinese(locale) ? "未设置日期" : "No due date"
+        }
+
+        if let category = item.category, category.weight > 0 {
+            let categoryName = localizedCategoryName(category)
+            if AppCopy.isChinese(locale) {
+                return "\(dueDescription)到期 · \(categoryName)占课程总评的 \(compact(category.weight))%。"
+            }
+            return String(
+                format: "Due %@ · %@ is worth %@ of the course grade.",
+                dueDescription,
+                categoryName,
+                "\(compact(category.weight))%"
+            )
+        }
+        return AppCopy.isChinese(locale) ? "\(dueDescription)到期。" : "Due \(dueDescription)."
+    }
+
+    private func localizedCategoryName(_ category: GradingCategory) -> String {
+        guard AppCopy.isChinese(locale) else { return category.name }
+        return switch category.categoryType {
+        case .homework: "作业"
+        case .quiz: "小测"
+        case .lab: "实验"
+        case .discussion: "讨论"
+        case .participation: "课堂参与"
+        case .attendance: "出勤"
+        case .project: "项目"
+        case .presentation: "展示"
+        case .midterm: "期中考试"
+        case .finalExam: "期末考试"
+        case .extraCredit: "额外加分"
+        case .custom: category.name
+        }
+    }
+
+    private func focusSymbol(for item: GradeItem) -> String {
+        switch item.category?.categoryType {
+        case .finalExam, .midterm:
+            "calendar.badge.clock"
+        case .lab:
+            "flask"
+        case .quiz:
+            "questionmark.circle"
+        default:
+            "checklist"
+        }
+    }
+
     private var heroCard: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
             HStack {
@@ -243,7 +449,10 @@ struct DashboardView: View {
                 Text(DecimalFormatters.string(cumulative.gpa, precision: preferences.decimalPrecision))
                     .font(.system(.largeTitle, design: .rounded, weight: .bold))
                     .contentTransition(.numericText())
-                    .animation(reduceMotion ? nil : DesignSystem.Motion.spring, value: cumulative.gpa)
+                    .animation(
+                        DesignSystem.Motion.emphasized(reduceMotion: reduceMotion),
+                        value: cumulative.gpa
+                    )
                     .accessibilityLabel("Cumulative GPA \(DecimalFormatters.string(cumulative.gpa, precision: preferences.decimalPrecision))")
                 HStack {
                     Label {
@@ -401,6 +610,11 @@ struct DashboardView: View {
                             VStack(alignment: .trailing) {
                                 Text(result.calculatedCurrentPercentage.map { "\(compact($0))%" } ?? "No scores")
                                     .font(.headline)
+                                    .contentTransition(.numericText())
+                                    .animation(
+                                        DesignSystem.Motion.emphasized(reduceMotion: reduceMotion),
+                                        value: result.calculatedCurrentPercentage
+                                    )
                                 Text(result.currentLetterGrade?.rawValue ?? "").font(.caption).foregroundStyle(.secondary)
                             }
                         }
@@ -424,7 +638,7 @@ struct DashboardView: View {
             Text(value)
                 .font(.title2.weight(.bold).monospacedDigit())
                 .contentTransition(.numericText())
-                .animation(reduceMotion ? nil : DesignSystem.Motion.interfaceSpring, value: value)
+                .animation(DesignSystem.Motion.emphasized(reduceMotion: reduceMotion), value: value)
         }
         .accessibilityElement(children: .combine)
     }
@@ -556,11 +770,47 @@ private struct ScorePickerView: View {
     @Query private var items: [GradeItem]
     let courses: [CourseRecord]
     private var courseModelIDs: Set<PersistentIdentifier> { Set(courses.map(\.persistentModelID)) }
+    private var scoreableItems: [GradeItem] {
+        items
+            .filter {
+                ($0.course.map { courseModelIDs.contains($0.persistentModelID) } ?? false)
+                    && !$0.isDropped
+                    && !$0.isExcused
+            }
+            .sorted {
+                ($0.dueDate ?? .distantFuture, $0.title)
+                    < ($1.dueDate ?? .distantFuture, $1.title)
+            }
+    }
+
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(items.filter { $0.course.map { courseModelIDs.contains($0.persistentModelID) } ?? false }) { item in
-                    NavigationLink(item.title) { RecordScoreView(item: item) }
+            Group {
+                if scoreableItems.isEmpty {
+                    ContentUnavailableView(
+                        "No assignments or exams",
+                        systemImage: "checkmark.circle",
+                        description: Text("Add an assignment or exam before recording a score.")
+                    )
+                } else {
+                    List(scoreableItems) { item in
+                        NavigationLink {
+                            RecordScoreView(item: item)
+                                .id(item.id)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(item.title)
+                                    .font(.body.weight(.medium))
+                                HStack(spacing: DesignSystem.Spacing.xSmall) {
+                                    Text(item.course?.courseCode ?? "Course")
+                                    Text(item.earnedPoints.map { "\(compact($0)) / \(compact(item.possiblePoints))" }
+                                         ?? "\(compact(item.possiblePoints)) points")
+                                }
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                 }
             }
             .navigationTitle("Record Score")

@@ -43,6 +43,181 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["courseDetailSectionPicker"].exists)
     }
 
+    func testForecastTargetButtonKeepsIntrinsicInteractionBounds() {
+        let app = makeApp(extraArguments: ["--screenshot-demo"])
+        exerciseForecastTargetInteractions(app: app, chinese: false)
+    }
+
+    func testForecastTargetButtonKeepsIntrinsicInteractionBoundsInSimplifiedChinese() {
+        let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-chinese"])
+        exerciseForecastTargetInteractions(app: app, chinese: true)
+    }
+
+    func testCourseDetailModuleTitlesStayInsideReadableBounds() {
+        let app = makeApp(extraArguments: ["--screenshot-demo"])
+        exerciseCourseDetailModuleTitleBounds(app: app)
+    }
+
+    func testCourseDetailModuleTitlesStayInsideReadableBoundsInSimplifiedChinese() {
+        let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-chinese"])
+        exerciseCourseDetailModuleTitleBounds(app: app)
+    }
+
+    func testFocusNextUsesReliableDemoWorkAndCanBeHidden() {
+        let app = makeApp(extraArguments: ["--screenshot-demo"])
+        exerciseFocusNext(app: app, hideLabel: "Hide Focus Next", reasonFragment: "course grade")
+    }
+
+    func testFocusNextUsesReliableDemoWorkAndCanBeHiddenInSimplifiedChinese() {
+        let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-chinese"])
+        exerciseFocusNext(app: app, hideLabel: "隐藏最值得关注", reasonFragment: "课程总评")
+    }
+
+    func testFocusNextShortcutOpensScoreEntryInsteadOfGradeItemEditor() {
+        let app = makeApp(extraArguments: ["--screenshot-demo"])
+        let focusItem = app.buttons["focusNextItem-Homework 3"]
+        XCTAssertTrue(focusItem.waitForExistence(timeout: 5))
+        focusItem.tap()
+
+        XCTAssertTrue(app.textFields["recordEarnedPointsField"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["recordPossiblePointsField"].exists)
+        XCTAssertFalse(app.textFields["gradeItemTitleField"].exists)
+    }
+
+    func testSemesterMapShowsCurrentWeekAndDatedWork() {
+        let app = makeApp(extraArguments: ["--screenshot-demo"])
+        exerciseSemesterMap(app: app, navigationTitle: "Semester Map", termStatus: "Starts")
+    }
+
+    func testSemesterMapShowsCurrentWeekAndDatedWorkInSimplifiedChinese() {
+        let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-chinese"])
+        exerciseSemesterMap(app: app, navigationTitle: "学期进度", termStatus: "开始")
+    }
+
+    func testSemesterMapScreenshotLaunchOpensTimeline() {
+        let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-semester-map"])
+        XCTAssertTrue(app.navigationBars["Semester Map"].waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(
+            app.descendants(matching: .any).matching(identifier: "semesterMapOverview").count,
+            0
+        )
+    }
+
+    private func exerciseSemesterMap(
+        app: XCUIApplication,
+        navigationTitle: String,
+        termStatus: String
+    ) {
+        let mapButton = app.buttons["semesterMapButton"]
+        XCTAssertTrue(mapButton.waitForExistence(timeout: 5))
+        mapButton.tap()
+
+        XCTAssertTrue(app.navigationBars[navigationTitle].waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(
+            app.descendants(matching: .any).matching(identifier: "semesterMapOverview").count,
+            0
+        )
+        XCTAssertTrue(app.staticTexts[termStatus].exists)
+        XCTAssertTrue(app.staticTexts["Homework 1"].exists)
+        if app.frame.width >= 700 {
+            XCTAssertGreaterThan(
+                app.descendants(matching: .any).matching(identifier: "semesterMapExpandedTimeline").count,
+                0
+            )
+        } else {
+            XCTAssertGreaterThan(
+                app.descendants(matching: .any).matching(identifier: "semesterMapCompactTimeline").count,
+                0
+            )
+        }
+    }
+
+    private func exerciseFocusNext(app: XCUIApplication, hideLabel: String, reasonFragment: String) {
+        let focusTitle = app.descendants(matching: .any)["focusNextTitle"]
+        XCTAssertTrue(focusTitle.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Homework 3"].exists)
+        XCTAssertTrue(
+            app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", reasonFragment)).firstMatch.exists
+        )
+
+        let hideButton = app.buttons["hideFocusNextButton"]
+        XCTAssertEqual(hideButton.label, hideLabel)
+        XCTAssertTrue(hideButton.isHittable)
+        hideButton.tap()
+        XCTAssertFalse(focusTitle.waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Homework 3"].exists)
+    }
+
+    private func exerciseCourseDetailModuleTitleBounds(app: XCUIApplication) {
+        openDemoGradebook(app: app)
+
+        let sectionPicker = app.descendants(matching: .any)["courseDetailSectionPicker"]
+        XCTAssertTrue(sectionPicker.waitForExistence(timeout: 5))
+
+        sectionPicker.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let breakdownTitle = app.staticTexts["gradeBreakdownTitle"]
+        XCTAssertTrue(breakdownTitle.waitForExistence(timeout: 5))
+        assertReadableLeadingBoundary(breakdownTitle, in: app)
+
+        sectionPicker.coordinate(withNormalizedOffset: CGVector(dx: 5.0 / 6.0, dy: 0.5)).tap()
+        let forecastTitle = app.staticTexts["forecastGoalTitle"]
+        XCTAssertTrue(forecastTitle.waitForExistence(timeout: 5))
+        assertReadableLeadingBoundary(forecastTitle, in: app)
+    }
+
+    private func assertReadableLeadingBoundary(
+        _ element: XCUIElement,
+        in app: XCUIApplication,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let readableInset: CGFloat = 8
+        XCTAssertGreaterThanOrEqual(
+            element.frame.minX,
+            app.frame.minX + readableInset,
+            "The title must not touch or cross the List clipping boundary.",
+            file: file,
+            line: line
+        )
+        XCTAssertLessThanOrEqual(element.frame.maxX, app.frame.maxX - readableInset, file: file, line: line)
+    }
+
+    private func exerciseForecastTargetInteractions(app: XCUIApplication, chinese: Bool) {
+        openDemoGradebook(app: app)
+
+        let sectionPicker = app.descendants(matching: .any)["courseDetailSectionPicker"]
+        XCTAssertTrue(sectionPicker.waitForExistence(timeout: 5))
+        sectionPicker.coordinate(withNormalizedOffset: CGVector(dx: 5.0 / 6.0, dy: 0.5)).tap()
+
+        let targetButton = app.buttons["forecastTargetButton"]
+        XCTAssertTrue(targetButton.waitForExistence(timeout: 5))
+        print("Forecast target button frame: \(targetButton.frame)")
+        XCTAssertLessThanOrEqual(targetButton.frame.width, 120)
+        XCTAssertLessThanOrEqual(targetButton.frame.height, 60)
+
+        let resetLabel = chinese ? "恢复默认" : "Reset"
+        let targetGradeTitle = chinese ? "目标成绩" : "Target Grade"
+        let saveLabel = chinese ? "保存" : "Save"
+        let resetButton = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", resetLabel)).firstMatch
+        XCTAssertTrue(resetButton.waitForExistence(timeout: 5))
+        XCTAssertFalse(targetButton.frame.intersects(resetButton.frame))
+
+        targetButton.press(forDuration: 2)
+        XCTAssertTrue(app.navigationBars[targetGradeTitle].waitForExistence(timeout: 5))
+        app.buttons[saveLabel].tap()
+        XCTAssertTrue(targetButton.waitForExistence(timeout: 5))
+
+        XCTAssertTrue(resetButton.isHittable)
+        resetButton.tap()
+        XCTAssertTrue(targetButton.exists)
+
+        let start = targetButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let outside = app.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.9))
+        start.press(forDuration: 2, thenDragTo: outside)
+        XCTAssertFalse(app.navigationBars[targetGradeTitle].exists)
+        XCTAssertTrue(targetButton.exists)
+    }
+
     func testSyllabusRecognitionRequiresReviewBeforeSaving() {
         let app = makeApp()
         completeOnboarding(app: app, loadDemo: true)
@@ -132,6 +307,33 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(confirmation.buttons["Cancel"].exists)
     }
 
+    func testGPAOverviewAdaptsAtLargestAccessibilityTextSize() {
+        let app = makeApp(extraArguments: [
+            "--screenshot-demo",
+            "--screenshot-tab=planner",
+            "-UIPreferredContentSizeCategoryName",
+            "UICTContentSizeCategoryAccessibilityExtraExtraExtraLarge",
+        ])
+        let overview = app.descendants(matching: .any)["gpaOverview"]
+        XCTAssertTrue(overview.waitForExistence(timeout: 5))
+        XCTAssertGreaterThanOrEqual(overview.frame.minX, app.frame.minX)
+        XCTAssertLessThanOrEqual(overview.frame.maxX, app.frame.maxX)
+        XCTAssertTrue(app.staticTexts["Official results"].exists)
+        XCTAssertTrue(app.staticTexts["Estimated results"].exists)
+    }
+
+    func testGPAOverviewUsesNaturalSimplifiedChineseLabels() {
+        let app = makeApp(extraArguments: [
+            "--screenshot-demo",
+            "--screenshot-chinese",
+            "--screenshot-tab=planner",
+        ])
+        XCTAssertTrue(app.descendants(matching: .any)["gpaOverview"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["正式成绩"].exists)
+        XCTAssertTrue(app.staticTexts["预计成绩"].exists)
+        XCTAssertTrue(app.staticTexts["本学期 GPA"].exists)
+    }
+
     func testExportDataFlow() {
         let app = makeApp()
         completeOnboarding(app: app)
@@ -161,13 +363,11 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(whatsNew.waitForExistence(timeout: 5))
         whatsNew.tap()
         XCTAssertTrue(app.descendants(matching: .any)["versionHistoryView"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Version 1.3.1"].exists)
-        XCTAssertTrue(app.staticTexts["Version 1.3.0"].exists)
-        XCTAssertTrue(app.staticTexts["Version 1.2.0"].exists)
-        XCTAssertTrue(app.staticTexts["Version 1.1.2"].exists)
-        XCTAssertTrue(app.staticTexts["Version 1.1.1"].exists)
-        XCTAssertTrue(app.staticTexts["Version 1.1.0"].exists)
-        XCTAssertTrue(app.staticTexts["Version 1.0"].exists)
+        for version in ["1.4.0", "1.3.1", "1.3.0", "1.2.0", "1.1.2", "1.1.1", "1.1.0", "1.0"] {
+            let versionLabel = app.staticTexts["Version \(version)"]
+            scrollTo(versionLabel, in: app)
+            XCTAssertTrue(versionLabel.exists, "Version \(version) should appear in version history")
+        }
     }
 
     func testWhatsNewAppearsOnceForAnExistingStudent() {
@@ -239,6 +439,47 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(gradedHomework.waitForExistence(timeout: 5))
     }
 
+    func testEditingRecordedScorePreservesExistingValuesUntilSave() {
+        let app = makeApp(extraArguments: ["--screenshot-demo"])
+        openDemoGradebook(app: app)
+
+        let homework = app.staticTexts["Homework 1"].firstMatch
+        XCTAssertTrue(homework.waitForExistence(timeout: 5))
+        homework.swipeRight()
+        let editScore = app.buttons["Edit Score"].firstMatch
+        XCTAssertTrue(editScore.waitForExistence(timeout: 5))
+        editScore.tap()
+
+        let earned = app.textFields["recordEarnedPointsField"]
+        let possible = app.textFields["recordPossiblePointsField"]
+        XCTAssertTrue(earned.waitForExistence(timeout: 5))
+        XCTAssertEqual(earned.value as? String, "18")
+        XCTAssertEqual(possible.value as? String, "20")
+        XCTAssertTrue(app.navigationBars["Edit Score"].exists)
+
+        app.buttons["Cancel"].tap()
+        let unchangedRow = app.descendants(matching: .any)["gradeItemRow-Homework 1"]
+        XCTAssertTrue(unchangedRow.waitForExistence(timeout: 5))
+        XCTAssertTrue(unchangedRow.label.contains("18 / 20"))
+    }
+
+    func testEditAssignmentDetailsOpensExistingItemInsteadOfNewItem() {
+        let app = makeApp(extraArguments: ["--screenshot-demo"])
+        openDemoGradebook(app: app)
+
+        let homework = app.staticTexts["Homework 1"].firstMatch
+        XCTAssertTrue(homework.waitForExistence(timeout: 5))
+        homework.press(forDuration: 1)
+
+        let editDetails = app.buttons["Edit Assignment Details"]
+        XCTAssertTrue(editDetails.waitForExistence(timeout: 5))
+        editDetails.tap()
+
+        XCTAssertTrue(app.navigationBars["Edit Grade Item"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.textFields["gradeItemTitleField"].value as? String, "Homework 1")
+        XCTAssertFalse(app.navigationBars["New Grade Item"].exists)
+    }
+
     func testGradedAssignmentDeleteRequiresConfirmationAndCanUndo() {
         let app = makeApp(extraArguments: ["--screenshot-demo"])
         openDemoGradebook(app: app)
@@ -251,6 +492,8 @@ final class AggieGPAUITests: XCTestCase {
         delete.tap()
         let deletionAlert = app.alerts.firstMatch
         XCTAssertTrue(deletionAlert.waitForExistence(timeout: 5))
+        XCTAssertTrue(homework.exists, "The row must remain until destructive deletion is confirmed.")
+        XCTAssertFalse(app.buttons["undoGradeItemDeleteButton"].exists)
         deletionAlert.buttons["Delete Assignment"].tap()
         XCTAssertTrue(app.buttons["undoGradeItemDeleteButton"].waitForExistence(timeout: 5))
         app.buttons["undoGradeItemDeleteButton"].tap()
@@ -296,7 +539,7 @@ final class AggieGPAUITests: XCTestCase {
     }
 
     private func openDemoGradebook(app: XCUIApplication) {
-        app.tabBars.buttons["Courses"].tap()
+        app.buttons.matching(identifier: "books.vertical").firstMatch.tap()
         app.buttons.matching(NSPredicate(format: "label CONTAINS 'Fall 2026'")).firstMatch.tap()
         app.staticTexts["CHE 002A"].tap()
     }

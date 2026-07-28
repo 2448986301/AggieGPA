@@ -79,7 +79,9 @@ struct IPadCourseList: View {
                         }
                         .tag(course.id)
                         .contextMenu {
-                            Button("Open Course", systemImage: "arrow.right") { selectedCourseID = course.id }
+                            Button("Open Course", systemImage: "arrow.right") {
+                                selectedCourseID = course.id
+                            }
                         }
                     }
                 }
@@ -88,7 +90,9 @@ struct IPadCourseList: View {
         .searchable(text: $searchText, prompt: "Course")
         .navigationSplitViewColumnWidth(min: 240, ideal: 300, max: 340)
         .onChange(of: liveCourses.map(\.id), initial: true) { _, ids in
-            if selectedCourseID == nil || !ids.contains(selectedCourseID!) { selectedCourseID = ids.first }
+            if selectedCourseID == nil || !ids.contains(selectedCourseID!) {
+                selectedCourseID = ids.first
+            }
         }
         .onChange(of: searchQuery, initial: true) { _, query in searchText = query }
     }

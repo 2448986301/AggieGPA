@@ -11,6 +11,29 @@ enum CourseGradeSnapshotBuilder {
         gradeScale: GradeScale?,
         forecast: ForecastScenario?
     ) -> CourseGradeCalculationInput {
+        makeInput(
+            course: course,
+            policy: policy,
+            categories: categories,
+            items: items,
+            gradeScale: gradeScale,
+            forecastInput: forecast.map {
+                CourseForecastInput(
+                    assumedRemainingPercentage: $0.assumedRemainingPercentage,
+                    itemPercentages: $0.itemAssumptions
+                )
+            }
+        )
+    }
+
+    static func makeInput(
+        course: CourseRecord,
+        policy: CourseGradingPolicy?,
+        categories: [GradingCategory],
+        items: [GradeItem],
+        gradeScale: GradeScale?,
+        forecastInput: CourseForecastInput?
+    ) -> CourseGradeCalculationInput {
         let courseCategories = categories
             .filter { $0.course?.persistentModelID == course.persistentModelID }
             .sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
@@ -41,13 +64,6 @@ enum CourseGradeSnapshotBuilder {
                 boundaries: $0.boundaries
             )
         }
-        let forecastInput = forecast.map {
-            CourseForecastInput(
-                assumedRemainingPercentage: $0.assumedRemainingPercentage,
-                itemPercentages: $0.itemAssumptions
-            )
-        }
-
         return CourseGradeCalculationInput(
             gradingMethod: policy?.gradingMethod ?? .weightedCategories,
             normalizeCurrentGrade: policy?.normalizeCurrentGrade ?? true,
