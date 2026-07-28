@@ -504,10 +504,8 @@ struct CourseDetailView: View {
                 .font(.body.weight(.semibold))
                 .labelStyle(.titleAndIcon)
         }
-        .buttonStyle(LiquidGlassPressButtonStyle(
-            shape: .capsule,
-            tint: DesignSystem.ColorToken.gold.opacity(0.32)
-        ))
+        .buttonStyle(.glass(.regular.tint(DesignSystem.ColorToken.gold.opacity(0.32)).interactive()))
+        .buttonBorderShape(.capsule)
         .foregroundStyle(.primary)
         .accessibilityLabel("Add assignment or exam")
     }
@@ -575,16 +573,17 @@ struct CourseDetailView: View {
 
     @ViewBuilder private var forecastContent: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
-            HStack {
-                Text("I want to finish with").font(.title2.bold())
-                Spacer()
-                Button(policy?.targetPercentage.map { "\(compact($0))%" } ?? "Set target") { showTargetPicker = true }
-                    .frame(minWidth: 72)
-                    .buttonStyle(LiquidGlassPressButtonStyle(
-                        shape: .capsule,
-                        tint: DesignSystem.ColorToken.gold.opacity(0.32)
-                    ))
-                    .foregroundStyle(.primary)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: DesignSystem.Spacing.medium) {
+                    forecastGoalTitle
+                    Spacer(minLength: DesignSystem.Spacing.small)
+                    forecastTargetButton
+                }
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
+                    forecastGoalTitle
+                    forecastTargetButton
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
             }
             if result.requiresManualReview {
                 ContentUnavailableView("Goal estimate unavailable", systemImage: "exclamationmark.triangle", description: Text("Check the course setup first."))
@@ -603,6 +602,24 @@ struct CourseDetailView: View {
             Text("This is an estimate based on your setup and recorded scores. It is not an official final grade.")
                 .font(.footnote).foregroundStyle(.secondary)
         }
+    }
+
+    private var forecastGoalTitle: some View {
+        Text("I want to finish with")
+            .font(.title2.bold())
+            .fixedSize(horizontal: true, vertical: false)
+            .layoutPriority(1)
+    }
+
+    private var forecastTargetButton: some View {
+        Button(policy?.targetPercentage.map { "\(compact($0))%" } ?? "Set target") {
+            showTargetPicker = true
+        }
+        .frame(minWidth: 72)
+        .fixedSize()
+        .buttonStyle(.glass(.regular.tint(DesignSystem.ColorToken.gold.opacity(0.32)).interactive()))
+        .buttonBorderShape(.capsule)
+        .foregroundStyle(.primary)
     }
 
     @ViewBuilder private func courseIdentityAndGrade(horizontal: Bool) -> some View {
