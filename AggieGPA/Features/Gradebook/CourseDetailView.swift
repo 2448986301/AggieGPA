@@ -265,17 +265,15 @@ struct CourseDetailView: View {
                 gradebookSections
             }
         case .breakdown:
-            Section {
-                breakdownContent
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-            }
+            breakdownContent
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
         case .forecast:
-            Section {
-                forecastContent
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-            }
+            forecastContent
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
         }
     }
 
