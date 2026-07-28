@@ -26,8 +26,21 @@ enum AppVersionHistory {
 
     static let releases: [AppVersionRelease] = [
         AppVersionRelease(
-            version: "1.3.1",
+            version: "1.4.0",
             status: "Current Version",
+            summary: "Explore grade momentum with clearer feedback and more fluid interactions.",
+            highlights: [
+                "Interactive grade simulations stay separate from recorded scores",
+                "Score changes show their effect on course grades and projected GPA",
+                "Today highlights up to three reliable tasks to focus on next",
+                "A new explanation shows how categories contribute to the current grade",
+                "More consistent motion, undo feedback, and iPhone and iPad layouts",
+                "Improved English, Simplified Chinese, Dynamic Type, and Reduce Motion support"
+            ]
+        ),
+        AppVersionRelease(
+            version: "1.3.1",
+            status: "Previous Version",
             summary: "Resolved some known issues.",
             highlights: []
         ),

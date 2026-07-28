@@ -223,10 +223,14 @@ struct RecordScoreView: View {
         _possible = State(initialValue: compact(item.possiblePoints))
     }
 
+    private var isEditingRecordedScore: Bool {
+        item.earnedPoints != nil
+    }
+
     var body: some View {
         NavigationStack {
             Form {
-                Section(item.title) {
+                Section {
                     LabeledContent("Course", value: item.course?.courseCode ?? "Course")
                         .foregroundStyle(.secondary)
                 }
@@ -240,6 +244,11 @@ struct RecordScoreView: View {
                         .focused($focusedField, equals: .possible)
                         .accessibilityIdentifier("recordPossiblePointsField")
                 }
+                Section {
+                    Text("Your recorded score stays unchanged until you tap Save.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 if let validation {
                     Section {
                         Label(validation, systemImage: "exclamationmark.circle.fill").foregroundStyle(.red)
@@ -249,7 +258,7 @@ struct RecordScoreView: View {
             }
             .animation(DesignSystem.Motion.quick(reduceMotion: reduceMotion), value: validation)
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle("Record Score")
+            .navigationTitle(isEditingRecordedScore ? "Edit Score" : "Record Score")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

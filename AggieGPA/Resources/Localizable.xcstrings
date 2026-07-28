@@ -8027,6 +8027,276 @@
         }
       }
     },
+    "%@ currently contributes the most to this grade." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前 %@ 对总成绩的贡献最大。"
+          }
+        }
+      }
+    },
+    "%@ of the course weight has graded work." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前已有 %@ 的课程权重完成评分。"
+          }
+        }
+      }
+    },
+    "A new explanation shows how categories contribute to the current grade" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新增成绩解释，清楚展示各类别如何影响当前成绩"
+          }
+        }
+      }
+    },
+    "Explore grade momentum with clearer feedback and more fluid interactions." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用更清楚的反馈和更流畅的交互掌握成绩变化。"
+          }
+        }
+      }
+    },
+    "Improved English, Simplified Chinese, Dynamic Type, and Reduce Motion support" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "改进英文、简体中文、动态字体和减弱动态效果支持"
+          }
+        }
+      }
+    },
+    "Interactive grade simulations stay separate from recorded scores" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "交互式成绩试算不会改动已记录分数"
+          }
+        }
+      }
+    },
+    "More consistent motion, undo feedback, and iPhone and iPad layouts" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "统一动画与撤销反馈，并改进 iPhone 和 iPad 布局"
+          }
+        }
+      }
+    },
+    "Not graded yet" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未评分"
+          }
+        }
+      }
+    },
+    "Possible final range" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预计最终成绩范围"
+          }
+        }
+      }
+    },
+    "Previous Version" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先前版本"
+          }
+        }
+      }
+    },
+    "Score changes show their effect on course grades and projected GPA" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录入分数后可查看课程成绩和预测 GPA 的变化"
+          }
+        }
+      }
+    },
+    "Ungraded work is excluded from the current grade, not counted as zero." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未评分项目不会计入当前成绩，也不会被当作 0 分。"
+          }
+        }
+      }
+    },
+    "Why This Grade?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为什么是这个成绩？"
+          }
+        }
+      }
+    },
+    "Due %@ · %@ is worth %@ of the course grade." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@到期 · %@ 占课程总评的 %@。"
+          }
+        }
+      }
+    },
+    "Due %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@到期。"
+          }
+        }
+      }
+    },
+    "Focus Next" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最值得关注"
+          }
+        }
+      }
+    },
+    "Hide Focus Next" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐藏最值得关注"
+          }
+        }
+      }
+    },
+    "Homework" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "作业"
+          }
+        }
+      }
+    },
+    "Labs" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实验"
+          }
+        }
+      }
+    },
+    "Midterms" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "期中考试"
+          }
+        }
+      }
+    },
+    "Final Exam" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "期末考试"
+          }
+        }
+      }
+    },
+    "Today highlights up to three reliable tasks to focus on next" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today 会提示最多三项当前最值得关注的可靠任务"
+          }
+        }
+      }
+    },
+    "Edit Score" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑成绩"
+          }
+        }
+      }
+    },
+    "Edit Assignment Details" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑作业信息"
+          }
+        }
+      }
+    },
+    "Swipe right to record or edit the score. Swipe left to delete. Long press to edit assignment details." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "向右轻扫可录入或修改成绩，向左轻扫可删除，长按可编辑作业信息。"
+          }
+        }
+      }
+    },
+    "Add an assignment or exam before recording a score." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先添加作业或考试，再录入成绩。"
+          }
+        }
+      }
+    },
+    "Your recorded score stays unchanged until you tap Save." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点击“保存”前，已记录的成绩不会改变。"
+          }
+        }
+      }
+    },
     "Your GPA" : {
       "comment" : "A section in the planner that displays the user's GPA.",
       "extractionState" : "stale",

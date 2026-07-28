@@ -226,7 +226,7 @@ struct WhatIfPlaygroundView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.title).font(.headline)
-                    Text(item.category?.name ?? "Unassigned")
+                    Text(LocalizedStringKey(item.category?.name ?? "Unassigned"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

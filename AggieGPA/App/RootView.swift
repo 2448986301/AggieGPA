@@ -137,6 +137,9 @@ struct RootView: View {
 
     private func bootstrapScreenshotModeIfNeeded() {
         let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("--screenshot-demo") {
+            UserDefaults.standard.set(true, forKey: "showFocusNext")
+        }
         guard arguments.contains("--screenshot-demo"), preferences.isEmpty else { return }
         let preference = UserPreferences(displayName: "Alex", appearance: arguments.contains("--screenshot-dark") ? .dark : .light,
                                          language: arguments.contains("--screenshot-chinese") ? .simplifiedChinese : .english,

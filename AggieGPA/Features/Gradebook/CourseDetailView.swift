@@ -46,6 +46,7 @@ struct CourseDetailView: View {
     let course: CourseRecord
     let preferences: UserPreferences
     let initialItemID: UUID?
+    let initialScoringItemID: UUID?
     @State private var section = CourseDetailSection.gradebook
     @State private var editingCategory: GradingCategory?
     @State private var editingItem: GradeItem?
@@ -64,11 +65,18 @@ struct CourseDetailView: View {
     @State private var itemPendingDeletion: GradeItem?
     @State private var scoreBaseline: ScoreImpactBaseline?
     @State private var scoreImpact: ScoreImpactPresentation?
+    @State private var hasOpenedInitialDestination = false
 
-    init(course: CourseRecord, preferences: UserPreferences, initialItemID: UUID? = nil) {
+    init(
+        course: CourseRecord,
+        preferences: UserPreferences,
+        initialItemID: UUID? = nil,
+        initialScoringItemID: UUID? = nil
+    ) {
         self.course = course
         self.preferences = preferences
         self.initialItemID = initialItemID
+        self.initialScoringItemID = initialScoringItemID
     }
 
     private func belongsToCourse(_ relatedCourse: CourseRecord?) -> Bool {
@@ -156,12 +164,13 @@ struct CourseDetailView: View {
             RecordScoreView(item: item) { change in
                 completeScoreUpdate(item, change: change)
             }
+            .id(item.id)
         }
         .sheet(isPresented: $showTargetPicker) { SimpleTargetPickerView(course: course, policy: policy) }
         .sheet(isPresented: $showForecastEditor) {
             ForecastEditorView(course: course, policy: policy, forecast: editingForecast)
         }
-        .task { openInitialItemIfNeeded() }
+        .task(id: courseItems.map(\.id)) { openInitialDestinationIfNeeded() }
         .task(id: scoreImpact?.id) { await autoDismissScoreImpact() }
         .sensoryFeedback(.success, trigger: scoreImpact?.id)
         .sensoryFeedback(.warning, trigger: deletedItem?.id)
@@ -191,12 +200,19 @@ struct CourseDetailView: View {
         }
     }
 
-    private func openInitialItemIfNeeded() {
-        guard let initialItemID else { return }
-        guard let item = courseItems.first(where: { $0.id == initialItemID }) else { return }
+    private func openInitialDestinationIfNeeded() {
+        guard !hasOpenedInitialDestination else { return }
         section = .gradebook
-        editingItem = item
-        showItemEditor = true
+        if let initialScoringItemID,
+           let item = courseItems.first(where: { $0.id == initialScoringItemID }) {
+            hasOpenedInitialDestination = true
+            beginScoring(item)
+        } else if let initialItemID,
+                  let item = courseItems.first(where: { $0.id == initialItemID }) {
+            hasOpenedInitialDestination = true
+            editingItem = item
+            showItemEditor = true
+        }
     }
 
     private var isShowingCategoryDeletionAlert: Binding<Bool> {
@@ -240,7 +256,7 @@ struct CourseDetailView: View {
             .listRowBackground(Color.clear)
         }
         .listStyle(.insetGrouped)
-        .listSectionSpacing(.custom(DesignSystem.Spacing.medium))
+        .listSectionSpacing(.custom(DesignSystem.Spacing.small))
         .scrollContentBackground(.hidden)
         .scrollEdgeEffectHidden(true, for: [.top, .leading, .trailing])
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
@@ -268,15 +284,24 @@ struct CourseDetailView: View {
             }
         case .breakdown:
             breakdownContent
-                .listRowInsets(EdgeInsets())
+                .listRowInsets(detailModuleRowInsets)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
         case .forecast:
             forecastContent
-                .listRowInsets(EdgeInsets())
+                .listRowInsets(detailModuleRowInsets)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
         }
+    }
+
+    private var detailModuleRowInsets: EdgeInsets {
+        EdgeInsets(
+            top: 0,
+            leading: DesignSystem.Spacing.medium,
+            bottom: 0,
+            trailing: DesignSystem.Spacing.medium
+        )
     }
 
     @ViewBuilder private var gradebookSections: some View {
@@ -404,7 +429,7 @@ struct CourseDetailView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(category.name).font(.headline)
+                    Text(LocalizedStringKey(category.name)).font(.headline)
                     Text("Worth \(percent(category.weight)) of course")
                         .font(.caption).foregroundStyle(.secondary)
                 }
@@ -463,13 +488,19 @@ struct CourseDetailView: View {
         }
         .contentShape(Rectangle())
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
-            Button("Record Score") { beginScoring(item) }
-                .tint(DesignSystem.ColorToken.navyRaised)
-            Button("Edit") {
+            if hasRecordedScore(item) {
+                Button("Edit Score") { beginScoring(item) }
+                    .tint(DesignSystem.ColorToken.navyRaised)
+            } else {
+                Button("Record Score") { beginScoring(item) }
+                    .tint(DesignSystem.ColorToken.navyRaised)
+            }
+        }
+        .contextMenu {
+            Button("Edit Assignment Details", systemImage: "pencil") {
                 editingItem = item
                 showItemEditor = true
             }
-            .tint(DesignSystem.ColorToken.gold)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button("Delete") { requestDelete(item) }
@@ -484,7 +515,7 @@ struct CourseDetailView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("gradeItemRow-\(item.title)")
         .accessibilityLabel(itemAccessibilityLabel(item))
-        .accessibilityHint("Swipe left for score, editing, and deletion actions.")
+        .accessibilityHint("Swipe right to record or edit the score. Swipe left to delete. Long press to edit assignment details.")
     }
 
     private var addGradeItemMenu: some View {
@@ -513,7 +544,7 @@ struct CourseDetailView: View {
     private func categoryListHeader(_ category: GradingCategory) -> some View {
         HStack(spacing: DesignSystem.Spacing.small) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(category.name).font(.headline)
+                Text(LocalizedStringKey(category.name)).font(.headline)
                 Text("Worth \(percent(category.weight)) of course")
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -536,14 +567,16 @@ struct CourseDetailView: View {
 
     @ViewBuilder private var breakdownContent: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
-            Text("Grade Breakdown").font(.title2.bold())
+            Text("Grade Breakdown")
+                .font(.title2.bold())
+                .accessibilityIdentifier("gradeBreakdownTitle")
             if result.categoryBreakdown.isEmpty {
                 ContentUnavailableView("No breakdown yet", systemImage: "chart.bar.xaxis", description: Text("Add grading categories and scores first."))
             }
             ForEach(result.categoryBreakdown, id: \.id) { category in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text(category.name).font(.headline)
+                        Text(LocalizedStringKey(category.name)).font(.headline)
                         Spacer()
                         Text(percent(category.average)).font(.headline.monospacedDigit())
                     }
@@ -558,6 +591,7 @@ struct CourseDetailView: View {
                 }
                 .padding(DesignSystem.Spacing.medium).contentSurface()
             }
+            gradeExplanation
             if !result.issues.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Calculation Details", systemImage: "checklist") .font(.headline)
@@ -569,6 +603,83 @@ struct CourseDetailView: View {
                 .contentSurface()
             }
         }
+    }
+
+    private var gradeExplanation: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
+            Label("Why This Grade?", systemImage: "questionmark.circle")
+                .font(.headline)
+
+            ForEach(result.categoryBreakdown, id: \.id) { category in
+                HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.small) {
+                    Text(LocalizedStringKey(category.name))
+                        .lineLimit(2)
+                    Spacer(minLength: DesignSystem.Spacing.small)
+                    if let average = category.average {
+                        Text(
+                            "\(percent(average)) × \(percent(category.weight)) = \(percent(category.contribution))"
+                        )
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: true, vertical: false)
+                    } else {
+                        Text("Not graded yet")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Divider()
+
+            Text(
+                String(
+                    format: String(localized: "%@ of the course weight has graded work."),
+                    percent(result.gradedWeight)
+                )
+            )
+            .font(.subheadline)
+
+            Label(
+                "Ungraded work is excluded from the current grade, not counted as zero.",
+                systemImage: "checkmark.shield"
+            )
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+
+            if let category = highestContributionCategory {
+                Text(
+                    String(
+                        format: String(localized: "%@ currently contributes the most to this grade."),
+                        category.name
+                    )
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
+
+            if let lowest = result.worstPossiblePercentage,
+               let highest = result.bestPossiblePercentage {
+                HStack {
+                    Text("Possible final range")
+                    Spacer()
+                    Text("\(percent(lowest)) – \(percent(highest))")
+                        .fontWeight(.semibold)
+                        .monospacedDigit()
+                }
+                .font(.subheadline)
+            }
+        }
+        .padding(DesignSystem.Spacing.medium)
+        .contentSurface()
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("gradeExplanation")
+    }
+
+    private var highestContributionCategory: CategoryGradeBreakdown? {
+        result.categoryBreakdown
+            .filter { $0.average != nil }
+            .max { $0.contribution < $1.contribution }
     }
 
     @ViewBuilder private var forecastContent: some View {
@@ -611,6 +722,7 @@ struct CourseDetailView: View {
             .font(.title2.bold())
             .fixedSize(horizontal: true, vertical: false)
             .layoutPriority(1)
+            .accessibilityIdentifier("forecastGoalTitle")
     }
 
     private var forecastTargetButton: some View {
