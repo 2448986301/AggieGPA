@@ -21,3 +21,5 @@ Package.resolved
 # macOS
 .DS_Store
 
+# Local development tools (kept with this project, never uploaded)
+Tools/GitHubCLI/
