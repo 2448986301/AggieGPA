@@ -84,6 +84,54 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertFalse(app.textFields["gradeItemTitleField"].exists)
     }
 
+    func testSemesterMapShowsCurrentWeekAndDatedWork() {
+        let app = makeApp(extraArguments: ["--screenshot-demo"])
+        exerciseSemesterMap(app: app, navigationTitle: "Semester Map", termStatus: "Starts")
+    }
+
+    func testSemesterMapShowsCurrentWeekAndDatedWorkInSimplifiedChinese() {
+        let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-chinese"])
+        exerciseSemesterMap(app: app, navigationTitle: "学期进度", termStatus: "开始")
+    }
+
+    func testSemesterMapScreenshotLaunchOpensTimeline() {
+        let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-semester-map"])
+        XCTAssertTrue(app.navigationBars["Semester Map"].waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(
+            app.descendants(matching: .any).matching(identifier: "semesterMapOverview").count,
+            0
+        )
+    }
+
+    private func exerciseSemesterMap(
+        app: XCUIApplication,
+        navigationTitle: String,
+        termStatus: String
+    ) {
+        let mapButton = app.buttons["semesterMapButton"]
+        XCTAssertTrue(mapButton.waitForExistence(timeout: 5))
+        mapButton.tap()
+
+        XCTAssertTrue(app.navigationBars[navigationTitle].waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(
+            app.descendants(matching: .any).matching(identifier: "semesterMapOverview").count,
+            0
+        )
+        XCTAssertTrue(app.staticTexts[termStatus].exists)
+        XCTAssertTrue(app.staticTexts["Homework 1"].exists)
+        if app.frame.width >= 700 {
+            XCTAssertGreaterThan(
+                app.descendants(matching: .any).matching(identifier: "semesterMapExpandedTimeline").count,
+                0
+            )
+        } else {
+            XCTAssertGreaterThan(
+                app.descendants(matching: .any).matching(identifier: "semesterMapCompactTimeline").count,
+                0
+            )
+        }
+    }
+
     private func exerciseFocusNext(app: XCUIApplication, hideLabel: String, reasonFragment: String) {
         let focusTitle = app.descendants(matching: .any)["focusNextTitle"]
         XCTAssertTrue(focusTitle.waitForExistence(timeout: 5))

@@ -33,6 +33,7 @@ enum AppVersionHistory {
                 "Interactive grade simulations stay separate from recorded scores",
                 "Score changes show their effect on course grades and projected GPA",
                 "Today highlights up to three reliable tasks to focus on next",
+                "Semester Map organizes dated work by week with course and type filters",
                 "A new explanation shows how categories contribute to the current grade",
                 "More consistent motion, undo feedback, and iPhone and iPad layouts",
                 "Improved English, Simplified Chinese, Dynamic Type, and Reduce Motion support"
@@ -46,7 +47,7 @@ enum AppVersionHistory {
         ),
         AppVersionRelease(
             version: "1.3.0",
-            status: "Current Version",
+            status: "Previous Version",
             summary: "Reviewable on-device syllabus understanding, now with a native iPad workspace.",
             highlights: [
                 "On-device AI reads syllabus text and scanned pages without OCR",

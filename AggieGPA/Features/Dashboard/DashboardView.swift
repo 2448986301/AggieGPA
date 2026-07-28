@@ -2,6 +2,10 @@ import Charts
 import SwiftData
 import SwiftUI
 
+private enum DashboardDestination: Hashable {
+    case semesterMap
+}
+
 struct DashboardView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.locale) private var locale
@@ -18,6 +22,8 @@ struct DashboardView: View {
     @State private var showNewTerm = false
     @State private var addAction: TodayAddAction?
     @State private var availableWidth: CGFloat = 0
+    @State private var navigationPath = NavigationPath()
+    @State private var didOpenScreenshotSemesterMap = false
     @AppStorage("showFocusNext") private var showFocusNext = true
 
     private var includedTerms: [AcademicTerm] {
@@ -104,7 +110,7 @@ struct DashboardView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             ZStack {
                 CampusBackground()
                 ScrollView {
@@ -152,6 +158,12 @@ struct DashboardView: View {
             .navigationTitle("Today")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
+                    NavigationLink(value: DashboardDestination.semesterMap) {
+                        Label("Semester Map", systemImage: "calendar.day.timeline.leading")
+                    }
+                    .accessibilityIdentifier("semesterMapButton")
+                }
+                ToolbarItem(placement: .primaryAction) {
                     Menu("Add", systemImage: "plus") {
                         Button("Add Assignment", systemImage: "square.and.pencil") { present(.assignment) }
                         Button("Add Exam", systemImage: "calendar.badge.plus") { present(.exam) }
@@ -186,6 +198,20 @@ struct DashboardView: View {
             }
             .sheet(item: $addAction) { action in
                 TodayAddDestination(action: action, term: currentTerm, courses: courses)
+            }
+            .navigationDestination(for: DashboardDestination.self) { destination in
+                switch destination {
+                case .semesterMap:
+                    SemesterMapView(preferences: preferences)
+                }
+            }
+            .task {
+                guard ProcessInfo.processInfo.arguments.contains("--screenshot-semester-map"),
+                      !didOpenScreenshotSemesterMap
+                else { return }
+                didOpenScreenshotSemesterMap = true
+                await Task.yield()
+                navigationPath.append(DashboardDestination.semesterMap)
             }
         }
     }

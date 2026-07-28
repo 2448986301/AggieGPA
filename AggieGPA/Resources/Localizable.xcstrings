@@ -8257,6 +8257,166 @@
         }
       }
     },
+    "Semester Map" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "学期进度"
+          }
+        }
+      }
+    },
+    "Semester Map organizes dated work by week with course and type filters" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "学期进度按周整理已设置日期的任务，并支持按课程和类型筛选"
+          }
+        }
+      }
+    },
+    "No semester yet" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有学期"
+          }
+        }
+      }
+    },
+    "Add a term and dated assignments to build your semester map." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加学期，并为作业或考试设置截止日期后即可查看学期进度。"
+          }
+        }
+      }
+    },
+    "Current Week" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本周"
+          }
+        }
+      }
+    },
+    "Semester" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "学期"
+          }
+        }
+      }
+    },
+    "All Courses" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部课程"
+          }
+        }
+      }
+    },
+    "All Types" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部类型"
+          }
+        }
+      }
+    },
+    "Assignments" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "作业"
+          }
+        }
+      }
+    },
+    "Quizzes" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小测"
+          }
+        }
+      }
+    },
+    "Exams" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "考试"
+          }
+        }
+      }
+    },
+    "No dated work" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本周没有安排"
+          }
+        }
+      }
+    },
+    "Try another filter or add a due date to an assignment or exam." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可以更换筛选条件，或为作业和考试补充截止日期。"
+          }
+        }
+      }
+    },
+    "Week" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "周"
+          }
+        }
+      }
+    },
+    "Completed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已完成"
+          }
+        }
+      }
+    },
+    "Overdue" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已逾期"
+          }
+        }
+      }
+    },
     "Edit Assignment Details" : {
       "localizations" : {
         "zh-Hans" : {
@@ -8293,6 +8453,136 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "点击“保存”前，已记录的成绩不会改变。"
+          }
+        }
+      }
+    },
+    "Add start and end dates" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置开始和结束日期"
+          }
+        }
+      }
+    },
+    "Add the semester start and end dates before building its timeline." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先设置学期的开始和结束日期，再查看时间线。"
+          }
+        }
+      }
+    },
+    "Edit Semester Dates" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑学期日期"
+          }
+        }
+      }
+    },
+    "Edit Term" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑学期"
+          }
+        }
+      }
+    },
+    "End Date" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "结束日期"
+          }
+        }
+      }
+    },
+    "Ended" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "结束"
+          }
+        }
+      }
+    },
+    "Semester Dates" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "学期日期"
+          }
+        }
+      }
+    },
+    "Semester Map uses these dates and never guesses your academic calendar." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "学期进度会严格使用这些日期，不会猜测你的校历。"
+          }
+        }
+      }
+    },
+    "Set Semester Dates" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置学期日期"
+          }
+        }
+      }
+    },
+    "Start Date" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始日期"
+          }
+        }
+      }
+    },
+    "Starts" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始"
+          }
+        }
+      }
+    },
+    "This semester has ended" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个学期已经结束"
+          }
+        }
+      }
+    },
+    "This semester has not started yet" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个学期还未开始"
           }
         }
       }

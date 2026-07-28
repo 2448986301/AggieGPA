@@ -16,6 +16,7 @@ struct QuartersView: View {
     @State private var searchText = ""
     @State private var selectedYear = "All"
     @State private var showNewTerm = false
+    @State private var editingTerm: AcademicTerm?
     @State private var pendingDelete: AcademicTerm?
 
     init(preferences: UserPreferences, initialSearchQuery: String = "") {
@@ -59,6 +60,9 @@ struct QuartersView: View {
                                 ForEach(filtered.filter { $0.academicYear == year }) { term in
                                     NavigationLink(value: term) { TermRow(term: term, courses: courses(for: term), precision: preferences.decimalPrecision) }
                                         .contextMenu {
+                                            Button("Edit Term", systemImage: "calendar.badge.clock") {
+                                                editingTerm = term
+                                            }
                                             Button("Duplicate", systemImage: "plus.square.on.square") { duplicate(term) }
                                             Button("Delete", systemImage: "trash", role: .destructive) { pendingDelete = term }
                                         }
@@ -97,6 +101,9 @@ struct QuartersView: View {
                 }
             }
             .sheet(isPresented: $showNewTerm) { TermEditorView(defaultAcademicYear: preferences.firstAcademicYear) }
+            .sheet(item: $editingTerm) { term in
+                TermEditorView(defaultAcademicYear: preferences.firstAcademicYear, term: term)
+            }
             .confirmationDialog("Delete this quarter and all of its courses?", isPresented: Binding(
                 get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }
             ), titleVisibility: .visible) {
@@ -113,7 +120,8 @@ struct QuartersView: View {
 
     private func duplicate(_ term: AcademicTerm) {
         let copy = AcademicTerm(academicYear: term.academicYear, termType: term.termType,
-                                displayName: term.displayName + " Copy", notes: term.notes,
+                                displayName: term.displayName + " Copy",
+                                startDate: term.startDate, endDate: term.endDate, notes: term.notes,
                                 sortOrder: (terms.map(\.sortOrder).max() ?? 0) + 1)
         modelContext.insert(copy)
         for course in courses(for: term) {
@@ -191,15 +199,30 @@ struct TermEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     let defaultAcademicYear: String
+    let term: AcademicTerm?
     @State private var academicYear: String
-    @State private var termType = TermType.fall
-    @State private var displayName = ""
-    @State private var notes = ""
-    @State private var include = true
+    @State private var termType: TermType
+    @State private var displayName: String
+    @State private var notes: String
+    @State private var include: Bool
+    @State private var includesDates: Bool
+    @State private var startDate: Date
+    @State private var endDate: Date
 
-    init(defaultAcademicYear: String) {
+    init(defaultAcademicYear: String, term: AcademicTerm? = nil) {
         self.defaultAcademicYear = defaultAcademicYear
-        _academicYear = State(initialValue: defaultAcademicYear)
+        self.term = term
+        let calendar = Calendar.autoupdatingCurrent
+        let defaultStart = calendar.startOfDay(for: .now)
+        let defaultEnd = calendar.date(byAdding: .weekOfYear, value: 10, to: defaultStart) ?? defaultStart
+        _academicYear = State(initialValue: term?.academicYear ?? defaultAcademicYear)
+        _termType = State(initialValue: term?.termType ?? .fall)
+        _displayName = State(initialValue: term?.displayName ?? "")
+        _notes = State(initialValue: term?.notes ?? "")
+        _include = State(initialValue: term?.isIncludedInCumulativeGPA ?? true)
+        _includesDates = State(initialValue: term == nil || term?.startDate != nil || term?.endDate != nil)
+        _startDate = State(initialValue: term?.startDate ?? defaultStart)
+        _endDate = State(initialValue: term?.endDate ?? defaultEnd)
     }
 
     var body: some View {
@@ -213,16 +236,32 @@ struct TermEditorView: View {
                     TextField("Custom display name (optional)", text: $displayName)
                     Toggle("Include in cumulative GPA", isOn: $include)
                 }
+                Section {
+                    Toggle("Add start and end dates", isOn: $includesDates)
+                    if includesDates {
+                        DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
+                            .accessibilityIdentifier("termStartDatePicker")
+                        DatePicker("End Date", selection: $endDate, in: startDate..., displayedComponents: .date)
+                            .accessibilityIdentifier("termEndDatePicker")
+                    }
+                } header: {
+                    Text("Semester Dates")
+                } footer: {
+                    Text("Semester Map uses these dates and never guesses your academic calendar.")
+                }
                 Section("Notes") { TextField("Optional notes", text: $notes, axis: .vertical) }
                 Section { DisclaimerBanner() }
             }
-            .navigationTitle("New Quarter")
+            .navigationTitle(term == nil ? "New Quarter" : "Edit Term")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
-                        .disabled(academicYear.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .disabled(
+                            academicYear.trimmingCharacters(in: .whitespaces).isEmpty
+                                || (includesDates && endDate < startDate)
+                        )
                         .accessibilityIdentifier("saveQuarterButton")
                 }
             }
@@ -233,10 +272,27 @@ struct TermEditorView: View {
     private func save() {
         let year = academicYear.trimmingCharacters(in: .whitespacesAndNewlines)
         let fallbackName = "\(termType.rawValue) \(year.prefix(4))"
-        let term = AcademicTerm(academicYear: year, termType: termType,
-                                displayName: displayName.isEmpty ? fallbackName : displayName,
-                                isIncludedInCumulativeGPA: include, notes: notes)
-        modelContext.insert(term)
+        if let term {
+            term.academicYear = year
+            term.termType = termType
+            term.displayName = displayName.isEmpty ? fallbackName : displayName
+            term.isIncludedInCumulativeGPA = include
+            term.startDate = includesDates ? startDate : nil
+            term.endDate = includesDates ? endDate : nil
+            term.notes = notes
+            term.updatedAt = .now
+        } else {
+            let newTerm = AcademicTerm(
+                academicYear: year,
+                termType: termType,
+                displayName: displayName.isEmpty ? fallbackName : displayName,
+                startDate: includesDates ? startDate : nil,
+                endDate: includesDates ? endDate : nil,
+                isIncludedInCumulativeGPA: include,
+                notes: notes
+            )
+            modelContext.insert(newTerm)
+        }
         try? modelContext.save()
         dismiss()
     }

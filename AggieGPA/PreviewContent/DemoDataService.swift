@@ -5,8 +5,14 @@ import SwiftData
 enum DemoDataService {
     static func load(into context: ModelContext, preferences: UserPreferences) {
         guard !preferences.demoDataLoaded else { return }
-        let term = AcademicTerm(academicYear: preferences.firstAcademicYear, termType: .fall,
-                                displayName: "Fall 2026", sortOrder: 0)
+        let term = AcademicTerm(
+            academicYear: preferences.firstAcademicYear,
+            termType: .fall,
+            displayName: "Fall 2026",
+            startDate: demoDate(month: 9, day: 21),
+            endDate: demoDate(month: 12, day: 11),
+            sortOrder: 0
+        )
         context.insert(term)
         let samples: [(String, String, Decimal, CourseGrade, Bool, Bool)] = [
             ("CHE 002A", "General Chemistry", 5, .noGrade, true, false),
@@ -32,11 +38,11 @@ enum DemoDataService {
             let midterms = GradingCategory(course: chemistry, name: "Midterms", categoryType: .midterm, weight: 30, sortOrder: 2)
             let final = GradingCategory(course: chemistry, name: "Final Exam", categoryType: .finalExam, weight: 30, sortOrder: 3)
             [homework, labs, midterms, final].forEach(context.insert)
-            context.insert(GradeItem(course: chemistry, category: homework, title: "Homework 1", earnedPoints: 18, possiblePoints: 20, status: .graded))
-            context.insert(GradeItem(course: chemistry, category: homework, title: "Homework 2", earnedPoints: 19, possiblePoints: 20, status: .graded))
-            context.insert(GradeItem(course: chemistry, category: homework, title: "Homework 3", dueDate: nextFriday(), possiblePoints: 20, status: .upcoming))
-            context.insert(GradeItem(course: chemistry, category: labs, title: "Lab 1", earnedPoints: 45, possiblePoints: 50, status: .graded))
-            context.insert(GradeItem(course: chemistry, category: midterms, title: "Midterm 1", earnedPoints: 84, possiblePoints: 100, status: .graded))
+            context.insert(GradeItem(course: chemistry, category: homework, title: "Homework 1", dueDate: demoDate(month: 9, day: 25, hour: 23, minute: 59), earnedPoints: 18, possiblePoints: 20, status: .graded))
+            context.insert(GradeItem(course: chemistry, category: homework, title: "Homework 2", dueDate: demoDate(month: 10, day: 2, hour: 23, minute: 59), earnedPoints: 19, possiblePoints: 20, status: .graded))
+            context.insert(GradeItem(course: chemistry, category: homework, title: "Homework 3", dueDate: demoDate(month: 10, day: 23, hour: 23, minute: 59), possiblePoints: 20, status: .upcoming))
+            context.insert(GradeItem(course: chemistry, category: labs, title: "Lab 1", dueDate: demoDate(month: 10, day: 6, hour: 17), earnedPoints: 45, possiblePoints: 50, status: .graded))
+            context.insert(GradeItem(course: chemistry, category: midterms, title: "Midterm 1", dueDate: demoDate(month: 10, day: 16, hour: 10), earnedPoints: 84, possiblePoints: 100, status: .graded))
         }
         preferences.demoDataLoaded = true
         try? context.save()
@@ -49,8 +55,16 @@ enum DemoDataService {
         GradeScaleBoundary(letter: .d, minimumPercentage: 60), GradeScaleBoundary(letter: .f, minimumPercentage: 0)
     ]
 
-    private static func nextFriday() -> Date {
-        Calendar.autoupdatingCurrent.nextDate(after: .now, matching: DateComponents(weekday: 6), matchingPolicy: .nextTime) ?? .now
+    private static func demoDate(month: Int, day: Int, hour: Int = 9, minute: Int = 0) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .autoupdatingCurrent
+        return calendar.date(from: DateComponents(
+            year: 2026,
+            month: month,
+            day: day,
+            hour: hour,
+            minute: minute
+        )) ?? .now
     }
 
     static func clear(from context: ModelContext, courses: [CourseRecord], preferences: UserPreferences) throws {

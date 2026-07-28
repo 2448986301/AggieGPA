@@ -6,6 +6,7 @@
 - Added score-impact feedback with details and undo after recording a score.
 - Added a deterministic, dismissible Focus Next section on Today.
 - Added a bilingual grade explanation showing category averages, weights, contributions, graded weight, and possible final range.
+- Added a bilingual Semester Map with current-week context, course and assessment filters, compact iPhone week browsing, and an expanded iPad timeline.
 - Unified motion semantics and improved course-detail, deletion, undo, Dynamic Type, and iPhone/iPad interaction behavior.
 
 ## [1.3.1] — Unreleased

@@ -56,3 +56,9 @@ All APIs will be compile-validated against the installed iOS/iPadOS 27 SDK befor
 1. Add the compact motion and feedback contract, then polish existing Today, Courses, Course Detail, add/edit, record-score, delete, and undo flows.
 2. Build and run the first visible iPhone/iPad Demo; pause for approval.
 3. Continue only after the requested `继续` confirmation with What-If Playground and Score Impact.
+
+## Implementation progress
+
+- Completed semantic motion and feedback tokens, What-If Playground, Score Impact, Focus Next, and Why This Grade.
+- Completed Semester Map with calendar-safe week grouping, current-week context, course and assessment filters, compact iPhone browsing, and an expanded iPad layout.
+- Semester Map deliberately does not support dragging due dates; editing continues through the existing assignment editor so reminder updates and user confirmation remain reliable.
