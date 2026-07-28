@@ -1795,7 +1795,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "保守情景"
+            "value" : "保守 70%"
           }
         }
       }
@@ -2964,7 +2964,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "预期情景"
+            "value" : "按计划 85%"
           }
         }
       }
@@ -3822,7 +3822,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "我希望最终获得"
+            "value" : "我的目标成绩"
           }
         }
       }
@@ -7802,7 +7802,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "微调每项作业"
+            "value" : "逐项调整"
           }
         }
       }
@@ -7852,7 +7852,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "实时结果"
+            "value" : "预计结果"
           }
         }
       }
@@ -7882,7 +7882,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "乐观"
+            "value" : "冲刺 95%"
           }
         }
       }
@@ -7932,7 +7932,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "重置"
+            "value" : "恢复默认"
           }
         }
       }
@@ -8022,7 +8022,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "假设推演"
+            "value" : "成绩试算"
           }
         }
       }

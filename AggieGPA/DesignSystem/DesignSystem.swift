@@ -153,13 +153,21 @@ struct LiquidGlassPressButtonStyle: ButtonStyle {
             .padding(.horizontal, shape == .circle ? 9 : 14)
             .padding(.vertical, 8)
             .background {
-                Color.clear
-                    .glassEffect(
-                        tint.map { Glass.clear.tint($0) } ?? .clear,
-                        in: shape.shape
-                    )
+                ZStack {
+                    shape.shape
+                        .fill(tint ?? Color.primary.opacity(0.035))
+                    Color.clear
+                        .glassEffect(
+                            tint.map { Glass.clear.tint($0) } ?? .clear,
+                            in: shape.shape
+                        )
+                }
+                .compositingGroup()
+                .clipShape(shape.shape)
+                .allowsHitTesting(false)
             }
             .contentShape(shape.shape)
+            .clipped()
             .scaleEffect(
                 x: configuration.isPressed && !reduceMotion ? 0.97 : 1,
                 y: configuration.isPressed && !reduceMotion ? 0.92 : 1
