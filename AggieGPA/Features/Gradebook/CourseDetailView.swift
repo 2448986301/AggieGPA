@@ -242,7 +242,7 @@ struct CourseDetailView: View {
         .listStyle(.insetGrouped)
         .listSectionSpacing(.custom(DesignSystem.Spacing.medium))
         .scrollContentBackground(.hidden)
-        .scrollEdgeEffectHidden(true, for: [.leading, .trailing])
+        .scrollEdgeEffectHidden(true, for: [.top, .leading, .trailing])
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
     }
 
@@ -581,8 +581,10 @@ struct CourseDetailView: View {
                 }
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
                     forecastGoalTitle
-                    forecastTargetButton
-                        .frame(maxWidth: .infinity, alignment: .trailing)
+                    HStack {
+                        Spacer(minLength: 0)
+                        forecastTargetButton
+                    }
                 }
             }
             if result.requiresManualReview {
@@ -612,14 +614,22 @@ struct CourseDetailView: View {
     }
 
     private var forecastTargetButton: some View {
-        Button(policy?.targetPercentage.map { "\(compact($0))%" } ?? "Set target") {
+        Button {
             showTargetPicker = true
+        } label: {
+            Text(policy?.targetPercentage.map { "\(compact($0))%" } ?? "Set target")
+                .padding(.horizontal, DesignSystem.Spacing.medium)
+                .padding(.vertical, DesignSystem.Spacing.small)
+                .contentShape(.interaction, Capsule())
+                .glassEffect(
+                    .regular.tint(DesignSystem.ColorToken.gold.opacity(0.32)).interactive(),
+                    in: Capsule()
+                )
         }
-        .frame(minWidth: 72)
+        .buttonStyle(.plain)
         .fixedSize()
-        .buttonStyle(.glass(.regular.tint(DesignSystem.ColorToken.gold.opacity(0.32)).interactive()))
-        .buttonBorderShape(.capsule)
         .foregroundStyle(.primary)
+        .accessibilityIdentifier("forecastTargetButton")
     }
 
     @ViewBuilder private func courseIdentityAndGrade(horizontal: Bool) -> some View {

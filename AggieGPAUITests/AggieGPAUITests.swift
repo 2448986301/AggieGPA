@@ -43,6 +43,52 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["courseDetailSectionPicker"].exists)
     }
 
+    func testForecastTargetButtonKeepsIntrinsicInteractionBounds() {
+        let app = makeApp(extraArguments: ["--screenshot-demo"])
+        exerciseForecastTargetInteractions(app: app, chinese: false)
+    }
+
+    func testForecastTargetButtonKeepsIntrinsicInteractionBoundsInSimplifiedChinese() {
+        let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-chinese"])
+        exerciseForecastTargetInteractions(app: app, chinese: true)
+    }
+
+    private func exerciseForecastTargetInteractions(app: XCUIApplication, chinese: Bool) {
+        openDemoGradebook(app: app)
+
+        let sectionPicker = app.descendants(matching: .any)["courseDetailSectionPicker"]
+        XCTAssertTrue(sectionPicker.waitForExistence(timeout: 5))
+        sectionPicker.coordinate(withNormalizedOffset: CGVector(dx: 5.0 / 6.0, dy: 0.5)).tap()
+
+        let targetButton = app.buttons["forecastTargetButton"]
+        XCTAssertTrue(targetButton.waitForExistence(timeout: 5))
+        print("Forecast target button frame: \(targetButton.frame)")
+        XCTAssertLessThanOrEqual(targetButton.frame.width, 120)
+        XCTAssertLessThanOrEqual(targetButton.frame.height, 60)
+
+        let resetLabel = chinese ? "恢复默认" : "Reset"
+        let targetGradeTitle = chinese ? "目标成绩" : "Target Grade"
+        let saveLabel = chinese ? "保存" : "Save"
+        let resetButton = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", resetLabel)).firstMatch
+        XCTAssertTrue(resetButton.waitForExistence(timeout: 5))
+        XCTAssertFalse(targetButton.frame.intersects(resetButton.frame))
+
+        targetButton.press(forDuration: 2)
+        XCTAssertTrue(app.navigationBars[targetGradeTitle].waitForExistence(timeout: 5))
+        app.buttons[saveLabel].tap()
+        XCTAssertTrue(targetButton.waitForExistence(timeout: 5))
+
+        XCTAssertTrue(resetButton.isHittable)
+        resetButton.tap()
+        XCTAssertTrue(targetButton.exists)
+
+        let start = targetButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let outside = app.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.9))
+        start.press(forDuration: 2, thenDragTo: outside)
+        XCTAssertFalse(app.navigationBars[targetGradeTitle].exists)
+        XCTAssertTrue(targetButton.exists)
+    }
+
     func testSyllabusRecognitionRequiresReviewBeforeSaving() {
         let app = makeApp()
         completeOnboarding(app: app, loadDemo: true)
@@ -298,7 +344,7 @@ final class AggieGPAUITests: XCTestCase {
     }
 
     private func openDemoGradebook(app: XCUIApplication) {
-        app.tabBars.buttons["Courses"].tap()
+        app.buttons.matching(identifier: "books.vertical").firstMatch.tap()
         app.buttons.matching(NSPredicate(format: "label CONTAINS 'Fall 2026'")).firstMatch.tap()
         app.staticTexts["CHE 002A"].tap()
     }

@@ -137,6 +137,7 @@ struct WhatIfPlaygroundView: View {
                     .buttonStyle(.glass(.regular.interactive()))
                     .buttonBorderShape(.capsule)
                     .foregroundStyle(.primary)
+                    .accessibilityIdentifier("whatIfResetButton")
             }
 
             if horizontalSizeClass == .regular {
