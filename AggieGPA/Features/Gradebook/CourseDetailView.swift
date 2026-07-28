@@ -92,7 +92,7 @@ struct CourseDetailView: View {
 
     var body: some View {
         ZStack {
-            CampusBackground().ignoresSafeArea()
+            Color(.systemGroupedBackground).ignoresSafeArea()
             secondaryDetailContent
         }
         .overlay(alignment: .bottom) { feedbackBanner }
@@ -336,7 +336,7 @@ struct CourseDetailView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(CampusBackground().ignoresSafeArea())
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
     }
 
     private var gradeHero: some View {
@@ -591,7 +591,9 @@ struct CourseDetailView: View {
                 Text("I want to finish with").font(.title2.bold())
                 Spacer()
                 Button(policy?.targetPercentage.map { "\(compact($0))%" } ?? "Set target") { showTargetPicker = true }
-                    .buttonStyle(.borderedProminent)
+                    .frame(minWidth: 72)
+                    .buttonStyle(.glass(.regular.tint(.accentColor).interactive()))
+                    .buttonBorderShape(.capsule)
             }
             if courseForecasts.count > 1 {
                 ScrollView(.horizontal) {
@@ -740,11 +742,7 @@ struct CourseDetailView: View {
     private var sectionBinding: Binding<CourseDetailSection> {
         Binding(
             get: { section },
-            set: { newValue in
-                withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
-                    section = newValue
-                }
-            }
+            set: { section = $0 }
         )
     }
 
