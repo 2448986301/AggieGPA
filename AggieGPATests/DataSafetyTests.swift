@@ -5,6 +5,25 @@ import XCTest
 
 @MainActor
 final class DataSafetyTests: XCTestCase {
+  func testSavedPlannerScenarioPersistsItsSimulatedCourses() throws {
+    let container = PersistentStoreService.makeContainer(inMemory: true).container
+    let context = ModelContext(container)
+    let scenario = PlannerScenario(name: "Expected", sortOrder: 0)
+    let simulated = SimulatedCourse(
+      courseCode: "CHE 002A", units: 5, grade: .aMinus,
+      isIncludedInGPA: true, scenario: scenario)
+
+    context.insert(scenario)
+    context.insert(simulated)
+    try context.save()
+
+    let saved = try context.fetch(FetchDescriptor<PlannerScenario>())
+    XCTAssertEqual(saved.count, 1)
+    XCTAssertEqual(saved.first?.name, "Expected")
+    XCTAssertEqual(saved.first?.simulatedCourses.count, 1)
+    XCTAssertEqual(saved.first?.simulatedCourses.first?.courseCode, "CHE 002A")
+  }
+
   func testJSONExportImportRoundTripPreservesData() throws {
     let preferences = UserPreferences(displayName: "Student")
     let term = AcademicTerm(academicYear: "2026–2027", termType: .fall, displayName: "Fall 2026")
