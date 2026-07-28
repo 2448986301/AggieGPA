@@ -2,6 +2,7 @@ import SwiftData
 import SwiftUI
 
 struct PlannerView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \AcademicTerm.sortOrder) private var terms: [AcademicTerm]
     @Query private var courses: [CourseRecord]
     @Query private var policies: [CourseGradingPolicy]
@@ -92,10 +93,13 @@ struct PlannerView: View {
             Text("Official results")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.medium) {
-                gpaValue("Cumulative GPA", value: officialCumulative.gpa, detail: AppCopy.units(officialCumulative.attemptedUnits, locale: .current))
-                Spacer(minLength: DesignSystem.Spacing.small)
-                gpaValue("This term GPA", value: officialCurrent.gpa, detail: currentTerm?.displayName ?? "No current term", alignment: .trailing)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.medium) {
+                    officialGPAValues
+                }
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
+                    officialGPAValues
+                }
             }
 
             Divider()
@@ -103,10 +107,13 @@ struct PlannerView: View {
             Text("Estimated results")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.medium) {
-                projectedValue("Estimated term", result: projectedCurrent)
-                Spacer(minLength: DesignSystem.Spacing.small)
-                projectedValue("Estimated overall", result: projectedCumulative, alignment: .trailing)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.medium) {
+                    projectedGPAValues
+                }
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
+                    projectedGPAValues
+                }
             }
             Text(projectedGrades.isEmpty
                  ? "No estimate yet. Add one from a course."
@@ -116,30 +123,75 @@ struct PlannerView: View {
         }
         .padding(DesignSystem.Spacing.medium)
         .contentSurface(radius: DesignSystem.Radius.card)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("gpaOverview")
     }
 
-    private func gpaValue(_ title: LocalizedStringKey, value: Decimal?, detail: String, alignment: HorizontalAlignment = .leading) -> some View {
-        VStack(alignment: alignment, spacing: 3) {
+    @ViewBuilder private var officialGPAValues: some View {
+        gpaValue(
+            "Cumulative GPA",
+            value: officialCumulative.gpa,
+            detail: AppCopy.units(officialCumulative.attemptedUnits, locale: .current)
+        )
+        gpaValue(
+            "This term GPA",
+            value: officialCurrent.gpa,
+            detail: currentTerm?.displayName ?? "No current term",
+            alignment: .trailing,
+            frameAlignment: .trailing
+        )
+    }
+
+    @ViewBuilder private var projectedGPAValues: some View {
+        projectedValue("Estimated term", result: projectedCurrent)
+        projectedValue(
+            "Estimated overall",
+            result: projectedCumulative,
+            alignment: .trailing,
+            frameAlignment: .trailing
+        )
+    }
+
+    private func gpaValue(
+        _ title: LocalizedStringKey,
+        value: Decimal?,
+        detail: String,
+        alignment: HorizontalAlignment = .leading,
+        frameAlignment: Alignment = .leading
+    ) -> some View {
+        let displayedValue = DecimalFormatters.string(value, precision: preferences.decimalPrecision)
+        return VStack(alignment: alignment, spacing: 3) {
             Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(DecimalFormatters.string(value, precision: preferences.decimalPrecision))
+            Text(displayedValue)
                 .font(.title2.weight(.bold).monospacedDigit())
+                .contentTransition(.numericText())
+                .animation(DesignSystem.Motion.emphasized(reduceMotion: reduceMotion), value: displayedValue)
             Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
         }
+        .frame(maxWidth: .infinity, alignment: frameAlignment)
         .accessibilityElement(children: .combine)
     }
 
-    private func projectedValue(_ title: LocalizedStringKey, result: ProjectedGPAResult, alignment: HorizontalAlignment = .leading) -> some View {
-        VStack(alignment: alignment, spacing: 3) {
+    private func projectedValue(
+        _ title: LocalizedStringKey,
+        result: ProjectedGPAResult,
+        alignment: HorizontalAlignment = .leading,
+        frameAlignment: Alignment = .leading
+    ) -> some View {
+        let displayedValue = result.projectedCourseIDs.isEmpty
+            ? "—"
+            : DecimalFormatters.string(result.projected.gpa, precision: preferences.decimalPrecision)
+        return VStack(alignment: alignment, spacing: 3) {
             Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(result.projectedCourseIDs.isEmpty
-                 ? "—"
-                 : DecimalFormatters.string(result.projected.gpa, precision: preferences.decimalPrecision))
+            Text(displayedValue)
                 .font(.title3.weight(.bold).monospacedDigit())
                 .foregroundStyle(result.projectedCourseIDs.isEmpty ? .secondary : DesignSystem.ColorToken.gold)
+                .contentTransition(.numericText())
+                .animation(DesignSystem.Motion.emphasized(reduceMotion: reduceMotion), value: displayedValue)
             Text(result.projectedCourseIDs.isEmpty ? "No forecast" : "Estimated")
                 .font(.caption2).foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity, alignment: frameAlignment)
         .accessibilityElement(children: .combine)
     }
 
@@ -167,7 +219,10 @@ private struct PlannerRow: View {
         Label {
             VStack(alignment: .leading) {
                 Text(title).font(.headline)
-                Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         } icon: {
             Image(systemName: icon).foregroundStyle(DesignSystem.ColorToken.gold)

@@ -62,3 +62,6 @@ All APIs will be compile-validated against the installed iOS/iPadOS 27 SDK befor
 - Completed semantic motion and feedback tokens, What-If Playground, Score Impact, Focus Next, and Why This Grade.
 - Completed Semester Map with calendar-safe week grouping, current-week context, course and assessment filters, compact iPhone browsing, and an expanded iPad layout.
 - Semester Map deliberately does not support dragging due dates; editing continues through the existing assignment editor so reminder updates and user confirmation remain reliable.
+- GPA overview now uses an adaptive horizontal/vertical composition for Dynamic Type, keeps each metric individually reachable by VoiceOver, and scopes numeric transitions to the changed value.
+- Removed redundant custom animation around iPad tab and course selection; native selection feedback now owns these transitions, avoiding full-detail replacement jitter.
+- Version History disclosure rows use the shared Standard motion token and become immediate when Reduce Motion is enabled.

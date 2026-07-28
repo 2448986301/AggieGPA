@@ -8587,6 +8587,76 @@
         }
       }
     },
+    "Add a course from Today or a quarter." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请从“今天”或学期页面添加课程。"
+          }
+        }
+      }
+    },
+    "Choose a course to keep its gradebook visible here." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择一门课程后，这里会持续显示它的成绩详情。"
+          }
+        }
+      }
+    },
+    "Course, coursework, or quarter" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "课程、作业或学期"
+          }
+        }
+      }
+    },
+    "Create a term before adding a course." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加课程前，请先创建学期。"
+          }
+        }
+      }
+    },
+    "No current term" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无当前学期"
+          }
+        }
+      }
+    },
+    "Select an area" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择一个栏目"
+          }
+        }
+      }
+    },
+    "Select a course" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择课程"
+          }
+        }
+      }
+    },
     "Your GPA" : {
       "comment" : "A section in the planner that displays the user's GPA.",
       "extractionState" : "stale",

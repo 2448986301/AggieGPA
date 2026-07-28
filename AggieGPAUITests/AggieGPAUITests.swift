@@ -307,6 +307,33 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(confirmation.buttons["Cancel"].exists)
     }
 
+    func testGPAOverviewAdaptsAtLargestAccessibilityTextSize() {
+        let app = makeApp(extraArguments: [
+            "--screenshot-demo",
+            "--screenshot-tab=planner",
+            "-UIPreferredContentSizeCategoryName",
+            "UICTContentSizeCategoryAccessibilityExtraExtraExtraLarge",
+        ])
+        let overview = app.descendants(matching: .any)["gpaOverview"]
+        XCTAssertTrue(overview.waitForExistence(timeout: 5))
+        XCTAssertGreaterThanOrEqual(overview.frame.minX, app.frame.minX)
+        XCTAssertLessThanOrEqual(overview.frame.maxX, app.frame.maxX)
+        XCTAssertTrue(app.staticTexts["Official results"].exists)
+        XCTAssertTrue(app.staticTexts["Estimated results"].exists)
+    }
+
+    func testGPAOverviewUsesNaturalSimplifiedChineseLabels() {
+        let app = makeApp(extraArguments: [
+            "--screenshot-demo",
+            "--screenshot-chinese",
+            "--screenshot-tab=planner",
+        ])
+        XCTAssertTrue(app.descendants(matching: .any)["gpaOverview"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["正式成绩"].exists)
+        XCTAssertTrue(app.staticTexts["预计成绩"].exists)
+        XCTAssertTrue(app.staticTexts["本学期 GPA"].exists)
+    }
+
     func testExportDataFlow() {
         let app = makeApp()
         completeOnboarding(app: app)

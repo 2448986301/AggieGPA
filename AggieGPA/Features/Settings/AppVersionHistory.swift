@@ -206,29 +206,46 @@ struct VersionHistoryView: View {
 
             Section("Version History") {
                 ForEach(AppVersionHistory.releases.filter { $0.version != AppVersionHistory.currentVersion }) { release in
-                    DisclosureGroup {
-                        VersionReleaseContent(release: release, isCurrent: false)
-                            .padding(.top, DesignSystem.Spacing.xSmall)
-                    } label: {
-                        HStack(spacing: DesignSystem.Spacing.small) {
-                            Image(systemName: "clock.arrow.circlepath")
-                                .foregroundStyle(.secondary)
-                                .accessibilityHidden(true)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Version \(release.version)")
-                                    .font(.headline)
-                                Text(release.status)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
+                    VersionHistoryDisclosureRow(release: release)
                 }
             }
         }
         .navigationTitle("What’s New")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("versionHistoryView")
+    }
+}
+
+private struct VersionHistoryDisclosureRow: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let release: AppVersionRelease
+    @State private var isExpanded = false
+
+    var body: some View {
+        DisclosureGroup(isExpanded: Binding(
+            get: { isExpanded },
+            set: { newValue in
+                withAnimation(reduceMotion ? nil : DesignSystem.Motion.standard) {
+                    isExpanded = newValue
+                }
+            }
+        )) {
+            VersionReleaseContent(release: release, isCurrent: false)
+                .padding(.top, DesignSystem.Spacing.xSmall)
+        } label: {
+            HStack(spacing: DesignSystem.Spacing.small) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Version \(release.version)")
+                        .font(.headline)
+                    Text(release.status)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 }
 
