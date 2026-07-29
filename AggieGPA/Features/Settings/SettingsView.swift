@@ -26,12 +26,18 @@ struct SettingsView: View {
                 Section {
                     TextField("Name or nickname", text: $preferences.displayName)
                         .focused($focusedField, equals: .displayName)
+                        .submitLabel(.done)
+                        .onSubmit { focusedField = nil }
                         .accessibilityIdentifier("settingsNameField")
                     TextField("Major", text: $preferences.major)
                         .focused($focusedField, equals: .major)
+                        .submitLabel(.done)
+                        .onSubmit { focusedField = nil }
                         .accessibilityIdentifier("settingsMajorField")
                     TextField("First academic year", text: $preferences.firstAcademicYear)
                         .focused($focusedField, equals: .academicYear)
+                        .submitLabel(.done)
+                        .onSubmit { focusedField = nil }
                         .accessibilityIdentifier("settingsAcademicYearField")
                 } header: {
                     dismissKeyboardHeader("App")
@@ -117,14 +123,6 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .scrollDismissesKeyboard(.immediately)
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") {
-                        focusedField = nil
-                    }
-                }
-            }
             .onChange(of: preferences.displayName) { _, _ in save() }
             .onChange(of: preferences.major) { _, _ in save() }
             .onChange(of: preferences.appearanceRaw) { _, _ in save() }

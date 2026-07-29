@@ -130,6 +130,7 @@ final class AggieGPAUITests: XCTestCase {
 
         major.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["完成"].exists)
         app.staticTexts["个人信息"].tap()
         XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
 
