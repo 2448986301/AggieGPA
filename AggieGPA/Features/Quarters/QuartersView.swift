@@ -66,8 +66,8 @@ struct QuartersView: View {
                                             Button("Duplicate", systemImage: "plus.square.on.square") { duplicate(term) }
                                             Button("Delete", systemImage: "trash", role: .destructive) { pendingDelete = term }
                                         }
-                                        .swipeActions(edge: .trailing) {
-                                            Button(role: .destructive) {
+                                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                            Button {
                                                 pendingDelete = term
                                             } label: {
                                                 Label("Delete", systemImage: "trash")
@@ -109,9 +109,9 @@ struct QuartersView: View {
             .sheet(item: $editingTerm) { term in
                 TermEditorView(defaultAcademicYear: preferences.firstAcademicYear, term: term)
             }
-            .confirmationDialog("Delete this quarter and all of its courses?", isPresented: Binding(
+            .alert("Delete this quarter and all of its courses?", isPresented: Binding(
                 get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }
-            ), titleVisibility: .visible) {
+            )) {
                 Button("Delete Quarter", role: .destructive) {
                     if let pendingDelete { delete(pendingDelete) }
                     pendingDelete = nil

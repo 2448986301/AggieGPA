@@ -389,6 +389,10 @@ final class AggieGPAUITests: XCTestCase {
         let course = app.staticTexts["CHE 002A"]
         course.swipeLeft()
         app.buttons["Delete"].tap()
+        XCTAssertTrue(course.exists, "The course row must remain until deletion is confirmed.")
+        let deletionAlert = app.alerts.firstMatch
+        XCTAssertTrue(deletionAlert.waitForExistence(timeout: 5))
+        deletionAlert.buttons["Delete Course"].tap()
         app.buttons["undoDeleteButton"].tap()
         XCTAssertTrue(app.staticTexts["CHE 002A"].exists)
     }
@@ -402,11 +406,14 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(course.waitForExistence(timeout: 5))
         course.swipeLeft()
         app.buttons["Delete"].tap()
+        let deletionAlert = app.alerts.firstMatch
+        XCTAssertTrue(deletionAlert.waitForExistence(timeout: 5))
+        deletionAlert.buttons["Delete Course"].tap()
 
         app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.staticTexts["Fall 2026"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Today"].tap()
-        XCTAssertTrue(app.buttons["todayAddButton"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["semesterMapButton"].waitForExistence(timeout: 5))
     }
 
     func testClearDemoDataKeepsDashboardUsable() {
@@ -555,7 +562,7 @@ final class AggieGPAUITests: XCTestCase {
     func testTodayGlobalAddShowsStudentActions() {
         let app = makeApp()
         completeOnboarding(app: app, loadDemo: true)
-        let add = app.buttons["todayAddButton"]
+        let add = app.buttons["dashboardAddCourse"]
         XCTAssertTrue(add.waitForExistence(timeout: 5))
         add.tap()
         XCTAssertTrue(app.buttons["Add Assignment"].exists)
@@ -566,7 +573,7 @@ final class AggieGPAUITests: XCTestCase {
     func testTodayAssignmentAsksForCourseWhenSeveralCoursesExist() {
         let app = makeApp()
         completeOnboarding(app: app, loadDemo: true)
-        app.buttons["todayAddButton"].tap()
+        app.buttons["dashboardAddCourse"].tap()
         app.buttons["Add Assignment"].tap()
         XCTAssertTrue(app.navigationBars["Which course?"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["CHE 002A"].exists)

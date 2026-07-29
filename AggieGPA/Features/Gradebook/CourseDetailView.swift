@@ -554,7 +554,7 @@ struct CourseDetailView: View {
             }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button(role: .destructive) {
+            Button {
                 requestDelete(item)
             } label: {
                 Label("Delete", systemImage: "trash")

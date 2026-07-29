@@ -219,7 +219,7 @@ struct AggieFeedbackBanner<Action: View>: View {
             } else {
                 bannerContent
                     .glassEffect(
-                        .regular,
+                        .regular.tint(DesignSystem.ColorToken.gold.opacity(0.08)).interactive(),
                         in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
                     )
             }
@@ -247,8 +247,8 @@ struct AggieFeedbackBanner<Action: View>: View {
             }
         }
         .font(.subheadline)
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.roundedRectangle(radius: DesignSystem.Radius.compact))
+        .buttonStyle(.glass(.regular.interactive()))
+        .buttonBorderShape(.capsule)
         .controlSize(.regular)
         .padding(.horizontal, DesignSystem.Spacing.medium)
         .padding(.vertical, DesignSystem.Spacing.small)
