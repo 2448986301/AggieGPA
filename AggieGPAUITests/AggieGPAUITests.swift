@@ -63,6 +63,43 @@ final class AggieGPAUITests: XCTestCase {
         exerciseCourseDetailModuleTitleBounds(app: app, chinese: true)
     }
 
+    func testEmptyGradebookBlankTapsDoNotOpenSetupSheetsAndActionsStayBounded() {
+        let app = makeApp(extraArguments: ["--screenshot-demo"])
+        openDemoCourse(app: app, courseCode: "BIS 002B")
+
+        let emptyStateTitle = app.staticTexts["How is this course graded?"]
+        XCTAssertTrue(emptyStateTitle.waitForExistence(timeout: 5))
+
+        let template = app.buttons["useGradeTemplateSetupButton"]
+        let syllabus = app.buttons["importSyllabusSetupButton"]
+        let manual = app.buttons["manualGradeSetupButton"]
+        for button in [template, syllabus, manual] {
+            XCTAssertTrue(button.exists)
+            XCTAssertGreaterThanOrEqual(button.frame.height, 44)
+            XCTAssertLessThanOrEqual(button.frame.width, 320)
+        }
+        XCTAssertEqual(template.frame.width, syllabus.frame.width, accuracy: 2)
+        XCTAssertEqual(syllabus.frame.width, manual.frame.width, accuracy: 2)
+
+        for point in [
+            CGVector(dx: 0.04, dy: 0.55),
+            CGVector(dx: 0.96, dy: 0.55),
+            CGVector(dx: 0.04, dy: 0.72),
+            CGVector(dx: 0.96, dy: 0.72),
+        ] {
+            app.coordinate(withNormalizedOffset: point).tap()
+            XCTAssertTrue(emptyStateTitle.exists)
+            XCTAssertFalse(app.navigationBars["Import Syllabus"].exists)
+            XCTAssertFalse(app.navigationBars["Grading Policy"].exists)
+            XCTAssertFalse(app.navigationBars["Grade Breakdown"].exists)
+        }
+
+        scrollTo(syllabus, in: app)
+        XCTAssertTrue(syllabus.isHittable)
+        syllabus.tap()
+        XCTAssertTrue(app.navigationBars["Import Syllabus"].waitForExistence(timeout: 5))
+    }
+
     func testFocusNextUsesReliableDemoWorkAndCanBeHidden() {
         let app = makeApp(extraArguments: ["--screenshot-demo"])
         exerciseFocusNext(app: app, hideLabel: "Hide Focus Next", reasonFragment: "course grade")
@@ -569,11 +606,15 @@ final class AggieGPAUITests: XCTestCase {
     }
 
     private func openDemoGradebook(app: XCUIApplication) {
+        openDemoCourse(app: app, courseCode: "CHE 002A")
+    }
+
+    private func openDemoCourse(app: XCUIApplication, courseCode: String) {
         app.buttons.matching(identifier: "books.vertical").firstMatch.tap()
         app.buttons.matching(
             NSPredicate(format: "label CONTAINS 'Fall 2026' OR label CONTAINS '2026 秋季学期'")
         ).firstMatch.tap()
-        app.staticTexts["CHE 002A"].tap()
+        app.staticTexts[courseCode].tap()
     }
 
     private func completeOnboarding(app: XCUIApplication, loadDemo: Bool = false) {

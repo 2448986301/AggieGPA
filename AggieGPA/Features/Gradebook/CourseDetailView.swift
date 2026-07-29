@@ -236,19 +236,30 @@ struct CourseDetailView: View {
     private var secondaryDetailContent: some View {
         List {
             Section {
-                gradeHero
-                    .listRowInsets(EdgeInsets(top: DesignSystem.Spacing.small, leading: 0, bottom: DesignSystem.Spacing.small, trailing: 0))
-                    .listRowBackground(Color.clear)
+                VStack(spacing: DesignSystem.Spacing.small) {
+                    gradeHero
 
-                Picker("Course detail", selection: sectionBinding) {
-                    ForEach(CourseDetailSection.allCases) { section in
-                        Label(section.compactTitle, systemImage: section.symbol).tag(section)
+                    Divider()
+                        .padding(.horizontal, DesignSystem.Spacing.medium)
+
+                    Picker("Course detail", selection: sectionBinding) {
+                        ForEach(CourseDetailSection.allCases) { section in
+                            Label(section.compactTitle, systemImage: section.symbol).tag(section)
+                        }
                     }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("courseDetailSectionPicker")
+                    .accessibilityHint("Switches between assignments, grade breakdown, and goal estimate")
+                    .padding(.horizontal, DesignSystem.Spacing.medium)
                 }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("courseDetailSectionPicker")
-                .accessibilityHint("Switches between assignments, grade breakdown, and goal estimate")
+                .listRowInsets(EdgeInsets(
+                    top: DesignSystem.Spacing.small,
+                    leading: 0,
+                    bottom: DesignSystem.Spacing.small,
+                    trailing: 0
+                ))
                 .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
 
             activeSectionContent
@@ -271,17 +282,11 @@ struct CourseDetailView: View {
         case .gradebook:
             if policy == nil {
                 Section {
-                    ContentUnavailableView {
-                        Label("How is this course graded?", systemImage: "list.clipboard")
-                    } description: {
-                        Text("Import a syllabus, choose a template, or set it up manually.")
-                    } actions: {
-                        Button("Use a Template") { showSetup = true }.buttonStyle(.glass)
-                        Button("Import Syllabus") { showSyllabusImport = true }
-                        Button("Set It Up Manually") { showPolicyEditor = true }
-                    }
-                    .padding(.vertical, DesignSystem.Spacing.xLarge)
-                    .listRowBackground(Color.clear)
+                    gradebookSetupEmptyState
+                        .padding(.vertical, DesignSystem.Spacing.medium)
+                        .frame(maxWidth: .infinity)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
             } else {
                 gradebookSections
@@ -306,6 +311,78 @@ struct CourseDetailView: View {
             bottom: 0,
             trailing: DesignSystem.Spacing.medium
         )
+    }
+
+    private var gradebookSetupEmptyState: some View {
+        VStack(spacing: DesignSystem.Spacing.medium) {
+            Image(systemName: "list.clipboard")
+                .font(.system(size: 42, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+
+            VStack(spacing: DesignSystem.Spacing.small) {
+                Text("How is this course graded?")
+                    .font(.title2.bold())
+                    .multilineTextAlignment(.center)
+                Text("Import a syllabus, choose a template, or set it up manually.")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            VStack(spacing: DesignSystem.Spacing.small) {
+                gradebookSetupButton(
+                    "Use a Template",
+                    systemImage: "rectangle.3.group",
+                    tint: DesignSystem.ColorToken.gold.opacity(0.32),
+                    identifier: "useGradeTemplateSetupButton"
+                ) {
+                    showSetup = true
+                }
+
+                gradebookSetupButton(
+                    "Import Syllabus",
+                    systemImage: "doc.text.magnifyingglass",
+                    identifier: "importSyllabusSetupButton"
+                ) {
+                    showSyllabusImport = true
+                }
+
+                gradebookSetupButton(
+                    "Set It Up Manually",
+                    systemImage: "slider.horizontal.3",
+                    identifier: "manualGradeSetupButton"
+                ) {
+                    showPolicyEditor = true
+                }
+            }
+            .frame(maxWidth: 320)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func gradebookSetupButton(
+        _ title: LocalizedStringKey,
+        systemImage: String,
+        tint: Color? = nil,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(
+            .glass(
+                tint.map { .regular.tint($0).interactive() }
+                    ?? .regular.interactive()
+            )
+        )
+        .buttonBorderShape(.capsule)
+        .controlSize(.large)
+        .foregroundStyle(.primary)
+        .accessibilityIdentifier(identifier)
     }
 
     @ViewBuilder private var gradebookSections: some View {
@@ -389,48 +466,6 @@ struct CourseDetailView: View {
         .accessibilityLabel("\(course.courseCode), calculated current grade \(percent(result.calculatedCurrentPercentage)), official grade \(course.grade.rawValue)")
         .accessibilityValue(result.requiresManualReview ? "Manual review required" : "Grading policy checked")
         .accessibilityIdentifier("courseGradeHero")
-    }
-
-    @ViewBuilder private var gradebookContent: some View {
-        if policy == nil {
-            ContentUnavailableView {
-                Label("How is this course graded?", systemImage: "list.clipboard")
-            } description: {
-                Text("Import a syllabus, choose a template, or set it up manually.")
-            } actions: {
-                Button("Use a Template") { showSetup = true }.buttonStyle(.borderedProminent)
-                Button("Import Syllabus") { showSyllabusImport = true }
-                Button("Set It Up Manually") { showPolicyEditor = true }
-            }
-            .padding(.vertical, DesignSystem.Spacing.xLarge)
-        } else {
-            HStack {
-                Text("Assignments & Exams").font(.title2.bold())
-                Spacer()
-                Menu("Add", systemImage: "plus") {
-                    if courseCategories.isEmpty {
-                        Button("Add Grade Item", systemImage: "plus") { showNewItemEditor = true }
-                    } else {
-                        ForEach(courseCategories) { category in
-                            Button(category.name, systemImage: category.addSymbol) { quickCategory = category }
-                        }
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityLabel("Add assignment or exam")
-            }
-            ForEach(courseCategories) { category in
-                categorySection(category)
-            }
-            if courseCategories.isEmpty && courseItems.isEmpty {
-                ContentUnavailableView("No assignments or exams", systemImage: "tray", description: Text("Add your first item to start tracking scores."))
-                    .padding(.vertical, DesignSystem.Spacing.large)
-            }
-            let unassigned = courseItems.filter { $0.category == nil }
-            if !unassigned.isEmpty {
-                itemGroup(title: "Unassigned", items: unassigned)
-            }
-        }
     }
 
     private func categorySection(_ category: GradingCategory) -> some View {
@@ -786,9 +821,15 @@ struct CourseDetailView: View {
                     DesignSystem.Motion.emphasized(reduceMotion: reduceMotion),
                     value: result.calculatedCurrentPercentage
                 )
-            Text(result.currentLetterGrade?.rawValue ?? "No letter prediction")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(result.requiresManualReview ? DesignSystem.ColorToken.warning : DesignSystem.ColorToken.gold)
+            if let currentLetterGrade = result.currentLetterGrade {
+                Text(currentLetterGrade.rawValue)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(result.requiresManualReview ? DesignSystem.ColorToken.warning : DesignSystem.ColorToken.gold)
+            } else {
+                Text("No letter prediction")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(result.requiresManualReview ? DesignSystem.ColorToken.warning : DesignSystem.ColorToken.gold)
+            }
         }
     }
 
