@@ -53,6 +53,40 @@ final class AggieGPAUITests: XCTestCase {
         exerciseForecastTargetInteractions(app: app, chinese: true)
     }
 
+    func testFineTuningPercentageUsesPillBoundsAndTracksControls() {
+        let app = makeApp(extraArguments: ["--screenshot-demo"])
+        openDemoGradebook(app: app)
+
+        let sectionPicker = app.descendants(matching: .any)["courseDetailSectionPicker"]
+        XCTAssertTrue(sectionPicker.waitForExistence(timeout: 5))
+        sectionPicker.coordinate(withNormalizedOffset: CGVector(dx: 5.0 / 6.0, dy: 0.5)).tap()
+
+        let fineTuning = app.buttons["Fine-tune assignments"]
+        for _ in 0..<2 where !fineTuning.exists {
+            app.swipeUp()
+        }
+        XCTAssertTrue(fineTuning.waitForExistence(timeout: 5))
+        fineTuning.tap()
+
+        let percentage = app.descendants(matching: .any)["85 percent assumed for Homework 3"]
+        scrollTo(percentage, in: app)
+        XCTAssertTrue(percentage.waitForExistence(timeout: 5))
+        XCTAssertGreaterThanOrEqual(percentage.frame.height, 44)
+        XCTAssertGreaterThan(percentage.frame.width, percentage.frame.height)
+
+        let slider = app.sliders["Homework 3 assumption"]
+        XCTAssertTrue(slider.waitForExistence(timeout: 5))
+        let increment = app.buttons["Increment"].firstMatch
+        XCTAssertTrue(increment.waitForExistence(timeout: 5))
+        for _ in 0..<6 {
+            increment.tap()
+        }
+        XCTAssertTrue(
+            app.descendants(matching: .any)["91 percent assumed for Homework 3"]
+                .waitForExistence(timeout: 3)
+        )
+    }
+
     func testCourseDetailModuleTitlesStayInsideReadableBounds() {
         let app = makeApp(extraArguments: ["--screenshot-demo"])
         exerciseCourseDetailModuleTitleBounds(app: app, chinese: false)

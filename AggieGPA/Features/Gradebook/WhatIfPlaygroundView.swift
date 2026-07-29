@@ -205,6 +205,7 @@ struct WhatIfPlaygroundView: View {
                 .buttonStyle(.glass(.regular.interactive()))
                 .buttonBorderShape(.roundedRectangle(radius: DesignSystem.Radius.compact))
                 .foregroundStyle(.primary)
+                .accessibilityIdentifier("whatIfFineTuningButton")
 
                 if showsFineTuning {
                     VStack(spacing: 0) {
@@ -238,12 +239,16 @@ struct WhatIfPlaygroundView: View {
                     }
                 }
                 Spacer()
-                TextField("Percent", value: binding, format: .number.precision(.fractionLength(0)))
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 52)
-                    .textFieldStyle(.roundedBorder)
-                    .accessibilityLabel("\(item.title) assumed percentage")
+                Text(binding.wrappedValue, format: .number.precision(.fractionLength(0)))
+                    .font(.title3.monospacedDigit())
+                    .frame(minWidth: 64)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .capsuleInputSurface()
+                    .accessibilityElement()
+                    .accessibilityLabel(
+                        "\(Int(binding.wrappedValue.rounded())) percent assumed for \(item.title)"
+                    )
+                    .accessibilityIdentifier("whatIfAssumptionValue-\(item.title)")
                 Text("%").foregroundStyle(.secondary)
             }
             HStack(spacing: DesignSystem.Spacing.small) {
@@ -369,7 +374,7 @@ struct WhatIfPlaygroundView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
             HStack(spacing: DesignSystem.Spacing.small) {
                 TextField("Scenario name", text: $scenarioName)
-                    .textFieldStyle(.roundedBorder)
+                    .roundedInputSurface()
                     .accessibilityIdentifier("whatIfScenarioName")
                 Button("Save Scenario", systemImage: "square.and.arrow.down") { saveScenario() }
                     .buttonStyle(.glass(.regular.tint(.accentColor.opacity(0.24)).interactive()))

@@ -470,7 +470,10 @@ struct DashboardView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
-            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: DesignSystem.Radius.compact))
+            .background(
+                Color(.secondarySystemGroupedBackground),
+                in: RoundedRectangle(cornerRadius: DesignSystem.Radius.compact, style: .continuous)
+            )
             .accessibilityElement(children: .combine)
         }
     }
@@ -508,7 +511,12 @@ struct DashboardView: View {
                     if let due = item.dueDate { Text(due, style: .relative).font(.caption).foregroundStyle(.secondary) }
                 }
             }
-        }.padding().background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card))
+        }
+        .padding()
+        .background(
+            Color(.secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+        )
     }
 
     private var attentionSection: some View {
@@ -529,7 +537,10 @@ struct DashboardView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: DesignSystem.Radius.compact))
+        .background(
+            Color(.secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: DesignSystem.Radius.compact, style: .continuous)
+        )
         .accessibilityElement(children: .combine)
     }
 
@@ -568,7 +579,10 @@ struct DashboardView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card))
+        .background(
+            Color(.secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+        )
     }
 
     private var recentCourses: some View {
