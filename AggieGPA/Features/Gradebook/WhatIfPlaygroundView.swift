@@ -8,11 +8,11 @@ private enum WhatIfPreset: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var displayName: String {
+    func displayName(locale: Locale) -> String {
         switch self {
-        case .conservative: String(localized: "Conservative")
-        case .expected: String(localized: "Expected")
-        case .optimistic: String(localized: "Optimistic")
+        case .conservative: AppLocalization.string("Conservative", locale: locale)
+        case .expected: AppLocalization.string("Expected", locale: locale)
+        case .optimistic: AppLocalization.string("Optimistic", locale: locale)
         }
     }
 
@@ -37,6 +37,7 @@ struct WhatIfPlaygroundView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.locale) private var locale
 
     let course: CourseRecord
     let policy: CourseGradingPolicy?
@@ -80,7 +81,7 @@ struct WhatIfPlaygroundView: View {
         _assumptions = State(initialValue: Dictionary(uniqueKeysWithValues: ungraded.map { item in
             (item.id, selectedScenario?.itemAssumptions[item.id].map(decimalDouble) ?? startingValue)
         }))
-        _scenarioName = State(initialValue: selectedScenario?.name ?? startingPreset.displayName)
+        _scenarioName = State(initialValue: selectedScenario?.name ?? startingPreset.rawValue)
     }
 
     private var adjustableItems: [GradeItem] {
@@ -181,7 +182,7 @@ struct WhatIfPlaygroundView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
             Picker("Assumption preset", selection: $preset) {
                 ForEach(WhatIfPreset.allCases) { preset in
-                    Text(preset.displayName).tag(preset)
+                    Text(preset.displayName(locale: locale)).tag(preset)
                 }
             }
             .pickerStyle(.segmented)
@@ -225,7 +226,7 @@ struct WhatIfPlaygroundView: View {
         return VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.title).font(.headline)
+                    Text(LocalizedStringKey(item.title)).font(.headline)
                     Text(LocalizedStringKey(item.category?.name ?? "Unassigned"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -318,7 +319,7 @@ struct WhatIfPlaygroundView: View {
             Text(value)
                 .font(.title2.bold().monospacedDigit())
                 .contentTransition(.numericText())
-            Text(detail)
+            Text(LocalizedStringKey(detail))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -338,7 +339,7 @@ struct WhatIfPlaygroundView: View {
                                 load(scenario)
                             } label: {
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text(scenario.name).fontWeight(.semibold)
+                                    Text(LocalizedStringKey(scenario.name)).fontWeight(.semibold)
                                     Text(scenarioResult.projectedFinalPercentage.map(formattedPercent) ?? "—")
                                         .font(.headline.monospacedDigit())
                                     Text(scenarioResult.projectedLetterGrade?.rawValue ?? "No letter")
@@ -393,7 +394,7 @@ struct WhatIfPlaygroundView: View {
     private var targetDetail: String {
         guard let target = policy?.targetPercentage else { return "Set a target first" }
         return String(
-            format: String(localized: "Target: %@"),
+            format: AppLocalization.string("Target: %@", locale: locale),
             "\(compact(target))%"
         )
     }
@@ -408,7 +409,7 @@ struct WhatIfPlaygroundView: View {
     private func apply(_ preset: WhatIfPreset) {
         defaultAssumption = preset.percentage
         assumptions = Dictionary(uniqueKeysWithValues: adjustableItems.map { ($0.id, preset.percentage) })
-        scenarioName = preset.displayName
+        scenarioName = preset.displayName(locale: locale)
         savedConfirmation = nil
     }
 
@@ -442,7 +443,7 @@ struct WhatIfPlaygroundView: View {
         do {
             try modelContext.save()
             withAnimation(DesignSystem.Motion.quick(reduceMotion: reduceMotion)) {
-                savedConfirmation = String(localized: "Plan saved")
+                savedConfirmation = AppLocalization.string("Plan saved", locale: locale)
             }
         } catch {
             modelContext.rollback()

@@ -74,7 +74,7 @@ struct IPadCourseList: View {
                     ForEach(liveCourses) { course in
                         VStack(alignment: .leading, spacing: 3) {
                             Text(course.courseCode).font(.headline)
-                            Text(course.courseTitle.isEmpty ? course.term?.displayName ?? "Course" : course.courseTitle)
+                            Text(LocalizedStringKey(course.courseTitle.isEmpty ? course.term?.displayName ?? "Course" : course.courseTitle))
                                 .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                         }
                         .tag(course.id)

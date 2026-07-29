@@ -36,6 +36,7 @@ private struct ScoreImpactBaseline {
 struct CourseDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.locale) private var locale
     @Query private var policies: [CourseGradingPolicy]
     @Query private var categories: [GradingCategory]
     @Query private var items: [GradeItem]
@@ -368,7 +369,11 @@ struct CourseDetailView: View {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("Next up").font(.caption).foregroundStyle(.secondary)
-                    Text(nextItem?.title ?? "Nothing due").font(.headline).lineLimit(1)
+                    if let nextItem {
+                        Text(LocalizedStringKey(nextItem.title)).font(.headline).lineLimit(1)
+                    } else {
+                        Text("Nothing due").font(.headline).lineLimit(1)
+                    }
                 }
             }
             Label("Final recorded grade: \(course.grade.rawValue)", systemImage: "checkmark.seal")
@@ -478,7 +483,7 @@ struct CourseDetailView: View {
         HStack(spacing: DesignSystem.Spacing.small) {
             Image(systemName: item.status.icon).foregroundStyle(item.status.tint)
             VStack(alignment: .leading, spacing: 3) {
-                Text(item.title).foregroundStyle(.primary)
+                Text(LocalizedStringKey(item.title)).foregroundStyle(.primary)
                 HStack(spacing: 6) {
                     Text(LocalizedStringKey(item.status.localizedLabelKey))
                     if let due = item.dueDate { Text(due, style: .date) }
@@ -597,7 +602,7 @@ struct CourseDetailView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Calculation Details", systemImage: "checklist") .font(.headline)
                     ForEach(Array(result.issues.enumerated()), id: \.offset) { _, issue in
-                        Text("• \(issue.message)").font(.footnote).foregroundStyle(.secondary)
+                        Text("• \(issue.message(locale: locale))").font(.footnote).foregroundStyle(.secondary)
                     }
                 }
                 .padding(DesignSystem.Spacing.medium)
@@ -635,7 +640,7 @@ struct CourseDetailView: View {
 
             Text(
                 String(
-                    format: String(localized: "%@ of the course weight has graded work."),
+                    format: AppLocalization.string("%@ of the course weight has graded work.", locale: locale),
                     percent(result.gradedWeight)
                 )
             )
@@ -651,8 +656,8 @@ struct CourseDetailView: View {
             if let category = highestContributionCategory {
                 Text(
                     String(
-                        format: String(localized: "%@ currently contributes the most to this grade."),
-                        category.name
+                        format: AppLocalization.string("%@ currently contributes the most to this grade.", locale: locale),
+                        AppLocalization.string(category.name, locale: locale)
                     )
                 )
                 .font(.footnote)
@@ -763,7 +768,7 @@ struct CourseDetailView: View {
     private var courseIdentity: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(course.courseCode).font(.title3.bold())
-            Text(course.courseTitle.isEmpty ? "Course" : course.courseTitle)
+            Text(LocalizedStringKey(course.courseTitle.isEmpty ? "Course" : course.courseTitle))
                 .font(.headline)
                 .fixedSize(horizontal: false, vertical: true)
             Text("Current Course Grade")
@@ -1066,21 +1071,58 @@ private extension TargetFeasibility {
 }
 
 private extension GradeCalculationIssue {
-    var message: String {
+    func message(locale: Locale) -> String {
         switch self {
-        case .emptyGradebook: "No counted grade items yet."
-        case .noGradeScale: "No confirmed course grade scale; letter prediction is hidden."
-        case .missingPolicyNeedsConfirmation: "Confirm before missing items count as zero."
-        case .weightTotalBelow100(let value): "Category weights total \(percent(value)), below 100%."
-        case .weightTotalAbove100(let value): "Category weights total \(percent(value)), above 100%."
-        case .invalidCategoryWeight(let name): "\(name) has an invalid weight."
-        case .unsupportedCustomCategory(let name): "\(name) uses a custom rule requiring manual review."
-        case .invalidPossiblePoints(let title): "\(title) needs possible points greater than zero."
-        case .invalidMultiplier(let title): "\(title) has an invalid multiplier."
-        case .gradedItemMissingScore(let title): "\(title) is graded but has no score."
-        case .dropCountRemovesAll(let name): "The drop rule removes every item in \(name)."
-        case .unassignedItems: "Assign all items to a weighted category."
-        case .hybridNeedsDirectItems: "The hybrid policy needs direct-point items."
+        case .emptyGradebook:
+            AppLocalization.string("No counted grade items yet.", locale: locale)
+        case .noGradeScale:
+            AppLocalization.string("No confirmed course grade scale; letter prediction is hidden.", locale: locale)
+        case .missingPolicyNeedsConfirmation:
+            AppLocalization.string("Confirm before missing items count as zero.", locale: locale)
+        case .weightTotalBelow100(let value):
+            String(
+                format: AppLocalization.string("Category weights total %@, below 100%.", locale: locale),
+                percent(value)
+            )
+        case .weightTotalAbove100(let value):
+            String(
+                format: AppLocalization.string("Category weights total %@, above 100%.", locale: locale),
+                percent(value)
+            )
+        case .invalidCategoryWeight(let name):
+            String(
+                format: AppLocalization.string("%@ has an invalid weight.", locale: locale),
+                AppLocalization.string(name, locale: locale)
+            )
+        case .unsupportedCustomCategory(let name):
+            String(
+                format: AppLocalization.string("%@ uses a custom rule requiring manual review.", locale: locale),
+                AppLocalization.string(name, locale: locale)
+            )
+        case .invalidPossiblePoints(let title):
+            String(
+                format: AppLocalization.string("%@ needs possible points greater than zero.", locale: locale),
+                AppLocalization.string(title, locale: locale)
+            )
+        case .invalidMultiplier(let title):
+            String(
+                format: AppLocalization.string("%@ has an invalid multiplier.", locale: locale),
+                AppLocalization.string(title, locale: locale)
+            )
+        case .gradedItemMissingScore(let title):
+            String(
+                format: AppLocalization.string("%@ is graded but has no score.", locale: locale),
+                AppLocalization.string(title, locale: locale)
+            )
+        case .dropCountRemovesAll(let name):
+            String(
+                format: AppLocalization.string("The drop rule removes every item in %@.", locale: locale),
+                AppLocalization.string(name, locale: locale)
+            )
+        case .unassignedItems:
+            AppLocalization.string("Assign all items to a weighted category.", locale: locale)
+        case .hybridNeedsDirectItems:
+            AppLocalization.string("The hybrid policy needs direct-point items.", locale: locale)
         }
     }
 }

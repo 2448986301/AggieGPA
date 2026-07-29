@@ -234,7 +234,7 @@ struct DashboardView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.course?.courseCode ?? "Course").font(.caption.weight(.semibold)).foregroundStyle(DesignSystem.ColorToken.gold)
-                            Text(item.title).font(.headline)
+                            Text(LocalizedStringKey(item.title)).font(.headline)
                             if let due = item.dueDate { Text(due, style: .relative).font(.caption).foregroundStyle(.secondary) }
                         }
                         Spacer()
@@ -521,7 +521,7 @@ struct DashboardView: View {
             Text("Upcoming").font(.headline)
             ForEach(Array(upcomingItems.prefix(5))) { item in
                 HStack {
-                    VStack(alignment: .leading) { Text(item.title); Text(item.course?.courseCode ?? "Course").font(.caption).foregroundStyle(.secondary) }
+                    VStack(alignment: .leading) { Text(LocalizedStringKey(item.title)); Text(item.course?.courseCode ?? "Course").font(.caption).foregroundStyle(.secondary) }
                     Spacer()
                     if let due = item.dueDate { Text(due, style: .relative).font(.caption).foregroundStyle(.secondary) }
                 }
@@ -602,7 +602,7 @@ struct DashboardView: View {
                         HStack {
                             VStack(alignment: .leading) {
                                 Text(course.courseCode).font(.headline)
-                                Text(course.courseTitle.isEmpty ? course.term?.displayName ?? "Course" : course.courseTitle)
+                                Text(LocalizedStringKey(course.courseTitle.isEmpty ? course.term?.displayName ?? "Course" : course.courseTitle))
                                     .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                             }
                             Spacer()
@@ -721,7 +721,7 @@ private struct GradeActionCoursePicker: View {
                 } label: {
                     VStack(alignment: .leading) {
                         Text(course.courseCode).font(.headline)
-                        Text(course.courseTitle).foregroundStyle(.secondary)
+                        Text(LocalizedStringKey(course.courseTitle)).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -799,7 +799,7 @@ private struct ScorePickerView: View {
                                 .id(item.id)
                         } label: {
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(item.title)
+                                Text(LocalizedStringKey(item.title))
                                     .font(.body.weight(.medium))
                                 HStack(spacing: DesignSystem.Spacing.xSmall) {
                                     Text(item.course?.courseCode ?? "Course")

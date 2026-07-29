@@ -7,6 +7,7 @@ import UserNotifications
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.locale) private var locale
     @Query private var courses: [CourseRecord]
     let preferences: UserPreferences
     @State private var dataError: String?
@@ -17,7 +18,7 @@ struct SettingsView: View {
             Form {
                 Section("App") {
                     TextField("Name or nickname", text: $preferences.displayName)
-                    TextField("Major", text: $preferences.major)
+                    TextField("Major", text: localizedMajorBinding($preferences.major))
                     TextField("First academic year", text: $preferences.firstAcademicYear)
                 }
                 Section("Grades & GPA") {
@@ -97,6 +98,18 @@ struct SettingsView: View {
     }
 
     private func save() { try? modelContext.save() }
+
+    private func localizedMajorBinding(_ binding: Binding<String>) -> Binding<String> {
+        Binding(
+            get: {
+                if locale.identifier.hasPrefix("zh"), binding.wrappedValue == "Biological Sciences" {
+                    return "生物科学"
+                }
+                return binding.wrappedValue
+            },
+            set: { binding.wrappedValue = $0 }
+        )
+    }
 }
 
 private struct SiriAccessSettingsView: View {
@@ -208,7 +221,7 @@ private struct NotificationSettingsView: View {
 }
 
 private struct DecimalPreferenceField: View {
-    let title: String
+    let title: LocalizedStringKey
     @Binding var value: Decimal
     let range: ClosedRange<Decimal>
     @State private var text = ""

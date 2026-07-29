@@ -233,7 +233,7 @@ private struct CourseRow: View {
     private var courseIdentity: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(course.courseCode).font(.headline).foregroundStyle(.primary)
-            if !course.courseTitle.isEmpty { Text(course.courseTitle).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
+            if !course.courseTitle.isEmpty { Text(LocalizedStringKey(course.courseTitle)).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
             HStack {
                 Text(verbatim: AppCopy.units(course.units, locale: locale))
                 if course.isMajorCourse { Label("Major", systemImage: "star.fill") }

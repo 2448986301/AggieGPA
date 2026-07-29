@@ -181,7 +181,7 @@ private struct TermRow: View {
                 .foregroundStyle(DesignSystem.ColorToken.gold)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
-                Text(term.displayName).font(.headline)
+                Text(LocalizedStringKey(term.displayName)).font(.headline)
                 Text(verbatim: AppCopy.termSummary(units: result.attemptedUnits, courseCount: courses.count, locale: locale))
                     .font(.caption).foregroundStyle(.secondary)
             }
