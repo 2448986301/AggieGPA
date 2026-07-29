@@ -101,6 +101,8 @@ final class AggieGPAUITests: XCTestCase {
         let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-chinese"])
         openDemoGradebook(app: app)
 
+        XCTAssertTrue(app.staticTexts["General Chemistry"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["普通化学"].exists)
         for label in ["Homework", "Homework 1", "Homework 2", "Homework 3"] {
             XCTAssertTrue(app.staticTexts[label].waitForExistence(timeout: 5))
         }
@@ -115,6 +117,34 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["实验"].exists)
         XCTAssertFalse(app.staticTexts["期中考试"].exists)
         XCTAssertFalse(app.staticTexts["期末考试"].exists)
+    }
+
+    func testProfileDataStaysVerbatimAndBackgroundTapDismissesKeyboardInSimplifiedChinese() {
+        let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-chinese"])
+        app.buttons.matching(identifier: "gearshape").firstMatch.tap()
+
+        let major = app.textFields["settingsMajorField"]
+        XCTAssertTrue(major.waitForExistence(timeout: 5))
+        XCTAssertEqual(major.value as? String, "Biological Sciences")
+        XCTAssertFalse(app.staticTexts["生物科学"].exists)
+
+        major.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
+        app.staticTexts["个人信息"].tap()
+        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
+
+        let majorGPAToggle = app.switches["settingsShowMajorGPAToggle"]
+        XCTAssertTrue(majorGPAToggle.waitForExistence(timeout: 3))
+        let originalToggleValue = majorGPAToggle.value as? String
+        majorGPAToggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        let toggleChanged = NSPredicate { _, _ in
+            majorGPAToggle.value as? String != originalToggleValue
+        }
+        expectation(for: toggleChanged, evaluatedWith: nil)
+        waitForExpectations(timeout: 3)
+
+        let gradingBasisPicker = app.descendants(matching: .any)["settingsDefaultGradingBasisPicker"]
+        XCTAssertTrue(gradingBasisPicker.isHittable)
     }
 
     func testEmptyGradebookBlankTapsDoNotOpenSetupSheetsAndActionsStayBounded() {
@@ -287,10 +317,11 @@ final class AggieGPAUITests: XCTestCase {
         sectionPicker.coordinate(withNormalizedOffset: CGVector(dx: 5.0 / 6.0, dy: 0.5)).tap()
 
         if chinese {
-            XCTAssertTrue(app.descendants(matching: .any)["稳妥 70%"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.descendants(matching: .any)["稳妥"].waitForExistence(timeout: 5))
             XCTAssertTrue(app.descendants(matching: .any)["按当前表现"].exists)
-            XCTAssertFalse(app.descendants(matching: .any)["按当前表现 85%"].exists)
-            XCTAssertTrue(app.descendants(matching: .any)["冲刺 95%"].exists)
+            XCTAssertTrue(app.descendants(matching: .any)["冲刺"].exists)
+            XCTAssertFalse(app.descendants(matching: .any)["稳妥 70%"].exists)
+            XCTAssertFalse(app.descendants(matching: .any)["冲刺 95%"].exists)
         }
 
         let targetButton = app.buttons["forecastTargetButton"]

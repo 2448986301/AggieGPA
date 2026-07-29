@@ -281,7 +281,8 @@ struct WhatIfPlaygroundView: View {
                 metric(
                     "Projected term GPA",
                     projectedTermGPA.map { DecimalFormatters.string($0, precision: 3) } ?? "—",
-                    detail: course.term?.displayName ?? "Current term"
+                    detail: course.term?.displayName ?? "Current term",
+                    detailIsVerbatim: course.term != nil
                 )
                 metric(
                     "Distance to target",
@@ -324,13 +325,24 @@ struct WhatIfPlaygroundView: View {
         }
     }
 
-    private func metric(_ title: LocalizedStringKey, _ value: String, detail: String) -> some View {
+    private func metric(
+        _ title: LocalizedStringKey,
+        _ value: String,
+        detail: String,
+        detailIsVerbatim: Bool = false
+    ) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title).font(.caption).foregroundStyle(.secondary)
             Text(value)
                 .font(.title2.bold().monospacedDigit())
                 .contentTransition(.numericText())
-            Text(LocalizedStringKey(detail))
+            Group {
+                if detailIsVerbatim {
+                    Text(verbatim: detail)
+                } else {
+                    Text(LocalizedStringKey(detail))
+                }
+            }
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -350,7 +362,7 @@ struct WhatIfPlaygroundView: View {
                                 load(scenario)
                             } label: {
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text(LocalizedStringKey(scenario.name)).fontWeight(.semibold)
+                                    Text(verbatim: scenario.name).fontWeight(.semibold)
                                     Text(scenarioResult.projectedFinalPercentage.map(formattedPercent) ?? "—")
                                         .font(.headline.monospacedDigit())
                                     Text(scenarioResult.projectedLetterGrade?.rawValue ?? "No letter")

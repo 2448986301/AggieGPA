@@ -211,8 +211,13 @@ struct SemesterMapView: View {
     private var overview: some View {
         HStack(alignment: .top, spacing: DesignSystem.Spacing.medium) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(LocalizedStringKey(selectedTerm?.displayName ?? "Semester"))
-                    .font(.title2.bold())
+                if let selectedTerm {
+                    Text(verbatim: selectedTerm.displayName)
+                        .font(.title2.bold())
+                } else {
+                    Text("Semester")
+                        .font(.title2.bold())
+                }
                 if let selectedTerm, let start = selectedTerm.startDate, let end = selectedTerm.endDate {
                     Text(dateRange(start: start, end: end))
                         .font(.subheadline.weight(.medium))
@@ -246,7 +251,7 @@ struct SemesterMapView: View {
         Menu {
             Picker("Semester", selection: $selectedTermID) {
                 ForEach(liveTerms) { term in
-                    Text(LocalizedStringKey(term.displayName)).tag(Optional(term.id))
+                    Text(verbatim: term.displayName).tag(Optional(term.id))
                 }
             }
         } label: {

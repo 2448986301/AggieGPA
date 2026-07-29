@@ -2225,7 +2225,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "稳妥 70%"
+            "value" : "稳妥"
           }
         }
       }
@@ -3571,7 +3571,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "考试"
+            "value" : "Exams"
           }
         }
       }
@@ -3806,7 +3806,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "期末考试"
+            "value" : "Final Exam"
           }
         }
       }
@@ -4565,7 +4565,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "作业"
+            "value" : "Homework"
           }
         }
       }
@@ -4892,7 +4892,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "实验"
+            "value" : "Labs"
           }
         }
       }
@@ -5216,7 +5216,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "期中考试"
+            "value" : "Midterms"
           }
         }
       }
@@ -5980,7 +5980,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "冲刺 95%"
+            "value" : "冲刺"
           }
         }
       }
@@ -6585,7 +6585,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "小测"
+            "value" : "Quizzes"
           }
         }
       }
@@ -9339,7 +9339,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "生物科学"
+            "value" : "Biological Sciences"
           }
         }
       }
@@ -9349,7 +9349,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "2026 秋季学期"
+            "value" : "Fall 2026"
           }
         }
       }
@@ -9359,7 +9359,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "普通化学"
+            "value" : "General Chemistry"
           }
         }
       }
@@ -9369,7 +9369,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "心理学概论"
+            "value" : "General Psychology"
           }
         }
       }
@@ -9379,7 +9379,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "作业 1"
+            "value" : "Homework 1"
           }
         }
       }
@@ -9389,7 +9389,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "作业 2"
+            "value" : "Homework 2"
           }
         }
       }
@@ -9399,7 +9399,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "作业 3"
+            "value" : "Homework 3"
           }
         }
       }
@@ -9409,7 +9409,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "生物学导论"
+            "value" : "Introduction to Biology"
           }
         }
       }
@@ -9419,7 +9419,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "实验 1"
+            "value" : "Lab 1"
           }
         }
       }
@@ -9429,7 +9429,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "期中考试 1"
+            "value" : "Midterm 1"
           }
         }
       }
@@ -9439,7 +9439,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "科学写作"
+            "value" : "Writing in Science"
           }
         }
       }

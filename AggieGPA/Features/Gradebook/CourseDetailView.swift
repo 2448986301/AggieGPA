@@ -804,7 +804,13 @@ struct CourseDetailView: View {
     private var courseIdentity: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(course.courseCode).font(.title3.bold())
-            Text(LocalizedStringKey(course.courseTitle.isEmpty ? "Course" : course.courseTitle))
+            Group {
+                if course.courseTitle.isEmpty {
+                    Text("Course")
+                } else {
+                    Text(verbatim: course.courseTitle)
+                }
+            }
                 .font(.headline)
                 .fixedSize(horizontal: false, vertical: true)
             Text("Current Course Grade")

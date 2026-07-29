@@ -598,7 +598,15 @@ struct DashboardView: View {
                         HStack {
                             VStack(alignment: .leading) {
                                 Text(course.courseCode).font(.headline)
-                                Text(LocalizedStringKey(course.courseTitle.isEmpty ? course.term?.displayName ?? "Course" : course.courseTitle))
+                                Group {
+                                    if !course.courseTitle.isEmpty {
+                                        Text(verbatim: course.courseTitle)
+                                    } else if let termName = course.term?.displayName {
+                                        Text(verbatim: termName)
+                                    } else {
+                                        Text("Course")
+                                    }
+                                }
                                     .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                             }
                             Spacer()
@@ -717,7 +725,7 @@ private struct GradeActionCoursePicker: View {
                 } label: {
                     VStack(alignment: .leading) {
                         Text(course.courseCode).font(.headline)
-                        Text(LocalizedStringKey(course.courseTitle)).foregroundStyle(.secondary)
+                        Text(verbatim: course.courseTitle).foregroundStyle(.secondary)
                     }
                 }
             }

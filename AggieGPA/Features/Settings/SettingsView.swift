@@ -5,45 +5,77 @@ import UniformTypeIdentifiers
 import UIKit
 import UserNotifications
 
+private enum SettingsField: Hashable {
+    case displayName
+    case major
+    case academicYear
+    case targetGPA
+}
+
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.locale) private var locale
     @Query private var courses: [CourseRecord]
     let preferences: UserPreferences
     @State private var dataError: String?
+    @FocusState private var focusedField: SettingsField?
 
     var body: some View {
         @Bindable var preferences = preferences
         NavigationStack {
             Form {
-                Section("App") {
+                Section {
                     TextField("Name or nickname", text: $preferences.displayName)
-                    TextField("Major", text: localizedMajorBinding($preferences.major))
+                        .focused($focusedField, equals: .displayName)
+                        .accessibilityIdentifier("settingsNameField")
+                    TextField("Major", text: $preferences.major)
+                        .focused($focusedField, equals: .major)
+                        .accessibilityIdentifier("settingsMajorField")
                     TextField("First academic year", text: $preferences.firstAcademicYear)
+                        .focused($focusedField, equals: .academicYear)
+                        .accessibilityIdentifier("settingsAcademicYearField")
+                } header: {
+                    dismissKeyboardHeader("App")
                 }
-                Section("Grades & GPA") {
-                    DecimalPreferenceField(title: "Target GPA", value: $preferences.targetGPA, range: 0...4)
+                Section {
+                    DecimalPreferenceField(
+                        title: "Target GPA",
+                        value: $preferences.targetGPA,
+                        range: 0...4,
+                        focus: $focusedField
+                    )
                     Picker("Default grading basis", selection: $preferences.defaultGradingBasisRaw) {
                         ForEach(GradingBasis.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0.rawValue) }
                     }
+                    .accessibilityIdentifier("settingsDefaultGradingBasisPicker")
                     Picker("GPA decimal places", selection: $preferences.decimalPrecision) {
                         Text("2").tag(2); Text("3").tag(3); Text("4").tag(4)
                     }
+                    .accessibilityIdentifier("settingsDecimalPrecisionPicker")
                     Toggle("Show Major GPA", isOn: $preferences.showMajorGPA)
+                        .accessibilityIdentifier("settingsShowMajorGPAToggle")
                     Toggle("Show Upper-Division GPA", isOn: $preferences.showUpperDivisionGPA)
+                        .accessibilityIdentifier("settingsShowUpperDivisionGPAToggle")
                     Toggle("Show repeat summary", isOn: $preferences.showRepeatSummary)
+                        .accessibilityIdentifier("settingsShowRepeatSummaryToggle")
+                } header: {
+                    dismissKeyboardHeader("Grades & GPA")
                 }
-                Section("App Preferences") {
+                Section {
                     Picker("Language", selection: $preferences.languageRaw) {
                         ForEach(AppLanguage.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0.rawValue) }
                     }
+                    .accessibilityIdentifier("settingsLanguagePicker")
                     Picker("Appearance", selection: $preferences.appearanceRaw) {
                         ForEach(AppAppearance.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0.rawValue) }
                     }
+                    .accessibilityIdentifier("settingsAppearancePicker")
                     Toggle("Haptics", isOn: $preferences.hapticsEnabled)
+                        .accessibilityIdentifier("settingsHapticsToggle")
                     LabeledContent("App icon appearance", value: "Managed by iOS")
                     Text("Default, Dark, Clear, Tinted, and Monochrome appearances are selected by the iOS Home Screen. Aggie GPA does not pretend to switch unsupported system icon modes at runtime.")
                         .font(.footnote).foregroundStyle(.secondary)
+                } header: {
+                    dismissKeyboardHeader("App Preferences")
                 }
                 Section("Privacy") {
                     Toggle("Require Face ID, Touch ID, or passcode", isOn: $preferences.privacyLockEnabled)
@@ -84,6 +116,15 @@ struct SettingsView: View {
                 Section { DisclaimerBanner() }
             }
             .navigationTitle("Settings")
+            .scrollDismissesKeyboard(.immediately)
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        focusedField = nil
+                    }
+                }
+            }
             .onChange(of: preferences.displayName) { _, _ in save() }
             .onChange(of: preferences.major) { _, _ in save() }
             .onChange(of: preferences.appearanceRaw) { _, _ in save() }
@@ -99,16 +140,13 @@ struct SettingsView: View {
 
     private func save() { try? modelContext.save() }
 
-    private func localizedMajorBinding(_ binding: Binding<String>) -> Binding<String> {
-        Binding(
-            get: {
-                if locale.identifier.hasPrefix("zh"), binding.wrappedValue == "Biological Sciences" {
-                    return "生物科学"
-                }
-                return binding.wrappedValue
-            },
-            set: { binding.wrappedValue = $0 }
-        )
+    private func dismissKeyboardHeader(_ title: LocalizedStringKey) -> some View {
+        Text(title)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                focusedField = nil
+            }
     }
 }
 
@@ -224,6 +262,7 @@ private struct DecimalPreferenceField: View {
     let title: LocalizedStringKey
     @Binding var value: Decimal
     let range: ClosedRange<Decimal>
+    let focus: FocusState<SettingsField?>.Binding
     @State private var text = ""
 
     var body: some View {
@@ -231,7 +270,9 @@ private struct DecimalPreferenceField: View {
             TextField(title, text: $text)
                 .multilineTextAlignment(.trailing)
                 .keyboardType(.decimalPad)
+                .focused(focus, equals: .targetGPA)
                 .accessibilityLabel(title)
+                .accessibilityIdentifier("settingsTargetGPAField")
                 .onAppear { text = DecimalFormatters.compact(value) }
                 .onChange(of: text) { _, newValue in
                     if let decimal = DecimalFormatters.decimal(from: newValue), range.contains(decimal) { value = decimal }
