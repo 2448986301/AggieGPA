@@ -67,7 +67,12 @@ struct QuartersView: View {
                                             Button("Delete", systemImage: "trash", role: .destructive) { pendingDelete = term }
                                         }
                                         .swipeActions(edge: .trailing) {
-                                            Button("Delete", role: .destructive) { pendingDelete = term }
+                                            Button(role: .destructive) {
+                                                pendingDelete = term
+                                            } label: {
+                                                Label("Delete", systemImage: "trash")
+                                            }
+                                            .tint(.red)
                                         }
                                 }
                                 .onMove { source, destination in move(year: year, from: source, to: destination) }

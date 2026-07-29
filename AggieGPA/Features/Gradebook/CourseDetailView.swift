@@ -533,10 +533,18 @@ struct CourseDetailView: View {
         .contentShape(Rectangle())
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             if hasRecordedScore(item) {
-                Button("Edit Score") { beginScoring(item) }
+                Button {
+                    beginScoring(item)
+                } label: {
+                    Label("Edit Score", systemImage: "pencil.and.list.clipboard")
+                }
                     .tint(DesignSystem.ColorToken.navyRaised)
             } else {
-                Button("Record Score") { beginScoring(item) }
+                Button {
+                    beginScoring(item)
+                } label: {
+                    Label("Record Score", systemImage: "checkmark.circle")
+                }
                     .tint(DesignSystem.ColorToken.navyRaised)
             }
         }
@@ -546,7 +554,11 @@ struct CourseDetailView: View {
             }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button("Delete") { requestDelete(item) }
+            Button(role: .destructive) {
+                requestDelete(item)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
                 .tint(.red)
         }
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.compact, style: .continuous))

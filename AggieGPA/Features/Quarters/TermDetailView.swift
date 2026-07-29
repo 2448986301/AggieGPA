@@ -92,8 +92,22 @@ struct TermDetailView: View {
                             Button("Duplicate", systemImage: "plus.square.on.square") { duplicate(course) }
                             Button("Delete", systemImage: "trash", role: .destructive) { remove(course) }
                         }
-                        .swipeActions(edge: .leading) { Button("Edit") { editingCourse = course }.tint(.blue) }
-                        .swipeActions(edge: .trailing) { Button("Delete", role: .destructive) { remove(course) } }
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                            Button {
+                                editingCourse = course
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(.blue)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                remove(course)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            .tint(.red)
+                        }
                 }
             }
             Section {
