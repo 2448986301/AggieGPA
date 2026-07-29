@@ -254,7 +254,8 @@ final class AggieGPAUITests: XCTestCase {
 
         if chinese {
             XCTAssertTrue(app.descendants(matching: .any)["稳妥 70%"].waitForExistence(timeout: 5))
-            XCTAssertTrue(app.descendants(matching: .any)["按当前表现 85%"].exists)
+            XCTAssertTrue(app.descendants(matching: .any)["按当前表现"].exists)
+            XCTAssertFalse(app.descendants(matching: .any)["按当前表现 85%"].exists)
             XCTAssertTrue(app.descendants(matching: .any)["冲刺 95%"].exists)
         }
 
