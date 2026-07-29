@@ -70,7 +70,7 @@ final class AggieGPAUITests: XCTestCase {
 
     func testFocusNextUsesReliableDemoWorkAndCanBeHiddenInSimplifiedChinese() {
         let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-chinese"])
-        exerciseFocusNext(app: app, hideLabel: "隐藏最值得关注", reasonFragment: "课程总评")
+        exerciseFocusNext(app: app, hideLabel: "隐藏下一步建议", reasonFragment: "课程总评")
     }
 
     func testFocusNextShortcutOpensScoreEntryInsteadOfGradeItemEditor() {
