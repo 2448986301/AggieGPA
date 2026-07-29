@@ -396,7 +396,7 @@ struct SemesterMapView: View {
                     .frame(width: 22)
                 VStack(alignment: .leading, spacing: 3) {
                     HStack {
-                        Text(LocalizedStringKey(item.title))
+                        Text(verbatim: item.title)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.primary)
                         Spacer(minLength: DesignSystem.Spacing.small)

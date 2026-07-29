@@ -273,7 +273,8 @@ struct CourseDetailView: View {
         .listStyle(.insetGrouped)
         .listSectionSpacing(.custom(DesignSystem.Spacing.small))
         .scrollContentBackground(.hidden)
-        .scrollEdgeEffectHidden(true, for: [.top, .leading, .trailing])
+        .scrollEdgeEffectStyle(.soft, for: .top)
+        .scrollEdgeEffectHidden(true, for: [.leading, .trailing])
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
     }
 
@@ -447,7 +448,7 @@ struct CourseDetailView: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("Next up").font(.caption).foregroundStyle(.secondary)
                     if let nextItem {
-                        Text(LocalizedStringKey(nextItem.title)).font(.headline).lineLimit(1)
+                        Text(verbatim: nextItem.title).font(.headline).lineLimit(1)
                     } else {
                         Text("Nothing due").font(.headline).lineLimit(1)
                     }
@@ -472,7 +473,7 @@ struct CourseDetailView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(LocalizedStringKey(category.name)).font(.headline)
+                    Text(verbatim: category.name).font(.headline)
                     Text("Worth \(percent(category.weight)) of course")
                         .font(.caption).foregroundStyle(.secondary)
                 }
@@ -518,7 +519,7 @@ struct CourseDetailView: View {
         HStack(spacing: DesignSystem.Spacing.small) {
             Image(systemName: item.status.icon).foregroundStyle(item.status.tint)
             VStack(alignment: .leading, spacing: 3) {
-                Text(LocalizedStringKey(item.title)).foregroundStyle(.primary)
+                Text(verbatim: item.title).foregroundStyle(.primary)
                 HStack(spacing: 6) {
                     Text(LocalizedStringKey(item.status.localizedLabelKey))
                     if let due = item.dueDate { Text(due, style: .date) }
@@ -585,7 +586,7 @@ struct CourseDetailView: View {
     private func categoryListHeader(_ category: GradingCategory) -> some View {
         HStack(spacing: DesignSystem.Spacing.small) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(LocalizedStringKey(category.name)).font(.headline)
+                Text(verbatim: category.name).font(.headline)
                 Text("Worth \(percent(category.weight)) of course")
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -617,7 +618,7 @@ struct CourseDetailView: View {
             ForEach(result.categoryBreakdown, id: \.id) { category in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text(LocalizedStringKey(category.name)).font(.headline)
+                        Text(verbatim: category.name).font(.headline)
                         Spacer()
                         Text(percent(category.average)).font(.headline.monospacedDigit())
                     }
@@ -653,7 +654,7 @@ struct CourseDetailView: View {
 
             ForEach(result.categoryBreakdown, id: \.id) { category in
                 HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.small) {
-                    Text(LocalizedStringKey(category.name))
+                    Text(verbatim: category.name)
                         .lineLimit(2)
                     Spacer(minLength: DesignSystem.Spacing.small)
                     if let average = category.average {
@@ -692,7 +693,7 @@ struct CourseDetailView: View {
                 Text(
                     String(
                         format: AppLocalization.string("%@ currently contributes the most to this grade.", locale: locale),
-                        AppLocalization.string(category.name, locale: locale)
+                        category.name
                     )
                 )
                 .font(.footnote)

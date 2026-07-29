@@ -234,7 +234,7 @@ struct DashboardView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.course?.courseCode ?? "Course").font(.caption.weight(.semibold)).foregroundStyle(DesignSystem.ColorToken.gold)
-                            Text(LocalizedStringKey(item.title)).font(.headline)
+                            Text(verbatim: item.title).font(.headline)
                             if let due = item.dueDate { Text(due, style: .relative).font(.caption).foregroundStyle(.secondary) }
                         }
                         Spacer()
@@ -387,7 +387,7 @@ struct DashboardView: View {
         }
 
         if let category = item.category, category.weight > 0 {
-            let categoryName = localizedCategoryName(category)
+            let categoryName = category.name
             if AppCopy.isChinese(locale) {
                 return "\(dueDescription)到期 · \(categoryName)占课程总评的 \(compact(category.weight))%。"
             }
@@ -399,24 +399,6 @@ struct DashboardView: View {
             )
         }
         return AppCopy.isChinese(locale) ? "\(dueDescription)到期。" : "Due \(dueDescription)."
-    }
-
-    private func localizedCategoryName(_ category: GradingCategory) -> String {
-        guard AppCopy.isChinese(locale) else { return category.name }
-        return switch category.categoryType {
-        case .homework: "作业"
-        case .quiz: "小测"
-        case .lab: "实验"
-        case .discussion: "讨论"
-        case .participation: "课堂参与"
-        case .attendance: "出勤"
-        case .project: "项目"
-        case .presentation: "展示"
-        case .midterm: "期中考试"
-        case .finalExam: "期末考试"
-        case .extraCredit: "额外加分"
-        case .custom: category.name
-        }
     }
 
     private func focusSymbol(for item: GradeItem) -> String {
@@ -521,7 +503,7 @@ struct DashboardView: View {
             Text("Upcoming").font(.headline)
             ForEach(Array(upcomingItems.prefix(5))) { item in
                 HStack {
-                    VStack(alignment: .leading) { Text(LocalizedStringKey(item.title)); Text(item.course?.courseCode ?? "Course").font(.caption).foregroundStyle(.secondary) }
+                    VStack(alignment: .leading) { Text(verbatim: item.title); Text(item.course?.courseCode ?? "Course").font(.caption).foregroundStyle(.secondary) }
                     Spacer()
                     if let due = item.dueDate { Text(due, style: .relative).font(.caption).foregroundStyle(.secondary) }
                 }
@@ -799,7 +781,7 @@ private struct ScorePickerView: View {
                                 .id(item.id)
                         } label: {
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(LocalizedStringKey(item.title))
+                                Text(verbatim: item.title)
                                     .font(.body.weight(.medium))
                                 HStack(spacing: DesignSystem.Spacing.xSmall) {
                                     Text(item.course?.courseCode ?? "Course")

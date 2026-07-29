@@ -63,6 +63,26 @@ final class AggieGPAUITests: XCTestCase {
         exerciseCourseDetailModuleTitleBounds(app: app, chinese: true)
     }
 
+    func testCourseDataLabelsStayVerbatimInSimplifiedChinese() {
+        let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-chinese"])
+        openDemoGradebook(app: app)
+
+        for label in ["Homework", "Homework 1", "Homework 2", "Homework 3"] {
+            XCTAssertTrue(app.staticTexts[label].waitForExistence(timeout: 5))
+        }
+        XCTAssertFalse(app.staticTexts["作业"].exists)
+        XCTAssertFalse(app.staticTexts["作业 1"].exists)
+
+        let finalExam = app.staticTexts["Final Exam"]
+        scrollTo(finalExam, in: app)
+        for label in ["Labs", "Lab 1", "Midterms", "Midterm 1", "Final Exam"] {
+            XCTAssertTrue(app.staticTexts[label].exists)
+        }
+        XCTAssertFalse(app.staticTexts["实验"].exists)
+        XCTAssertFalse(app.staticTexts["期中考试"].exists)
+        XCTAssertFalse(app.staticTexts["期末考试"].exists)
+    }
+
     func testEmptyGradebookBlankTapsDoNotOpenSetupSheetsAndActionsStayBounded() {
         let app = makeApp(extraArguments: ["--screenshot-demo"])
         openDemoCourse(app: app, courseCode: "BIS 002B")

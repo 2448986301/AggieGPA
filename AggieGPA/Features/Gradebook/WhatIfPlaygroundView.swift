@@ -226,10 +226,16 @@ struct WhatIfPlaygroundView: View {
         return VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(LocalizedStringKey(item.title)).font(.headline)
-                    Text(LocalizedStringKey(item.category?.name ?? "Unassigned"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text(verbatim: item.title).font(.headline)
+                    if let category = item.category {
+                        Text(verbatim: category.name)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Unassigned")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 Spacer()
                 TextField("Percent", value: binding, format: .number.precision(.fractionLength(0)))
