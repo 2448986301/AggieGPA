@@ -8,11 +8,11 @@ private enum WhatIfPreset: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var displayName: String {
+    func displayName(locale: Locale) -> String {
         switch self {
-        case .conservative: String(localized: "Conservative")
-        case .expected: String(localized: "Expected")
-        case .optimistic: String(localized: "Optimistic")
+        case .conservative: AppLocalization.string("Conservative", locale: locale)
+        case .expected: AppLocalization.string("Expected", locale: locale)
+        case .optimistic: AppLocalization.string("Optimistic", locale: locale)
         }
     }
 
@@ -37,6 +37,7 @@ struct WhatIfPlaygroundView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.locale) private var locale
 
     let course: CourseRecord
     let policy: CourseGradingPolicy?
@@ -80,7 +81,7 @@ struct WhatIfPlaygroundView: View {
         _assumptions = State(initialValue: Dictionary(uniqueKeysWithValues: ungraded.map { item in
             (item.id, selectedScenario?.itemAssumptions[item.id].map(decimalDouble) ?? startingValue)
         }))
-        _scenarioName = State(initialValue: selectedScenario?.name ?? startingPreset.displayName)
+        _scenarioName = State(initialValue: selectedScenario?.name ?? startingPreset.rawValue)
     }
 
     private var adjustableItems: [GradeItem] {
@@ -181,7 +182,7 @@ struct WhatIfPlaygroundView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
             Picker("Assumption preset", selection: $preset) {
                 ForEach(WhatIfPreset.allCases) { preset in
-                    Text(preset.displayName).tag(preset)
+                    Text(preset.displayName(locale: locale)).tag(preset)
                 }
             }
             .pickerStyle(.segmented)
@@ -204,6 +205,7 @@ struct WhatIfPlaygroundView: View {
                 .buttonStyle(.glass(.regular.interactive()))
                 .buttonBorderShape(.roundedRectangle(radius: DesignSystem.Radius.compact))
                 .foregroundStyle(.primary)
+                .accessibilityIdentifier("whatIfFineTuningButton")
 
                 if showsFineTuning {
                     VStack(spacing: 0) {
@@ -225,18 +227,28 @@ struct WhatIfPlaygroundView: View {
         return VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.title).font(.headline)
-                    Text(LocalizedStringKey(item.category?.name ?? "Unassigned"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text(verbatim: item.title).font(.headline)
+                    if let category = item.category {
+                        Text(verbatim: category.name)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Unassigned")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 Spacer()
-                TextField("Percent", value: binding, format: .number.precision(.fractionLength(0)))
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 52)
-                    .textFieldStyle(.roundedBorder)
-                    .accessibilityLabel("\(item.title) assumed percentage")
+                Text(binding.wrappedValue, format: .number.precision(.fractionLength(0)))
+                    .font(.title3.monospacedDigit())
+                    .frame(minWidth: 64)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .capsuleInputSurface()
+                    .accessibilityElement()
+                    .accessibilityLabel(
+                        "\(Int(binding.wrappedValue.rounded())) percent assumed for \(item.title)"
+                    )
+                    .accessibilityIdentifier("whatIfAssumptionValue-\(item.title)")
                 Text("%").foregroundStyle(.secondary)
             }
             HStack(spacing: DesignSystem.Spacing.small) {
@@ -269,7 +281,8 @@ struct WhatIfPlaygroundView: View {
                 metric(
                     "Projected term GPA",
                     projectedTermGPA.map { DecimalFormatters.string($0, precision: 3) } ?? "—",
-                    detail: course.term?.displayName ?? "Current term"
+                    detail: course.term?.displayName ?? "Current term",
+                    detailIsVerbatim: course.term != nil
                 )
                 metric(
                     "Distance to target",
@@ -312,13 +325,24 @@ struct WhatIfPlaygroundView: View {
         }
     }
 
-    private func metric(_ title: LocalizedStringKey, _ value: String, detail: String) -> some View {
+    private func metric(
+        _ title: LocalizedStringKey,
+        _ value: String,
+        detail: String,
+        detailIsVerbatim: Bool = false
+    ) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title).font(.caption).foregroundStyle(.secondary)
             Text(value)
                 .font(.title2.bold().monospacedDigit())
                 .contentTransition(.numericText())
-            Text(detail)
+            Group {
+                if detailIsVerbatim {
+                    Text(verbatim: detail)
+                } else {
+                    Text(LocalizedStringKey(detail))
+                }
+            }
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -338,7 +362,7 @@ struct WhatIfPlaygroundView: View {
                                 load(scenario)
                             } label: {
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text(scenario.name).fontWeight(.semibold)
+                                    Text(verbatim: scenario.name).fontWeight(.semibold)
                                     Text(scenarioResult.projectedFinalPercentage.map(formattedPercent) ?? "—")
                                         .font(.headline.monospacedDigit())
                                     Text(scenarioResult.projectedLetterGrade?.rawValue ?? "No letter")
@@ -362,7 +386,7 @@ struct WhatIfPlaygroundView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
             HStack(spacing: DesignSystem.Spacing.small) {
                 TextField("Scenario name", text: $scenarioName)
-                    .textFieldStyle(.roundedBorder)
+                    .roundedInputSurface()
                     .accessibilityIdentifier("whatIfScenarioName")
                 Button("Save Scenario", systemImage: "square.and.arrow.down") { saveScenario() }
                     .buttonStyle(.glass(.regular.tint(.accentColor.opacity(0.24)).interactive()))
@@ -393,7 +417,7 @@ struct WhatIfPlaygroundView: View {
     private var targetDetail: String {
         guard let target = policy?.targetPercentage else { return "Set a target first" }
         return String(
-            format: String(localized: "Target: %@"),
+            format: AppLocalization.string("Target: %@", locale: locale),
             "\(compact(target))%"
         )
     }
@@ -408,7 +432,7 @@ struct WhatIfPlaygroundView: View {
     private func apply(_ preset: WhatIfPreset) {
         defaultAssumption = preset.percentage
         assumptions = Dictionary(uniqueKeysWithValues: adjustableItems.map { ($0.id, preset.percentage) })
-        scenarioName = preset.displayName
+        scenarioName = preset.displayName(locale: locale)
         savedConfirmation = nil
     }
 
@@ -442,7 +466,7 @@ struct WhatIfPlaygroundView: View {
         do {
             try modelContext.save()
             withAnimation(DesignSystem.Motion.quick(reduceMotion: reduceMotion)) {
-                savedConfirmation = String(localized: "Plan saved")
+                savedConfirmation = AppLocalization.string("Plan saved", locale: locale)
             }
         } catch {
             modelContext.rollback()

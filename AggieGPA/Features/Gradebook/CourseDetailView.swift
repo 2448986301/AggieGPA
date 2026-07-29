@@ -36,6 +36,7 @@ private struct ScoreImpactBaseline {
 struct CourseDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.locale) private var locale
     @Query private var policies: [CourseGradingPolicy]
     @Query private var categories: [GradingCategory]
     @Query private var items: [GradeItem]
@@ -235,19 +236,30 @@ struct CourseDetailView: View {
     private var secondaryDetailContent: some View {
         List {
             Section {
-                gradeHero
-                    .listRowInsets(EdgeInsets(top: DesignSystem.Spacing.small, leading: 0, bottom: DesignSystem.Spacing.small, trailing: 0))
-                    .listRowBackground(Color.clear)
+                VStack(spacing: DesignSystem.Spacing.small) {
+                    gradeHero
 
-                Picker("Course detail", selection: sectionBinding) {
-                    ForEach(CourseDetailSection.allCases) { section in
-                        Label(section.compactTitle, systemImage: section.symbol).tag(section)
+                    Divider()
+                        .padding(.horizontal, DesignSystem.Spacing.medium)
+
+                    Picker("Course detail", selection: sectionBinding) {
+                        ForEach(CourseDetailSection.allCases) { section in
+                            Label(section.compactTitle, systemImage: section.symbol).tag(section)
+                        }
                     }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("courseDetailSectionPicker")
+                    .accessibilityHint("Switches between assignments, grade breakdown, and goal estimate")
+                    .padding(.horizontal, DesignSystem.Spacing.medium)
                 }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("courseDetailSectionPicker")
-                .accessibilityHint("Switches between assignments, grade breakdown, and goal estimate")
+                .listRowInsets(EdgeInsets(
+                    top: DesignSystem.Spacing.small,
+                    leading: 0,
+                    bottom: DesignSystem.Spacing.small,
+                    trailing: 0
+                ))
                 .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
 
             activeSectionContent
@@ -261,7 +273,8 @@ struct CourseDetailView: View {
         .listStyle(.insetGrouped)
         .listSectionSpacing(.custom(DesignSystem.Spacing.small))
         .scrollContentBackground(.hidden)
-        .scrollEdgeEffectHidden(true, for: [.top, .leading, .trailing])
+        .scrollEdgeEffectStyle(.soft, for: .top)
+        .scrollEdgeEffectHidden(true, for: [.leading, .trailing])
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
     }
 
@@ -270,17 +283,11 @@ struct CourseDetailView: View {
         case .gradebook:
             if policy == nil {
                 Section {
-                    ContentUnavailableView {
-                        Label("How is this course graded?", systemImage: "list.clipboard")
-                    } description: {
-                        Text("Import a syllabus, choose a template, or set it up manually.")
-                    } actions: {
-                        Button("Use a Template") { showSetup = true }.buttonStyle(.glass)
-                        Button("Import Syllabus") { showSyllabusImport = true }
-                        Button("Set It Up Manually") { showPolicyEditor = true }
-                    }
-                    .padding(.vertical, DesignSystem.Spacing.xLarge)
-                    .listRowBackground(Color.clear)
+                    gradebookSetupEmptyState
+                        .padding(.vertical, DesignSystem.Spacing.medium)
+                        .frame(maxWidth: .infinity)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
             } else {
                 gradebookSections
@@ -305,6 +312,78 @@ struct CourseDetailView: View {
             bottom: 0,
             trailing: DesignSystem.Spacing.medium
         )
+    }
+
+    private var gradebookSetupEmptyState: some View {
+        VStack(spacing: DesignSystem.Spacing.medium) {
+            Image(systemName: "list.clipboard")
+                .font(.system(size: 42, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+
+            VStack(spacing: DesignSystem.Spacing.small) {
+                Text("How is this course graded?")
+                    .font(.title2.bold())
+                    .multilineTextAlignment(.center)
+                Text("Import a syllabus, choose a template, or set it up manually.")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            VStack(spacing: DesignSystem.Spacing.small) {
+                gradebookSetupButton(
+                    "Use a Template",
+                    systemImage: "rectangle.3.group",
+                    tint: DesignSystem.ColorToken.gold.opacity(0.32),
+                    identifier: "useGradeTemplateSetupButton"
+                ) {
+                    showSetup = true
+                }
+
+                gradebookSetupButton(
+                    "Import Syllabus",
+                    systemImage: "doc.text.magnifyingglass",
+                    identifier: "importSyllabusSetupButton"
+                ) {
+                    showSyllabusImport = true
+                }
+
+                gradebookSetupButton(
+                    "Set It Up Manually",
+                    systemImage: "slider.horizontal.3",
+                    identifier: "manualGradeSetupButton"
+                ) {
+                    showPolicyEditor = true
+                }
+            }
+            .frame(maxWidth: 320)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func gradebookSetupButton(
+        _ title: LocalizedStringKey,
+        systemImage: String,
+        tint: Color? = nil,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(
+            .glass(
+                tint.map { .regular.tint($0).interactive() }
+                    ?? .regular.interactive()
+            )
+        )
+        .buttonBorderShape(.capsule)
+        .controlSize(.large)
+        .foregroundStyle(.primary)
+        .accessibilityIdentifier(identifier)
     }
 
     @ViewBuilder private var gradebookSections: some View {
@@ -368,7 +447,11 @@ struct CourseDetailView: View {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("Next up").font(.caption).foregroundStyle(.secondary)
-                    Text(nextItem?.title ?? "Nothing due").font(.headline).lineLimit(1)
+                    if let nextItem {
+                        Text(verbatim: nextItem.title).font(.headline).lineLimit(1)
+                    } else {
+                        Text("Nothing due").font(.headline).lineLimit(1)
+                    }
                 }
             }
             Label("Final recorded grade: \(course.grade.rawValue)", systemImage: "checkmark.seal")
@@ -386,53 +469,11 @@ struct CourseDetailView: View {
         .accessibilityIdentifier("courseGradeHero")
     }
 
-    @ViewBuilder private var gradebookContent: some View {
-        if policy == nil {
-            ContentUnavailableView {
-                Label("How is this course graded?", systemImage: "list.clipboard")
-            } description: {
-                Text("Import a syllabus, choose a template, or set it up manually.")
-            } actions: {
-                Button("Use a Template") { showSetup = true }.buttonStyle(.borderedProminent)
-                Button("Import Syllabus") { showSyllabusImport = true }
-                Button("Set It Up Manually") { showPolicyEditor = true }
-            }
-            .padding(.vertical, DesignSystem.Spacing.xLarge)
-        } else {
-            HStack {
-                Text("Assignments & Exams").font(.title2.bold())
-                Spacer()
-                Menu("Add", systemImage: "plus") {
-                    if courseCategories.isEmpty {
-                        Button("Add Grade Item", systemImage: "plus") { showNewItemEditor = true }
-                    } else {
-                        ForEach(courseCategories) { category in
-                            Button(category.name, systemImage: category.addSymbol) { quickCategory = category }
-                        }
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityLabel("Add assignment or exam")
-            }
-            ForEach(courseCategories) { category in
-                categorySection(category)
-            }
-            if courseCategories.isEmpty && courseItems.isEmpty {
-                ContentUnavailableView("No assignments or exams", systemImage: "tray", description: Text("Add your first item to start tracking scores."))
-                    .padding(.vertical, DesignSystem.Spacing.large)
-            }
-            let unassigned = courseItems.filter { $0.category == nil }
-            if !unassigned.isEmpty {
-                itemGroup(title: "Unassigned", items: unassigned)
-            }
-        }
-    }
-
     private func categorySection(_ category: GradingCategory) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(LocalizedStringKey(category.name)).font(.headline)
+                    Text(verbatim: category.name).font(.headline)
                     Text("Worth \(percent(category.weight)) of course")
                         .font(.caption).foregroundStyle(.secondary)
                 }
@@ -478,7 +519,7 @@ struct CourseDetailView: View {
         HStack(spacing: DesignSystem.Spacing.small) {
             Image(systemName: item.status.icon).foregroundStyle(item.status.tint)
             VStack(alignment: .leading, spacing: 3) {
-                Text(item.title).foregroundStyle(.primary)
+                Text(verbatim: item.title).foregroundStyle(.primary)
                 HStack(spacing: 6) {
                     Text(LocalizedStringKey(item.status.localizedLabelKey))
                     if let due = item.dueDate { Text(due, style: .date) }
@@ -492,10 +533,18 @@ struct CourseDetailView: View {
         .contentShape(Rectangle())
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             if hasRecordedScore(item) {
-                Button("Edit Score") { beginScoring(item) }
+                Button {
+                    beginScoring(item)
+                } label: {
+                    Label("Edit Score", systemImage: "pencil.and.list.clipboard")
+                }
                     .tint(DesignSystem.ColorToken.navyRaised)
             } else {
-                Button("Record Score") { beginScoring(item) }
+                Button {
+                    beginScoring(item)
+                } label: {
+                    Label("Record Score", systemImage: "checkmark.circle")
+                }
                     .tint(DesignSystem.ColorToken.navyRaised)
             }
         }
@@ -505,7 +554,11 @@ struct CourseDetailView: View {
             }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button("Delete") { requestDelete(item) }
+            Button {
+                requestDelete(item)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
                 .tint(.red)
         }
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.compact, style: .continuous))
@@ -545,7 +598,7 @@ struct CourseDetailView: View {
     private func categoryListHeader(_ category: GradingCategory) -> some View {
         HStack(spacing: DesignSystem.Spacing.small) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(LocalizedStringKey(category.name)).font(.headline)
+                Text(verbatim: category.name).font(.headline)
                 Text("Worth \(percent(category.weight)) of course")
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -577,7 +630,7 @@ struct CourseDetailView: View {
             ForEach(result.categoryBreakdown, id: \.id) { category in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text(LocalizedStringKey(category.name)).font(.headline)
+                        Text(verbatim: category.name).font(.headline)
                         Spacer()
                         Text(percent(category.average)).font(.headline.monospacedDigit())
                     }
@@ -597,7 +650,7 @@ struct CourseDetailView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Calculation Details", systemImage: "checklist") .font(.headline)
                     ForEach(Array(result.issues.enumerated()), id: \.offset) { _, issue in
-                        Text("• \(issue.message)").font(.footnote).foregroundStyle(.secondary)
+                        Text("• \(issue.message(locale: locale))").font(.footnote).foregroundStyle(.secondary)
                     }
                 }
                 .padding(DesignSystem.Spacing.medium)
@@ -613,7 +666,7 @@ struct CourseDetailView: View {
 
             ForEach(result.categoryBreakdown, id: \.id) { category in
                 HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.small) {
-                    Text(LocalizedStringKey(category.name))
+                    Text(verbatim: category.name)
                         .lineLimit(2)
                     Spacer(minLength: DesignSystem.Spacing.small)
                     if let average = category.average {
@@ -635,7 +688,7 @@ struct CourseDetailView: View {
 
             Text(
                 String(
-                    format: String(localized: "%@ of the course weight has graded work."),
+                    format: AppLocalization.string("%@ of the course weight has graded work.", locale: locale),
                     percent(result.gradedWeight)
                 )
             )
@@ -651,7 +704,7 @@ struct CourseDetailView: View {
             if let category = highestContributionCategory {
                 Text(
                     String(
-                        format: String(localized: "%@ currently contributes the most to this grade."),
+                        format: AppLocalization.string("%@ currently contributes the most to this grade.", locale: locale),
                         category.name
                     )
                 )
@@ -763,7 +816,13 @@ struct CourseDetailView: View {
     private var courseIdentity: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(course.courseCode).font(.title3.bold())
-            Text(course.courseTitle.isEmpty ? "Course" : course.courseTitle)
+            Group {
+                if course.courseTitle.isEmpty {
+                    Text("Course")
+                } else {
+                    Text(verbatim: course.courseTitle)
+                }
+            }
                 .font(.headline)
                 .fixedSize(horizontal: false, vertical: true)
             Text("Current Course Grade")
@@ -781,9 +840,15 @@ struct CourseDetailView: View {
                     DesignSystem.Motion.emphasized(reduceMotion: reduceMotion),
                     value: result.calculatedCurrentPercentage
                 )
-            Text(result.currentLetterGrade?.rawValue ?? "No letter prediction")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(result.requiresManualReview ? DesignSystem.ColorToken.warning : DesignSystem.ColorToken.gold)
+            if let currentLetterGrade = result.currentLetterGrade {
+                Text(currentLetterGrade.rawValue)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(result.requiresManualReview ? DesignSystem.ColorToken.warning : DesignSystem.ColorToken.gold)
+            } else {
+                Text("No letter prediction")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(result.requiresManualReview ? DesignSystem.ColorToken.warning : DesignSystem.ColorToken.gold)
+            }
         }
     }
 
@@ -1066,21 +1131,58 @@ private extension TargetFeasibility {
 }
 
 private extension GradeCalculationIssue {
-    var message: String {
+    func message(locale: Locale) -> String {
         switch self {
-        case .emptyGradebook: "No counted grade items yet."
-        case .noGradeScale: "No confirmed course grade scale; letter prediction is hidden."
-        case .missingPolicyNeedsConfirmation: "Confirm before missing items count as zero."
-        case .weightTotalBelow100(let value): "Category weights total \(percent(value)), below 100%."
-        case .weightTotalAbove100(let value): "Category weights total \(percent(value)), above 100%."
-        case .invalidCategoryWeight(let name): "\(name) has an invalid weight."
-        case .unsupportedCustomCategory(let name): "\(name) uses a custom rule requiring manual review."
-        case .invalidPossiblePoints(let title): "\(title) needs possible points greater than zero."
-        case .invalidMultiplier(let title): "\(title) has an invalid multiplier."
-        case .gradedItemMissingScore(let title): "\(title) is graded but has no score."
-        case .dropCountRemovesAll(let name): "The drop rule removes every item in \(name)."
-        case .unassignedItems: "Assign all items to a weighted category."
-        case .hybridNeedsDirectItems: "The hybrid policy needs direct-point items."
+        case .emptyGradebook:
+            AppLocalization.string("No counted grade items yet.", locale: locale)
+        case .noGradeScale:
+            AppLocalization.string("No confirmed course grade scale; letter prediction is hidden.", locale: locale)
+        case .missingPolicyNeedsConfirmation:
+            AppLocalization.string("Confirm before missing items count as zero.", locale: locale)
+        case .weightTotalBelow100(let value):
+            String(
+                format: AppLocalization.string("Category weights total %@, below 100%.", locale: locale),
+                percent(value)
+            )
+        case .weightTotalAbove100(let value):
+            String(
+                format: AppLocalization.string("Category weights total %@, above 100%.", locale: locale),
+                percent(value)
+            )
+        case .invalidCategoryWeight(let name):
+            String(
+                format: AppLocalization.string("%@ has an invalid weight.", locale: locale),
+                AppLocalization.string(name, locale: locale)
+            )
+        case .unsupportedCustomCategory(let name):
+            String(
+                format: AppLocalization.string("%@ uses a custom rule requiring manual review.", locale: locale),
+                AppLocalization.string(name, locale: locale)
+            )
+        case .invalidPossiblePoints(let title):
+            String(
+                format: AppLocalization.string("%@ needs possible points greater than zero.", locale: locale),
+                AppLocalization.string(title, locale: locale)
+            )
+        case .invalidMultiplier(let title):
+            String(
+                format: AppLocalization.string("%@ has an invalid multiplier.", locale: locale),
+                AppLocalization.string(title, locale: locale)
+            )
+        case .gradedItemMissingScore(let title):
+            String(
+                format: AppLocalization.string("%@ is graded but has no score.", locale: locale),
+                AppLocalization.string(title, locale: locale)
+            )
+        case .dropCountRemovesAll(let name):
+            String(
+                format: AppLocalization.string("The drop rule removes every item in %@.", locale: locale),
+                AppLocalization.string(name, locale: locale)
+            )
+        case .unassignedItems:
+            AppLocalization.string("Assign all items to a weighted category.", locale: locale)
+        case .hybridNeedsDirectItems:
+            AppLocalization.string("The hybrid policy needs direct-point items.", locale: locale)
         }
     }
 }
