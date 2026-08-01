@@ -81,7 +81,12 @@ struct DashboardView: View {
         ProjectedGPAService.calculate(inputs, projectedGrades: projectedGrades, termID: currentTerm?.id)
     }
     private var upcomingItems: [GradeItem] {
-        liveGradeItems.filter { item in item.dueDate.map { $0 >= Calendar.autoupdatingCurrent.startOfDay(for: .now) } ?? false && !item.isExcused && !item.isDropped }
+        liveGradeItems.filter { item in
+            item.dueDate.map { $0 >= Calendar.autoupdatingCurrent.startOfDay(for: .now) } ?? false
+                && !hasRecordedScore(item)
+                && !item.isExcused
+                && !item.isDropped
+        }
             .sorted { ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
     }
     private var attentionItems: [String] {
@@ -97,7 +102,7 @@ struct DashboardView: View {
     private var focusRecommendations: [GradeItem] {
         liveGradeItems
             .filter { item in
-                item.earnedPoints == nil
+                !hasRecordedScore(item)
                     && item.dueDate != nil
                     && item.isIncluded
                     && !item.isDropped
@@ -107,6 +112,18 @@ struct DashboardView: View {
             .sorted { focusScore($0) > focusScore($1) }
             .prefix(3)
             .map { $0 }
+    }
+
+    private func hasRecordedScore(_ item: GradeItem) -> Bool {
+        item.earnedPoints != nil || item.percentageOverride != nil || item.status == .graded
+    }
+
+    private var academicInsights: [AcademicInsight] {
+        AcademicInsightsService.makeInsights(
+            courses: courses, policies: livePolicies, categories: liveCategories,
+            items: liveGradeItems, scales: liveGradeScales, forecasts: liveForecasts,
+            locale: locale
+        ).sorted { $0.severity.rawValue > $1.severity.rawValue }
     }
 
     var body: some View {
@@ -121,6 +138,9 @@ struct DashboardView: View {
                                     todayTasks
                                     if showFocusNext && !focusRecommendations.isEmpty {
                                         focusNextSection
+                                    }
+                                    if !academicInsights.isEmpty {
+                                        academicInsightsSection
                                     }
                                     gpaSummary
                                 }
@@ -138,6 +158,9 @@ struct DashboardView: View {
                                     focusNextSection
                                 }
                                 recentCourses
+                                if !academicInsights.isEmpty {
+                                    academicInsightsSection
+                                }
                                 gpaSummary
                             }
                         }
@@ -257,6 +280,7 @@ struct DashboardView: View {
             DesignSystem.Motion.standard(reduceMotion: reduceMotion),
             value: Array(upcomingItems.prefix(5)).map(\.id)
         )
+        .accessibilityIdentifier("upcomingItemsSection")
     }
 
     private var gpaSummary: some View {
@@ -280,6 +304,16 @@ struct DashboardView: View {
         .padding(DesignSystem.Spacing.medium)
         .contentSurface()
         .accessibilityElement(children: .combine)
+    }
+
+    private var academicInsightsSection: some View {
+        AcademicInsightsSummaryView(
+            insights: academicInsights,
+            courses: courses,
+            items: liveGradeItems,
+            preferences: preferences,
+            limit: 3
+        )
     }
 
     private var focusNextSection: some View {

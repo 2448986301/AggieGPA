@@ -291,6 +291,8 @@ struct DataManagementView: View {
     @Query private var gradeItems: [GradeItem]
     @Query private var gradeScales: [GradeScale]
     @Query private var forecasts: [ForecastScenario]
+    @Query private var courseTemplates: [CourseTemplate]
+    @Query private var reminderDefaults: [CourseReminderDefaults]
     @Query private var siriSettings: [SiriAccessSettings]
     let preferences: UserPreferences
 
@@ -356,7 +358,14 @@ struct DataManagementView: View {
                 defer { if accessed { url.stopAccessingSecurityScopedResource() } }
                 let data = try Data(contentsOf: url)
                 let envelope = try BackupService.decode(data)
-                importPreview = BackupService.preview(envelope, existingTerms: terms, existingCourses: courses)
+                importPreview = BackupService.preview(
+                    envelope,
+                    existingTerms: terms,
+                    existingCourses: courses,
+                    existingItems: gradeItems,
+                    existingTemplates: courseTemplates,
+                    existingReminderDefaults: reminderDefaults
+                )
             } catch {
                 errorMessage = (error as? LocalizedError)?.errorDescription ?? "The backup could not be read. Your current data was not changed."
             }
@@ -369,7 +378,7 @@ struct DataManagementView: View {
             Button("Cancel", role: .cancel) { importPreview = nil }
         } message: {
             if let preview = importPreview {
-                Text("\(preview.envelope.terms.count) quarters, \(preview.envelope.courses.count) courses, and \(preview.envelope.plannerScenarios.count) scenarios. Potential duplicates: \(preview.duplicateTermCount) quarters and \(preview.duplicateCourseCount) courses.")
+                Text("\(preview.envelope.terms.count) quarters, \(preview.envelope.courses.count) courses, \(preview.envelope.gradeItems?.count ?? 0) assignments or exams, and \(preview.envelope.courseTemplates?.count ?? 0) templates. New: \(preview.newTermCount) quarters, \(preview.newCourseCount) courses, \(preview.newItemCount) items, \(preview.newTemplateCount) templates. Conflicts to merge or replace: \(preview.duplicateTermCount) quarters, \(preview.duplicateCourseCount) courses, \(preview.duplicateItemCount) items, \(preview.duplicateTemplateCount) templates.")
             }
         }
         .confirmationDialog("Reset all academic data?", isPresented: $confirmReset, titleVisibility: .visible) {
@@ -384,7 +393,8 @@ struct DataManagementView: View {
     private var envelope: BackupEnvelope {
         BackupService.makeEnvelope(terms: terms, courses: courses, scenarios: scenarios, preferences: preferences,
                                    policies: gradingPolicies, categories: gradingCategories, items: gradeItems,
-                                   scales: gradeScales, forecasts: forecasts, siriSettings: siriSettings.first)
+                                   scales: gradeScales, forecasts: forecasts, siriSettings: siriSettings.first,
+                                   templates: courseTemplates, reminderDefaults: reminderDefaults)
     }
 
     private func prepareJSONExport() {
@@ -431,6 +441,8 @@ struct DataManagementView: View {
             gradingPolicies.forEach(modelContext.delete)
             gradeScales.forEach(modelContext.delete)
             forecasts.forEach(modelContext.delete)
+            courseTemplates.forEach(modelContext.delete)
+            reminderDefaults.forEach(modelContext.delete)
             scenarios.forEach(modelContext.delete)
             gradePlans.forEach(modelContext.delete)
             terms.forEach(modelContext.delete)

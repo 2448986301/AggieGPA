@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The single user-facing source for release notes. Keep claims constrained to
-/// completed, documented work; technical evidence remains in `docs/v1.2`.
+/// completed, documented work; technical evidence remains in `docs/v1.4.1`.
 struct AppVersionRelease: Identifiable {
     let version: String
     let status: LocalizedStringKey
@@ -26,8 +26,21 @@ enum AppVersionHistory {
 
     static let releases: [AppVersionRelease] = [
         AppVersionRelease(
-            version: "1.4.0",
+            version: "1.4.1",
             status: "Current Version",
+            summary: "Resolved some known issues and improved app stability.",
+            highlights: [
+                "Added course templates for quickly reusing grading structures.",
+                "Added bulk creation for assignments, exams, and labs.",
+                "Added local academic insights based on calculated course data.",
+                "Improved local backup, restore, and data export.",
+                "Improved assignment editing, deletion, and undo.",
+                "Resolved some known issues and improved app stability."
+            ]
+        ),
+        AppVersionRelease(
+            version: "1.4.0",
+            status: "Previous Version",
             summary: "Explore grade momentum with clearer feedback and more fluid interactions.",
             highlights: [
                 "Interactive grade simulations stay separate from recorded scores",

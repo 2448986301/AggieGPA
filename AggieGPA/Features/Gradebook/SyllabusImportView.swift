@@ -120,9 +120,12 @@ struct SyllabusImportView: View {
             Text("Choose a PDF, photos, or scanned pages. Text-based PDFs keep their original text; no OCR is used.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            TextEditor(text: $pastedText).frame(minHeight: 120).overlay(alignment: .topLeading) {
-                if pastedText.isEmpty { Text("Paste syllabus text").foregroundStyle(.tertiary).padding(.top, 8).allowsHitTesting(false) }
-            }
+            TextEditor(text: $pastedText)
+                .frame(minHeight: 120)
+                .accessibilityIdentifier("syllabusTextEditor")
+                .overlay(alignment: .topLeading) {
+                    if pastedText.isEmpty { Text("Paste syllabus text").foregroundStyle(.tertiary).padding(.top, 8).allowsHitTesting(false) }
+                }
             Button("Analyze Pasted Text", systemImage: "apple.intelligence") { document = .init(pages: [.init(number: 1, text: pastedText, image: nil)], source: .pastedText); analyze(mode: .onDevice) }
                 .disabled(pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isWorking)
             if OnDeviceSyllabusParser.availability() != .available {

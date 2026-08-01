@@ -31,6 +31,7 @@ struct TermDetailView: View {
     @Query private var items: [GradeItem]
     @Query private var scales: [GradeScale]
     @Query private var forecasts: [ForecastScenario]
+    @Query private var reminderDefaults: [CourseReminderDefaults]
     let term: AcademicTerm
     let preferences: UserPreferences
     @State private var showAdd = false
@@ -195,6 +196,10 @@ struct TermDetailView: View {
         deleted.scales.forEach(modelContext.delete)
         deleted.forecasts.forEach(modelContext.delete)
         if let course = termCourses.first(where: { $0.persistentModelID == deleted.modelID }) {
+            let deletedCourseID = course.id
+            reminderDefaults
+                .filter { $0.courseID == deletedCourseID }
+                .forEach(modelContext.delete)
             course.term = nil
             modelContext.delete(course)
         }

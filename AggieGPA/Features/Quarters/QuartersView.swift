@@ -11,6 +11,7 @@ struct QuartersView: View {
     @Query private var items: [GradeItem]
     @Query private var scales: [GradeScale]
     @Query private var forecasts: [ForecastScenario]
+    @Query private var reminderDefaults: [CourseReminderDefaults]
     let preferences: UserPreferences
     let initialSearchQuery: String
     @State private var searchText = ""
@@ -101,6 +102,14 @@ struct QuartersView: View {
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
+                    NavigationLink {
+                        CourseTemplatesView()
+                    } label: {
+                        Label("Course Templates", systemImage: "rectangle.3.group")
+                    }
+                    .accessibilityIdentifier("courseTemplatesButton")
+                }
+                ToolbarItem(placement: .primaryAction) {
                     Button("Add Quarter", systemImage: "plus") { showNewTerm = true }
                         .accessibilityIdentifier("addQuarterButton")
                 }
@@ -152,6 +161,8 @@ struct QuartersView: View {
         policies.filter { belongsToDeletedCourse($0.course) }.forEach(modelContext.delete)
         scales.filter { belongsToDeletedCourse($0.course) }.forEach(modelContext.delete)
         forecasts.filter { belongsToDeletedCourse($0.course) }.forEach(modelContext.delete)
+        let deletedCourseIDs = Set(termCourses.map(\.id))
+        reminderDefaults.filter { deletedCourseIDs.contains($0.courseID) }.forEach(modelContext.delete)
         termCourses.forEach { course in
             course.term = nil
             modelContext.delete(course)

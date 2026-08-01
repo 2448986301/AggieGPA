@@ -97,6 +97,16 @@ struct IPadCourseList: View {
         .navigationTitle("Courses")
         .searchable(text: $searchText, prompt: "Course")
         .navigationSplitViewColumnWidth(min: 240, ideal: 300, max: 340)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink {
+                    CourseTemplatesView()
+                } label: {
+                    Label("Course Templates", systemImage: "rectangle.3.group")
+                }
+                .accessibilityIdentifier("courseTemplatesButton")
+            }
+        }
         .onChange(of: liveCourses.map(\.id), initial: true) { _, ids in
             if selectedCourseID == nil || !ids.contains(selectedCourseID!) {
                 selectedCourseID = ids.first

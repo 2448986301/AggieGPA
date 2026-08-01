@@ -58,6 +58,9 @@ struct CourseDetailView: View {
     @State private var showForecastEditor = false
     @State private var showSyllabusImport = false
     @State private var showSetup = false
+    @State private var showCourseTemplates = false
+    @State private var showTemplateSave = false
+    @State private var showBulkCreate = false
     @State private var quickCategory: GradingCategory?
     @State private var scoringItem: GradeItem?
     @State private var showTargetPicker = false
@@ -66,6 +69,7 @@ struct CourseDetailView: View {
     @State private var itemPendingDeletion: GradeItem?
     @State private var scoreBaseline: ScoreImpactBaseline?
     @State private var scoreImpact: ScoreImpactPresentation?
+    @State private var bulkCreatedItemIDs: [UUID]?
     @State private var hasOpenedInitialDestination = false
 
     init(
@@ -104,7 +108,13 @@ struct CourseDetailView: View {
         ))
     }
     private var nextItem: GradeItem? {
-        courseItems.filter { $0.earnedPoints == nil && !$0.isExcused && !$0.isDropped }
+        courseItems.filter {
+            $0.earnedPoints == nil
+                && $0.percentageOverride == nil
+                && $0.status != .graded
+                && !$0.isExcused
+                && !$0.isDropped
+        }
             .sorted { ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }.first
     }
 
@@ -119,11 +129,22 @@ struct CourseDetailView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu("Course Settings", systemImage: "ellipsis.circle") {
-                    Button("Grading Policy", systemImage: "slider.horizontal.3") { showPolicyEditor = true }
-                    Button("Add Category", systemImage: "folder.badge.plus") { editingCategory = nil; showCategoryEditor = true }
-                    Button("Add Grade Item", systemImage: "plus") { showNewItemEditor = true }
-                    Divider()
-                    Button("Import Grading Policy", systemImage: "doc.text.magnifyingglass") { showSyllabusImport = true }
+                    Section("Gradebook") {
+                        Button("Grading Policy", systemImage: "slider.horizontal.3") { showPolicyEditor = true }
+                        Button("Add Category", systemImage: "folder.badge.plus") { editingCategory = nil; showCategoryEditor = true }
+                        Button("Add Grade Item", systemImage: "plus") { showNewItemEditor = true }
+                    }
+                    Section("Create and Reuse") {
+                        Button("Create Multiple", systemImage: "checklist") { showBulkCreate = true }
+                            .accessibilityIdentifier("createMultipleButton")
+                        Button("Save as Course Template", systemImage: "rectangle.3.group") { showTemplateSave = true }
+                            .accessibilityIdentifier("saveCourseTemplateButton")
+                        Button("Browse Course Templates", systemImage: "square.grid.2x2") { showCourseTemplates = true }
+                            .accessibilityIdentifier("browseCourseTemplatesButton")
+                    }
+                    Section("Import") {
+                        Button("Import Grading Policy", systemImage: "doc.text.magnifyingglass") { showSyllabusImport = true }
+                    }
                 }
             }
         }
@@ -162,6 +183,19 @@ struct CourseDetailView: View {
             SyllabusImportView(course: course)
         }
         .sheet(isPresented: $showSetup) { GradeBreakdownSetupView(course: course) }
+        .sheet(isPresented: $showCourseTemplates) { CourseTemplatesView() }
+        .sheet(isPresented: $showTemplateSave) {
+            CourseTemplateSaveView(course: course, policy: policy, categories: courseCategories, scale: scale)
+        }
+        .sheet(isPresented: $showBulkCreate) {
+            BulkCreateView(course: course, categories: courseCategories) { ids in
+                withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+                    bulkCreatedItemIDs = ids
+                    deletedItem = nil
+                    scoreImpact = nil
+                }
+            }
+        }
         .sheet(item: $quickCategory) { category in
             QuickGradeItemView(course: course, categories: courseCategories, category: category)
         }
@@ -194,6 +228,19 @@ struct CourseDetailView: View {
             .padding(.vertical, DesignSystem.Spacing.small)
             .transition(DesignSystem.Motion.feedbackTransition(reduceMotion: reduceMotion))
             .accessibilityIdentifier("gradeItemUndoBanner")
+        } else if bulkCreatedItemIDs != nil {
+            AggieFeedbackBanner(
+                "Items created",
+                message: "Undo removes all items created in this batch.",
+                systemImage: "checklist"
+            ) {
+                Button("Undo") { undoBulkCreate() }
+                    .fontWeight(.semibold)
+                    .accessibilityIdentifier("undoBulkCreateButton")
+            }
+            .padding(.vertical, DesignSystem.Spacing.small)
+            .transition(DesignSystem.Motion.feedbackTransition(reduceMotion: reduceMotion))
+            .accessibilityIdentifier("bulkCreateUndoBanner")
         } else if let scoreImpact {
             ScoreImpactBanner(
                 impact: scoreImpact,
@@ -260,6 +307,25 @@ struct CourseDetailView: View {
                 ))
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
+            }
+
+            if !academicInsights.isEmpty {
+                Section {
+                    AcademicInsightsSummaryView(
+                        insights: academicInsights,
+                        courses: [course],
+                        items: courseItems,
+                        preferences: preferences,
+                        limit: 2
+                    )
+                    // Keep the insights module on the same outer edge as the
+                    // gradebook rows below. Applying the detail-module inset here
+                    // a second time made the card visibly narrower than the
+                    // surrounding course content on iPhone.
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                }
             }
 
             activeSectionContent
@@ -908,6 +974,18 @@ struct CourseDetailView: View {
         }
     }
 
+    private func undoBulkCreate() {
+        guard let bulkCreatedItemIDs else { return }
+        do {
+            try BulkCreationService.remove(ids: bulkCreatedItemIDs, course: course, context: modelContext)
+            withAnimation(DesignSystem.Motion.standard(reduceMotion: reduceMotion)) {
+                self.bulkCreatedItemIDs = nil
+            }
+        } catch {
+            // Keep the banner visible so the one-step undo remains available for a retry.
+        }
+    }
+
     private func beginScoring(_ item: GradeItem) {
         scoreBaseline = ScoreImpactBaseline(
             itemID: item.id,
@@ -979,7 +1057,14 @@ struct CourseDetailView: View {
     }
 
     private var feedbackIsVisible: Bool {
-        deletedItem != nil || scoreImpact != nil
+        deletedItem != nil || bulkCreatedItemIDs != nil || scoreImpact != nil
+    }
+
+    private var academicInsights: [AcademicInsight] {
+        AcademicInsightsService.makeInsights(
+            course: course, policy: policy, categories: courseCategories, items: courseItems,
+            scale: scale, forecast: forecast, locale: locale
+        ).sorted { $0.severity.rawValue > $1.severity.rawValue }
     }
 
     private var sectionBinding: Binding<CourseDetailSection> {

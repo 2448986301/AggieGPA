@@ -4,7 +4,12 @@ import SwiftData
 @MainActor
 enum DemoDataService {
     static func load(into context: ModelContext, preferences: UserPreferences) {
-        guard !preferences.demoDataLoaded else { return }
+        if preferences.demoDataLoaded {
+            supplementExistingDemoGradebooks(in: context)
+            try? context.save()
+            return
+        }
+
         let term = AcademicTerm(
             academicYear: preferences.firstAcademicYear,
             termType: .fall,
@@ -20,6 +25,7 @@ enum DemoDataService {
             ("UWP 007", "Writing in Science", 4, .a, false, false),
             ("PSC 001", "General Psychology", 4, .b, false, false)
         ]
+        var demoCourses: [CourseRecord] = []
         var chemistry: CourseRecord?
         for sample in samples {
             let course = CourseRecord(courseCode: sample.0, courseTitle: sample.1,
@@ -27,6 +33,7 @@ enum DemoDataService {
                                       isMajorCourse: sample.4, isUpperDivision: sample.5,
                                       isDemoData: true)
             context.insert(course)
+            demoCourses.append(course)
             if sample.0 == "CHE 002A" { chemistry = course }
         }
         if let chemistry {
@@ -44,8 +51,198 @@ enum DemoDataService {
             context.insert(GradeItem(course: chemistry, category: labs, title: "Lab 1", dueDate: demoDate(month: 10, day: 6, hour: 17), earnedPoints: 45, possiblePoints: 50, status: .graded))
             context.insert(GradeItem(course: chemistry, category: midterms, title: "Midterm 1", dueDate: demoDate(month: 10, day: 16, hour: 10), earnedPoints: 84, possiblePoints: 100, status: .graded))
         }
+        for course in demoCourses where course.id != chemistry?.id {
+            addDemoGradebook(for: course, context: context)
+        }
         preferences.demoDataLoaded = true
         try? context.save()
+    }
+
+    private struct DemoCategoryDefinition {
+        let name: String
+        let type: GradeCategoryType
+        let weight: Decimal
+        let mode: CategoryCalculationMode
+    }
+
+    private struct DemoItemDefinition {
+        let categoryName: String
+        let title: String
+        let dueDate: Date
+        let earnedPoints: Decimal?
+        let possiblePoints: Decimal
+        let status: GradeItemStatus
+    }
+
+    private struct DemoGradebookProfile {
+        let gradingMethod: GradingMethod
+        let targetPercentage: Decimal
+        let categories: [DemoCategoryDefinition]
+        let items: [DemoItemDefinition]
+    }
+
+    /// Adds a complete, clearly labeled local example gradebook to a demo course.
+    /// Existing user data is never passed to this helper; the supplement path only
+    /// calls it for demo courses that do not already have grade items.
+    private static func addDemoGradebook(
+        for course: CourseRecord,
+        context: ModelContext,
+        existingPolicy: CourseGradingPolicy? = nil,
+        existingCategories: [GradingCategory] = [],
+        existingScale: GradeScale? = nil
+    ) {
+        guard let profile = profile(for: course.courseCode) else { return }
+
+        if let existingPolicy {
+            existingPolicy.gradingMethod = profile.gradingMethod
+            existingPolicy.targetPercentage = profile.targetPercentage
+        } else {
+            context.insert(CourseGradingPolicy(
+                course: course,
+                gradingMethod: profile.gradingMethod,
+                targetPercentage: profile.targetPercentage
+            ))
+        }
+
+        let categories: [GradingCategory]
+        if existingCategories.isEmpty {
+            categories = profile.categories.enumerated().map { index, definition in
+                let category = GradingCategory(
+                    course: course,
+                    name: definition.name,
+                    categoryType: definition.type,
+                    weight: definition.weight,
+                    calculationMode: definition.mode,
+                    sortOrder: index
+                )
+                context.insert(category)
+                return category
+            }
+        } else {
+            categories = existingCategories.sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
+        }
+
+        if existingScale == nil {
+            context.insert(GradeScale(
+                course: course,
+                name: "Common Scale Template",
+                boundaries: standardScale,
+                isCommonTemplate: true
+            ))
+        }
+
+        let categoryByName = Dictionary(uniqueKeysWithValues: categories.map { ($0.name, $0) })
+        for definition in profile.items {
+            guard let category = categoryByName[definition.categoryName] else { continue }
+            context.insert(GradeItem(
+                course: course,
+                category: category,
+                title: definition.title,
+                dueDate: definition.dueDate,
+                earnedPoints: definition.earnedPoints,
+                possiblePoints: definition.possiblePoints,
+                status: definition.status
+            ))
+        }
+    }
+
+    private static func profile(for courseCode: String) -> DemoGradebookProfile? {
+        switch courseCode {
+        case "BIS 002B":
+            return DemoGradebookProfile(
+                gradingMethod: .weightedCategories,
+                targetPercentage: 88,
+                categories: [
+                    DemoCategoryDefinition(name: "Homework", type: .homework, weight: 25, mode: .weightedCategory),
+                    DemoCategoryDefinition(name: "Quizzes", type: .quiz, weight: 20, mode: .weightedCategory),
+                    DemoCategoryDefinition(name: "Midterms", type: .midterm, weight: 25, mode: .weightedCategory),
+                    DemoCategoryDefinition(name: "Final Exam", type: .finalExam, weight: 30, mode: .weightedCategory)
+                ],
+                items: [
+                    DemoItemDefinition(categoryName: "Homework", title: "Homework 1", dueDate: demoDate(month: 9, day: 25, hour: 23, minute: 59), earnedPoints: 7, possiblePoints: 10, status: .graded),
+                    DemoItemDefinition(categoryName: "Homework", title: "Homework 2", dueDate: demoDate(month: 10, day: 2, hour: 23, minute: 59), earnedPoints: 8, possiblePoints: 10, status: .graded),
+                    DemoItemDefinition(categoryName: "Homework", title: "Homework 3", dueDate: demoDate(month: 10, day: 23, hour: 23, minute: 59), earnedPoints: nil, possiblePoints: 10, status: .upcoming),
+                    DemoItemDefinition(categoryName: "Quizzes", title: "Quiz 1", dueDate: demoDate(month: 9, day: 29, hour: 23, minute: 59), earnedPoints: 15, possiblePoints: 20, status: .graded),
+                    DemoItemDefinition(categoryName: "Quizzes", title: "Quiz 2", dueDate: demoDate(month: 10, day: 13, hour: 23, minute: 59), earnedPoints: nil, possiblePoints: 20, status: .upcoming),
+                    DemoItemDefinition(categoryName: "Midterms", title: "Midterm 1", dueDate: demoDate(month: 10, day: 16, hour: 10), earnedPoints: 72, possiblePoints: 100, status: .graded),
+                    DemoItemDefinition(categoryName: "Final Exam", title: "Final Exam", dueDate: demoDate(month: 12, day: 10, hour: 10), earnedPoints: nil, possiblePoints: 100, status: .upcoming)
+                ]
+            )
+        case "UWP 007":
+            return DemoGradebookProfile(
+                gradingMethod: .weightedCategories,
+                targetPercentage: 90,
+                categories: [
+                    DemoCategoryDefinition(name: "Essays", type: .project, weight: 60, mode: .weightedCategory),
+                    DemoCategoryDefinition(name: "Presentation", type: .presentation, weight: 20, mode: .weightedCategory),
+                    DemoCategoryDefinition(name: "Final Portfolio", type: .finalExam, weight: 20, mode: .weightedCategory)
+                ],
+                items: [
+                    DemoItemDefinition(categoryName: "Essays", title: "Essay 1", dueDate: demoDate(month: 9, day: 28, hour: 23, minute: 59), earnedPoints: 38, possiblePoints: 50, status: .graded),
+                    DemoItemDefinition(categoryName: "Essays", title: "Essay 2", dueDate: demoDate(month: 10, day: 19, hour: 23, minute: 59), earnedPoints: 41, possiblePoints: 50, status: .graded),
+                    DemoItemDefinition(categoryName: "Presentation", title: "Research Presentation", dueDate: demoDate(month: 11, day: 6, hour: 17), earnedPoints: 14, possiblePoints: 20, status: .graded),
+                    DemoItemDefinition(categoryName: "Final Portfolio", title: "Final Portfolio", dueDate: demoDate(month: 12, day: 8, hour: 23, minute: 59), earnedPoints: nil, possiblePoints: 100, status: .upcoming)
+                ]
+            )
+        case "PSC 001":
+            return DemoGradebookProfile(
+                gradingMethod: .weightedCategories,
+                targetPercentage: 85,
+                categories: [
+                    DemoCategoryDefinition(name: "Quizzes", type: .quiz, weight: 20, mode: .weightedCategory),
+                    DemoCategoryDefinition(name: "Midterms", type: .midterm, weight: 35, mode: .weightedCategory),
+                    DemoCategoryDefinition(name: "Final Exam", type: .finalExam, weight: 45, mode: .weightedCategory)
+                ],
+                items: [
+                    DemoItemDefinition(categoryName: "Quizzes", title: "Quiz 1", dueDate: demoDate(month: 9, day: 30, hour: 23, minute: 59), earnedPoints: 7, possiblePoints: 10, status: .graded),
+                    DemoItemDefinition(categoryName: "Quizzes", title: "Quiz 2", dueDate: demoDate(month: 10, day: 21, hour: 23, minute: 59), earnedPoints: 8, possiblePoints: 10, status: .graded),
+                    DemoItemDefinition(categoryName: "Midterms", title: "Midterm 1", dueDate: demoDate(month: 10, day: 17, hour: 10), earnedPoints: 74, possiblePoints: 100, status: .graded),
+                    DemoItemDefinition(categoryName: "Midterms", title: "Midterm 2", dueDate: demoDate(month: 11, day: 14, hour: 10), earnedPoints: nil, possiblePoints: 100, status: .upcoming),
+                    DemoItemDefinition(categoryName: "Final Exam", title: "Final Exam", dueDate: demoDate(month: 12, day: 11, hour: 10), earnedPoints: nil, possiblePoints: 100, status: .upcoming)
+                ]
+            )
+        default:
+            return nil
+        }
+    }
+
+    private static func supplementExistingDemoGradebooks(in context: ModelContext) {
+        guard let courses = try? context.fetch(FetchDescriptor<CourseRecord>()),
+              let policies = try? context.fetch(FetchDescriptor<CourseGradingPolicy>()),
+              let categories = try? context.fetch(FetchDescriptor<GradingCategory>()),
+              let items = try? context.fetch(FetchDescriptor<GradeItem>()),
+              let scales = try? context.fetch(FetchDescriptor<GradeScale>()) else { return }
+
+        for course in courses where course.isDemoData {
+            let courseItems = items.filter { $0.course?.id == course.id }
+            if courseItems.isEmpty {
+                addDemoGradebook(
+                    for: course,
+                    context: context,
+                    existingPolicy: policies.first { $0.course?.id == course.id },
+                    existingCategories: categories.filter { $0.course?.id == course.id },
+                    existingScale: scales.first { $0.course?.id == course.id }
+                )
+            } else {
+                restoreProfileScores(for: course, items: courseItems)
+            }
+        }
+    }
+
+    /// Demo data is intentionally deterministic so screenshots and UI tests stay
+    /// repeatable. When an older demo store already contains the item structure,
+    /// restore the varied sample scores without touching any non-demo course.
+    private static func restoreProfileScores(for course: CourseRecord, items: [GradeItem]) {
+        guard let profile = profile(for: course.courseCode) else { return }
+        for item in items {
+            guard item.earnedPoints == nil,
+                  let definition = profile.items.first(where: { $0.title == item.title }),
+                  let earnedPoints = definition.earnedPoints else { continue }
+            item.earnedPoints = earnedPoints
+            item.possiblePoints = definition.possiblePoints
+            item.status = .graded
+            item.updatedAt = .now
+        }
     }
 
     private static let standardScale: [GradeScaleBoundary] = [
@@ -77,6 +274,7 @@ enum DemoDataService {
             let items = try context.fetch(FetchDescriptor<GradeItem>())
             let scales = try context.fetch(FetchDescriptor<GradeScale>())
             let forecasts = try context.fetch(FetchDescriptor<ForecastScenario>())
+            let reminderDefaults = try context.fetch(FetchDescriptor<CourseReminderDefaults>())
             let notificationIdentifiers = items
                 .filter { isLinkedToDemoCourse($0.course, demoCourseModelIDs: demoCourseModelIDs) }
                 .map(\.notificationIdentifier)
@@ -89,6 +287,8 @@ enum DemoDataService {
             policies.filter { isLinkedToDemoCourse($0.course, demoCourseModelIDs: demoCourseModelIDs) }.forEach(context.delete)
             scales.filter { isLinkedToDemoCourse($0.course, demoCourseModelIDs: demoCourseModelIDs) }.forEach(context.delete)
             forecasts.filter { isLinkedToDemoCourse($0.course, demoCourseModelIDs: demoCourseModelIDs) }.forEach(context.delete)
+            let demoCourseIDs = Set(demoCourses.map(\.id))
+            reminderDefaults.filter { demoCourseIDs.contains($0.courseID) }.forEach(context.delete)
 
             var demoTermsByModelID: [PersistentIdentifier: AcademicTerm] = [:]
             for course in demoCourses {

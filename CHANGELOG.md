@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.4.1] — Current development build
+
+- Added course templates for quickly reusing grading structures.
+- Added bulk creation for assignments, exams, and labs.
+- Added local academic insights based on calculated course data.
+- Improved local backup, restore, and data export.
+- Improved assignment editing, deletion, and undo.
+- Resolved some known issues and improved app stability.
+
 ## [1.4.0] — Unreleased
 
 - Added an interactive What-If Playground that keeps assumptions separate from recorded scores and official grades.

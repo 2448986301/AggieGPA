@@ -126,5 +126,5 @@ final class CourseRecord {
         self.updatedAt = updatedAt
         self.isDemoData = isDemoData
     }
-}
 
+}
