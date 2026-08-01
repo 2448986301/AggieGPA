@@ -6,6 +6,7 @@ claims from the app-facing copy.
 
 | Changelog version | Sources | Editorial rule |
 | --- | --- | --- |
+| 1.4.1 Current development build | `docs/v1.4.1/RELEASE_CLOSEOUT.md`; current project settings, source, and verification logs | Record only course templates, bulk creation, deterministic academic insights, local backup/restore/CSV, assignment interaction, and stability work that is actually implemented and tested. |
 | 1.3.0 Unreleased | Current syllabus-import source, Foundation Models SDK availability checks, build and test evidence | Describe only on-device processing, confirmation boundary, and reviewed evidence. Do not claim PCC availability or a completed real-device model run. |
 | 1.2.0 Unreleased | Apple Design commits `8bbeeb5` through `06d3426`; current source and build settings | Include only completed current-branch design, localization, accessibility, and feedback work. |
 | 1.1.2 | `756ef1d`; `docs/v1.1.2/REAL_DEVICE_SIRI_RESULTS.md`; `SIRI_KNOWN_LIMITATIONS.md` | State only the documented assignment App Shortcut and Spotlight evidence; label all other Siri routes unverified. |

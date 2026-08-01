@@ -73,7 +73,7 @@ final class DataSafetyTests: XCTestCase {
       policies: [policy], categories: [category], items: [item],
       scales: [scale], forecasts: [forecast], siriSettings: siri)
     let decoded = try BackupService.decode(BackupService.encode(envelope))
-    XCTAssertEqual(decoded.schemaVersion, 2)
+    XCTAssertEqual(decoded.schemaVersion, 3)
     XCTAssertEqual(decoded.gradingPolicies?.first?.targetPercentage, 90)
     XCTAssertEqual(decoded.gradeItems?.first?.reminderLeadTime, .threeDays)
     XCTAssertEqual(decoded.forecastScenarios?.first?.isSelectedForGPAForecast, true)
@@ -216,6 +216,7 @@ final class DataSafetyTests: XCTestCase {
       SimulatedCourse.self, GradeCategory.self, CourseGradePlan.self,
       UserPreferences.self, BackupSnapshot.self, CourseGradingPolicy.self,
       GradingCategory.self, GradeItem.self, GradeScale.self, ForecastScenario.self,
+      CourseReminderDefaults.self,
     ])
     let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
     let container = try ModelContainer(for: schema, configurations: [configuration])

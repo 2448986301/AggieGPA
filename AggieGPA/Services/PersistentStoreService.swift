@@ -13,6 +13,8 @@ enum PersistentStoreService {
 
     static var v1Schema: Schema { Schema(AggieGPASchemaV1.models) }
     static var v2Schema: Schema { Schema(versionedSchema: AggieGPASchemaV2.self) }
+    static var v3Schema: Schema { Schema(versionedSchema: AggieGPASchemaV3.self) }
+    static var v4Schema: Schema { Schema(versionedSchema: AggieGPASchemaV4.self) }
 
     static func makeContainer(inMemory: Bool) -> StoreBootstrapResult {
         // The Simulator does not always grant the production App Group. In that environment,
@@ -32,7 +34,7 @@ enum PersistentStoreService {
                 try createVerifiedV1RecoveryBackupIfNeeded(storeURL: configuration.url)
             }
             let container = try ModelContainer(
-                for: v2Schema,
+                for: v4Schema,
                 migrationPlan: AggieGPAMigrationPlan.self,
                 configurations: [configuration]
             )
@@ -55,7 +57,7 @@ enum PersistentStoreService {
     static func makeAppIntentContainer() throws -> ModelContainer {
         let configuration = makeConfiguration(inMemory: false)
         return try ModelContainer(
-            for: v2Schema,
+            for: v4Schema,
             migrationPlan: AggieGPAMigrationPlan.self,
             configurations: [configuration]
         )
@@ -64,18 +66,18 @@ enum PersistentStoreService {
     static func makeConfiguration(inMemory: Bool) -> ModelConfiguration {
         if !inMemory {
             let storeURL = appGroupStoreURL() ?? legacyStoreURL()
-            return ModelConfiguration(configurationName, schema: v2Schema, url: storeURL)
+            return ModelConfiguration(configurationName, schema: v4Schema, url: storeURL)
         }
         return ModelConfiguration(
             configurationName,
-            schema: v2Schema,
+            schema: v4Schema,
             isStoredInMemoryOnly: inMemory
         )
     }
 
     private static func makeRecoveryContainer() -> ModelContainer {
-        let recovery = ModelConfiguration("AggieGPARecovery", schema: v2Schema, isStoredInMemoryOnly: true)
-        guard let container = try? ModelContainer(for: v2Schema, migrationPlan: AggieGPAMigrationPlan.self, configurations: [recovery]) else {
+        let recovery = ModelConfiguration("AggieGPARecovery", schema: v4Schema, isStoredInMemoryOnly: true)
+        guard let container = try? ModelContainer(for: v4Schema, migrationPlan: AggieGPAMigrationPlan.self, configurations: [recovery]) else {
             fatalError("Aggie GPA could not initialize a recovery container.")
         }
         return container
@@ -116,8 +118,8 @@ enum PersistentStoreService {
     }
 
     private static func sharedStoreContainsUserData(at url: URL) throws -> Bool {
-        let configuration = ModelConfiguration(configurationName, schema: v2Schema, url: url)
-        let container = try ModelContainer(for: v2Schema, migrationPlan: AggieGPAMigrationPlan.self, configurations: [configuration])
+        let configuration = ModelConfiguration(configurationName, schema: v4Schema, url: url)
+        let container = try ModelContainer(for: v4Schema, migrationPlan: AggieGPAMigrationPlan.self, configurations: [configuration])
         let context = ModelContext(container)
         let preferences = try context.fetch(FetchDescriptor<UserPreferences>())
         let terms = try context.fetch(FetchDescriptor<AcademicTerm>())

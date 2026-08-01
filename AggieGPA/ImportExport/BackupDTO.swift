@@ -1,7 +1,7 @@
 import Foundation
 
 struct BackupEnvelope: Codable, Equatable {
-  static let currentSchemaVersion = 2
+  static let currentSchemaVersion = 3
   var schemaVersion: Int
   var exportDate: Date
   var appVersion: String
@@ -15,6 +15,8 @@ struct BackupEnvelope: Codable, Equatable {
   var gradeScales: [GradeScaleDTO]?
   var forecastScenarios: [ForecastScenarioDTO]?
   var siriSettings: SiriSettingsDTO?
+  var courseTemplates: [CourseTemplateDTO]?
+  var courseReminderDefaults: [CourseReminderDefaultsDTO]?
 
   struct TermDTO: Codable, Equatable {
     var id: UUID
@@ -50,6 +52,9 @@ struct BackupEnvelope: Codable, Equatable {
     var targetGrade: CourseGrade?
     var notes: String
     var customColor: String?
+    var defaultReminderEnabled: Bool?
+    var defaultReminderLeadTime: ReminderLeadTime?
+    var defaultCustomReminderDate: Date?
     var createdAt: Date
     var updatedAt: Date
     var isDemoData: Bool
@@ -185,12 +190,49 @@ struct BackupEnvelope: Codable, Equatable {
     var createdAt: Date
     var updatedAt: Date
   }
+
+  struct CourseTemplateDTO: Codable, Equatable {
+    var id: UUID
+    var name: String
+    var sourceCourseID: UUID?
+    var gradingMethod: GradingMethod
+    var normalizeCurrentGrade: Bool
+    var missingItemPolicy: MissingItemPolicy
+    var missingPolicyConfirmed: Bool
+    var targetPercentage: Decimal?
+    var targetLetterGrade: GradeLetter?
+    var categories: [CourseTemplateCategorySnapshot]
+    var gradeScale: CourseTemplateScaleSnapshot?
+    var defaultReminderEnabled: Bool
+    var defaultReminderLeadTime: ReminderLeadTime
+    var defaultCustomReminderDate: Date?
+    var isBuiltIn: Bool
+    var createdAt: Date
+    var updatedAt: Date
+  }
+
+  struct CourseReminderDefaultsDTO: Codable, Equatable {
+    var courseID: UUID
+    var reminderEnabled: Bool
+    var reminderLeadTime: ReminderLeadTime
+    var customReminderDate: Date?
+    var createdAt: Date
+    var updatedAt: Date
+  }
 }
 
 struct ImportPreview: Equatable {
   let envelope: BackupEnvelope
   let duplicateTermCount: Int
   let duplicateCourseCount: Int
+  let duplicateItemCount: Int
+  let duplicateTemplateCount: Int
+  let duplicateReminderDefaultCount: Int
+  let newTermCount: Int
+  let newCourseCount: Int
+  let newItemCount: Int
+  let newTemplateCount: Int
+  let newReminderDefaultCount: Int
 }
 
 enum ImportMode { case merge, replace }

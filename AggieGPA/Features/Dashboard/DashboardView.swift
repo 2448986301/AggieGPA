@@ -81,7 +81,12 @@ struct DashboardView: View {
         ProjectedGPAService.calculate(inputs, projectedGrades: projectedGrades, termID: currentTerm?.id)
     }
     private var upcomingItems: [GradeItem] {
-        liveGradeItems.filter { item in item.dueDate.map { $0 >= Calendar.autoupdatingCurrent.startOfDay(for: .now) } ?? false && !item.isExcused && !item.isDropped }
+        liveGradeItems.filter { item in
+            item.dueDate.map { $0 >= Calendar.autoupdatingCurrent.startOfDay(for: .now) } ?? false
+                && !hasRecordedScore(item)
+                && !item.isExcused
+                && !item.isDropped
+        }
             .sorted { ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
     }
     private var attentionItems: [String] {
@@ -97,7 +102,7 @@ struct DashboardView: View {
     private var focusRecommendations: [GradeItem] {
         liveGradeItems
             .filter { item in
-                item.earnedPoints == nil
+                !hasRecordedScore(item)
                     && item.dueDate != nil
                     && item.isIncluded
                     && !item.isDropped
@@ -107,6 +112,18 @@ struct DashboardView: View {
             .sorted { focusScore($0) > focusScore($1) }
             .prefix(3)
             .map { $0 }
+    }
+
+    private func hasRecordedScore(_ item: GradeItem) -> Bool {
+        item.earnedPoints != nil || item.percentageOverride != nil || item.status == .graded
+    }
+
+    private var academicInsights: [AcademicInsight] {
+        AcademicInsightsService.makeInsights(
+            courses: courses, policies: livePolicies, categories: liveCategories,
+            items: liveGradeItems, scales: liveGradeScales, forecasts: liveForecasts,
+            locale: locale
+        ).sorted { $0.severity.rawValue > $1.severity.rawValue }
     }
 
     var body: some View {
@@ -121,6 +138,9 @@ struct DashboardView: View {
                                     todayTasks
                                     if showFocusNext && !focusRecommendations.isEmpty {
                                         focusNextSection
+                                    }
+                                    if !academicInsights.isEmpty {
+                                        academicInsightsSection
                                     }
                                     gpaSummary
                                 }
@@ -138,6 +158,9 @@ struct DashboardView: View {
                                     focusNextSection
                                 }
                                 recentCourses
+                                if !academicInsights.isEmpty {
+                                    academicInsightsSection
+                                }
                                 gpaSummary
                             }
                         }
@@ -234,7 +257,7 @@ struct DashboardView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.course?.courseCode ?? "Course").font(.caption.weight(.semibold)).foregroundStyle(DesignSystem.ColorToken.gold)
-                            Text(item.title).font(.headline)
+                            Text(verbatim: item.title).font(.headline)
                             if let due = item.dueDate { Text(due, style: .relative).font(.caption).foregroundStyle(.secondary) }
                         }
                         Spacer()
@@ -257,6 +280,7 @@ struct DashboardView: View {
             DesignSystem.Motion.standard(reduceMotion: reduceMotion),
             value: Array(upcomingItems.prefix(5)).map(\.id)
         )
+        .accessibilityIdentifier("upcomingItemsSection")
     }
 
     private var gpaSummary: some View {
@@ -280,6 +304,16 @@ struct DashboardView: View {
         .padding(DesignSystem.Spacing.medium)
         .contentSurface()
         .accessibilityElement(children: .combine)
+    }
+
+    private var academicInsightsSection: some View {
+        AcademicInsightsSummaryView(
+            insights: academicInsights,
+            courses: courses,
+            items: liveGradeItems,
+            preferences: preferences,
+            limit: 3
+        )
     }
 
     private var focusNextSection: some View {
@@ -387,7 +421,7 @@ struct DashboardView: View {
         }
 
         if let category = item.category, category.weight > 0 {
-            let categoryName = localizedCategoryName(category)
+            let categoryName = category.name
             if AppCopy.isChinese(locale) {
                 return "\(dueDescription)到期 · \(categoryName)占课程总评的 \(compact(category.weight))%。"
             }
@@ -399,24 +433,6 @@ struct DashboardView: View {
             )
         }
         return AppCopy.isChinese(locale) ? "\(dueDescription)到期。" : "Due \(dueDescription)."
-    }
-
-    private func localizedCategoryName(_ category: GradingCategory) -> String {
-        guard AppCopy.isChinese(locale) else { return category.name }
-        return switch category.categoryType {
-        case .homework: "作业"
-        case .quiz: "小测"
-        case .lab: "实验"
-        case .discussion: "讨论"
-        case .participation: "课堂参与"
-        case .attendance: "出勤"
-        case .project: "项目"
-        case .presentation: "展示"
-        case .midterm: "期中考试"
-        case .finalExam: "期末考试"
-        case .extraCredit: "额外加分"
-        case .custom: category.name
-        }
     }
 
     private func focusSymbol(for item: GradeItem) -> String {
@@ -488,7 +504,10 @@ struct DashboardView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
-            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: DesignSystem.Radius.compact))
+            .background(
+                Color(.secondarySystemGroupedBackground),
+                in: RoundedRectangle(cornerRadius: DesignSystem.Radius.compact, style: .continuous)
+            )
             .accessibilityElement(children: .combine)
         }
     }
@@ -521,12 +540,17 @@ struct DashboardView: View {
             Text("Upcoming").font(.headline)
             ForEach(Array(upcomingItems.prefix(5))) { item in
                 HStack {
-                    VStack(alignment: .leading) { Text(item.title); Text(item.course?.courseCode ?? "Course").font(.caption).foregroundStyle(.secondary) }
+                    VStack(alignment: .leading) { Text(verbatim: item.title); Text(item.course?.courseCode ?? "Course").font(.caption).foregroundStyle(.secondary) }
                     Spacer()
                     if let due = item.dueDate { Text(due, style: .relative).font(.caption).foregroundStyle(.secondary) }
                 }
             }
-        }.padding().background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card))
+        }
+        .padding()
+        .background(
+            Color(.secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+        )
     }
 
     private var attentionSection: some View {
@@ -547,7 +571,10 @@ struct DashboardView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: DesignSystem.Radius.compact))
+        .background(
+            Color(.secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: DesignSystem.Radius.compact, style: .continuous)
+        )
         .accessibilityElement(children: .combine)
     }
 
@@ -586,7 +613,10 @@ struct DashboardView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card))
+        .background(
+            Color(.secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+        )
     }
 
     private var recentCourses: some View {
@@ -602,7 +632,15 @@ struct DashboardView: View {
                         HStack {
                             VStack(alignment: .leading) {
                                 Text(course.courseCode).font(.headline)
-                                Text(course.courseTitle.isEmpty ? course.term?.displayName ?? "Course" : course.courseTitle)
+                                Group {
+                                    if !course.courseTitle.isEmpty {
+                                        Text(verbatim: course.courseTitle)
+                                    } else if let termName = course.term?.displayName {
+                                        Text(verbatim: termName)
+                                    } else {
+                                        Text("Course")
+                                    }
+                                }
                                     .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                             }
                             Spacer()
@@ -721,7 +759,7 @@ private struct GradeActionCoursePicker: View {
                 } label: {
                     VStack(alignment: .leading) {
                         Text(course.courseCode).font(.headline)
-                        Text(course.courseTitle).foregroundStyle(.secondary)
+                        Text(verbatim: course.courseTitle).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -799,7 +837,7 @@ private struct ScorePickerView: View {
                                 .id(item.id)
                         } label: {
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(item.title)
+                                Text(verbatim: item.title)
                                     .font(.body.weight(.medium))
                                 HStack(spacing: DesignSystem.Spacing.xSmall) {
                                     Text(item.course?.courseCode ?? "Course")

@@ -31,10 +31,12 @@ struct TermDetailView: View {
     @Query private var items: [GradeItem]
     @Query private var scales: [GradeScale]
     @Query private var forecasts: [ForecastScenario]
+    @Query private var reminderDefaults: [CourseReminderDefaults]
     let term: AcademicTerm
     let preferences: UserPreferences
     @State private var showAdd = false
     @State private var editingCourse: CourseRecord?
+    @State private var coursePendingDeletion: CourseRecord?
     @State private var deleted: DeletedCourseSnapshot?
 
     private var termCourses: [CourseRecord] {
@@ -90,10 +92,24 @@ struct TermDetailView: View {
                         .contextMenu {
                             Button("Edit", systemImage: "pencil") { editingCourse = course }
                             Button("Duplicate", systemImage: "plus.square.on.square") { duplicate(course) }
-                            Button("Delete", systemImage: "trash", role: .destructive) { remove(course) }
+                            Button("Delete", systemImage: "trash", role: .destructive) { requestDelete(course) }
                         }
-                        .swipeActions(edge: .leading) { Button("Edit") { editingCourse = course }.tint(.blue) }
-                        .swipeActions(edge: .trailing) { Button("Delete", role: .destructive) { remove(course) } }
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                            Button {
+                                editingCourse = course
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(.blue)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button {
+                                requestDelete(course)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            .tint(.red)
+                        }
                 }
             }
             Section {
@@ -110,6 +126,15 @@ struct TermDetailView: View {
         }
         .sheet(isPresented: $showAdd) { CourseEditorView(term: term) }
         .sheet(item: $editingCourse) { CourseEditorView(term: term, course: $0) }
+        .alert("Delete this course?", isPresented: isShowingCourseDeletionAlert) {
+            Button("Delete Course", role: .destructive) {
+                if let coursePendingDeletion { remove(coursePendingDeletion) }
+                coursePendingDeletion = nil
+            }
+            Button("Cancel", role: .cancel) { coursePendingDeletion = nil }
+        } message: {
+            Text("Assignments, grading rules, and forecasts for this course will be deleted. You can undo before leaving this screen.")
+        }
         .overlay(alignment: .bottom) {
             if deleted != nil {
                 AggieFeedbackBanner("Course deleted", systemImage: "trash") {
@@ -122,6 +147,17 @@ struct TermDetailView: View {
             }
         }
         .onDisappear { finalizePendingDelete() }
+    }
+
+    private var isShowingCourseDeletionAlert: Binding<Bool> {
+        Binding(
+            get: { coursePendingDeletion != nil },
+            set: { if !$0 { coursePendingDeletion = nil } }
+        )
+    }
+
+    private func requestDelete(_ course: CourseRecord) {
+        coursePendingDeletion = course
     }
 
     private func remove(_ course: CourseRecord) {
@@ -160,6 +196,10 @@ struct TermDetailView: View {
         deleted.scales.forEach(modelContext.delete)
         deleted.forecasts.forEach(modelContext.delete)
         if let course = termCourses.first(where: { $0.persistentModelID == deleted.modelID }) {
+            let deletedCourseID = course.id
+            reminderDefaults
+                .filter { $0.courseID == deletedCourseID }
+                .forEach(modelContext.delete)
             course.term = nil
             modelContext.delete(course)
         }
@@ -233,7 +273,12 @@ private struct CourseRow: View {
     private var courseIdentity: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(course.courseCode).font(.headline).foregroundStyle(.primary)
-            if !course.courseTitle.isEmpty { Text(course.courseTitle).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
+            if !course.courseTitle.isEmpty {
+                Text(verbatim: course.courseTitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
             HStack {
                 Text(verbatim: AppCopy.units(course.units, locale: locale))
                 if course.isMajorCourse { Label("Major", systemImage: "star.fill") }

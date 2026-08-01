@@ -5,44 +5,83 @@ import UniformTypeIdentifiers
 import UIKit
 import UserNotifications
 
+private enum SettingsField: Hashable {
+    case displayName
+    case major
+    case academicYear
+    case targetGPA
+}
+
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var courses: [CourseRecord]
     let preferences: UserPreferences
     @State private var dataError: String?
+    @FocusState private var focusedField: SettingsField?
 
     var body: some View {
         @Bindable var preferences = preferences
         NavigationStack {
             Form {
-                Section("App") {
+                Section {
                     TextField("Name or nickname", text: $preferences.displayName)
+                        .focused($focusedField, equals: .displayName)
+                        .submitLabel(.done)
+                        .onSubmit { focusedField = nil }
+                        .accessibilityIdentifier("settingsNameField")
                     TextField("Major", text: $preferences.major)
+                        .focused($focusedField, equals: .major)
+                        .submitLabel(.done)
+                        .onSubmit { focusedField = nil }
+                        .accessibilityIdentifier("settingsMajorField")
                     TextField("First academic year", text: $preferences.firstAcademicYear)
+                        .focused($focusedField, equals: .academicYear)
+                        .submitLabel(.done)
+                        .onSubmit { focusedField = nil }
+                        .accessibilityIdentifier("settingsAcademicYearField")
+                } header: {
+                    dismissKeyboardHeader("App")
                 }
-                Section("Grades & GPA") {
-                    DecimalPreferenceField(title: "Target GPA", value: $preferences.targetGPA, range: 0...4)
+                Section {
+                    DecimalPreferenceField(
+                        title: "Target GPA",
+                        value: $preferences.targetGPA,
+                        range: 0...4,
+                        focus: $focusedField
+                    )
                     Picker("Default grading basis", selection: $preferences.defaultGradingBasisRaw) {
                         ForEach(GradingBasis.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0.rawValue) }
                     }
+                    .accessibilityIdentifier("settingsDefaultGradingBasisPicker")
                     Picker("GPA decimal places", selection: $preferences.decimalPrecision) {
                         Text("2").tag(2); Text("3").tag(3); Text("4").tag(4)
                     }
+                    .accessibilityIdentifier("settingsDecimalPrecisionPicker")
                     Toggle("Show Major GPA", isOn: $preferences.showMajorGPA)
+                        .accessibilityIdentifier("settingsShowMajorGPAToggle")
                     Toggle("Show Upper-Division GPA", isOn: $preferences.showUpperDivisionGPA)
+                        .accessibilityIdentifier("settingsShowUpperDivisionGPAToggle")
                     Toggle("Show repeat summary", isOn: $preferences.showRepeatSummary)
+                        .accessibilityIdentifier("settingsShowRepeatSummaryToggle")
+                } header: {
+                    dismissKeyboardHeader("Grades & GPA")
                 }
-                Section("App Preferences") {
+                Section {
                     Picker("Language", selection: $preferences.languageRaw) {
                         ForEach(AppLanguage.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0.rawValue) }
                     }
+                    .accessibilityIdentifier("settingsLanguagePicker")
                     Picker("Appearance", selection: $preferences.appearanceRaw) {
                         ForEach(AppAppearance.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0.rawValue) }
                     }
+                    .accessibilityIdentifier("settingsAppearancePicker")
                     Toggle("Haptics", isOn: $preferences.hapticsEnabled)
+                        .accessibilityIdentifier("settingsHapticsToggle")
                     LabeledContent("App icon appearance", value: "Managed by iOS")
                     Text("Default, Dark, Clear, Tinted, and Monochrome appearances are selected by the iOS Home Screen. Aggie GPA does not pretend to switch unsupported system icon modes at runtime.")
                         .font(.footnote).foregroundStyle(.secondary)
+                } header: {
+                    dismissKeyboardHeader("App Preferences")
                 }
                 Section("Privacy") {
                     Toggle("Require Face ID, Touch ID, or passcode", isOn: $preferences.privacyLockEnabled)
@@ -83,6 +122,7 @@ struct SettingsView: View {
                 Section { DisclaimerBanner() }
             }
             .navigationTitle("Settings")
+            .scrollDismissesKeyboard(.immediately)
             .onChange(of: preferences.displayName) { _, _ in save() }
             .onChange(of: preferences.major) { _, _ in save() }
             .onChange(of: preferences.appearanceRaw) { _, _ in save() }
@@ -97,6 +137,15 @@ struct SettingsView: View {
     }
 
     private func save() { try? modelContext.save() }
+
+    private func dismissKeyboardHeader(_ title: LocalizedStringKey) -> some View {
+        Text(title)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                focusedField = nil
+            }
+    }
 }
 
 private struct SiriAccessSettingsView: View {
@@ -208,9 +257,10 @@ private struct NotificationSettingsView: View {
 }
 
 private struct DecimalPreferenceField: View {
-    let title: String
+    let title: LocalizedStringKey
     @Binding var value: Decimal
     let range: ClosedRange<Decimal>
+    let focus: FocusState<SettingsField?>.Binding
     @State private var text = ""
 
     var body: some View {
@@ -218,7 +268,9 @@ private struct DecimalPreferenceField: View {
             TextField(title, text: $text)
                 .multilineTextAlignment(.trailing)
                 .keyboardType(.decimalPad)
+                .focused(focus, equals: .targetGPA)
                 .accessibilityLabel(title)
+                .accessibilityIdentifier("settingsTargetGPAField")
                 .onAppear { text = DecimalFormatters.compact(value) }
                 .onChange(of: text) { _, newValue in
                     if let decimal = DecimalFormatters.decimal(from: newValue), range.contains(decimal) { value = decimal }
@@ -239,6 +291,8 @@ struct DataManagementView: View {
     @Query private var gradeItems: [GradeItem]
     @Query private var gradeScales: [GradeScale]
     @Query private var forecasts: [ForecastScenario]
+    @Query private var courseTemplates: [CourseTemplate]
+    @Query private var reminderDefaults: [CourseReminderDefaults]
     @Query private var siriSettings: [SiriAccessSettings]
     let preferences: UserPreferences
 
@@ -304,7 +358,14 @@ struct DataManagementView: View {
                 defer { if accessed { url.stopAccessingSecurityScopedResource() } }
                 let data = try Data(contentsOf: url)
                 let envelope = try BackupService.decode(data)
-                importPreview = BackupService.preview(envelope, existingTerms: terms, existingCourses: courses)
+                importPreview = BackupService.preview(
+                    envelope,
+                    existingTerms: terms,
+                    existingCourses: courses,
+                    existingItems: gradeItems,
+                    existingTemplates: courseTemplates,
+                    existingReminderDefaults: reminderDefaults
+                )
             } catch {
                 errorMessage = (error as? LocalizedError)?.errorDescription ?? "The backup could not be read. Your current data was not changed."
             }
@@ -317,7 +378,7 @@ struct DataManagementView: View {
             Button("Cancel", role: .cancel) { importPreview = nil }
         } message: {
             if let preview = importPreview {
-                Text("\(preview.envelope.terms.count) quarters, \(preview.envelope.courses.count) courses, and \(preview.envelope.plannerScenarios.count) scenarios. Potential duplicates: \(preview.duplicateTermCount) quarters and \(preview.duplicateCourseCount) courses.")
+                Text("\(preview.envelope.terms.count) quarters, \(preview.envelope.courses.count) courses, \(preview.envelope.gradeItems?.count ?? 0) assignments or exams, and \(preview.envelope.courseTemplates?.count ?? 0) templates. New: \(preview.newTermCount) quarters, \(preview.newCourseCount) courses, \(preview.newItemCount) items, \(preview.newTemplateCount) templates. Conflicts to merge or replace: \(preview.duplicateTermCount) quarters, \(preview.duplicateCourseCount) courses, \(preview.duplicateItemCount) items, \(preview.duplicateTemplateCount) templates.")
             }
         }
         .confirmationDialog("Reset all academic data?", isPresented: $confirmReset, titleVisibility: .visible) {
@@ -332,7 +393,8 @@ struct DataManagementView: View {
     private var envelope: BackupEnvelope {
         BackupService.makeEnvelope(terms: terms, courses: courses, scenarios: scenarios, preferences: preferences,
                                    policies: gradingPolicies, categories: gradingCategories, items: gradeItems,
-                                   scales: gradeScales, forecasts: forecasts, siriSettings: siriSettings.first)
+                                   scales: gradeScales, forecasts: forecasts, siriSettings: siriSettings.first,
+                                   templates: courseTemplates, reminderDefaults: reminderDefaults)
     }
 
     private func prepareJSONExport() {
@@ -379,6 +441,8 @@ struct DataManagementView: View {
             gradingPolicies.forEach(modelContext.delete)
             gradeScales.forEach(modelContext.delete)
             forecasts.forEach(modelContext.delete)
+            courseTemplates.forEach(modelContext.delete)
+            reminderDefaults.forEach(modelContext.delete)
             scenarios.forEach(modelContext.delete)
             gradePlans.forEach(modelContext.delete)
             terms.forEach(modelContext.delete)

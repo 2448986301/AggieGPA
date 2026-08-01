@@ -32,9 +32,9 @@ enum CSVService {
 
     static func export(terms: [AcademicTerm], courses: [CourseRecord]? = nil) -> String {
         var rows = [headers.map(escape).joined(separator: ",")]
-        for term in terms.sorted(by: { $0.sortOrder < $1.sortOrder }) {
+        for term in terms.filter({ !$0.isDeleted }).sorted(by: { $0.sortOrder < $1.sortOrder }) {
             let termCourses = (courses ?? term.courses)
-                .filter { $0.term?.persistentModelID == term.persistentModelID }
+                .filter { !$0.isDeleted && !$0.isDemoData && $0.term?.persistentModelID == term.persistentModelID }
                 .sorted(by: { $0.courseCode < $1.courseCode })
             for course in termCourses {
                 let gradePoints = course.grade.gradePointValue.map { $0 * course.units }

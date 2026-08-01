@@ -74,7 +74,15 @@ struct IPadCourseList: View {
                     ForEach(liveCourses) { course in
                         VStack(alignment: .leading, spacing: 3) {
                             Text(course.courseCode).font(.headline)
-                            Text(course.courseTitle.isEmpty ? course.term?.displayName ?? "Course" : course.courseTitle)
+                            Group {
+                                if !course.courseTitle.isEmpty {
+                                    Text(verbatim: course.courseTitle)
+                                } else if let termName = course.term?.displayName {
+                                    Text(verbatim: termName)
+                                } else {
+                                    Text("Course")
+                                }
+                            }
                                 .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                         }
                         .tag(course.id)
@@ -89,6 +97,16 @@ struct IPadCourseList: View {
         .navigationTitle("Courses")
         .searchable(text: $searchText, prompt: "Course")
         .navigationSplitViewColumnWidth(min: 240, ideal: 300, max: 340)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink {
+                    CourseTemplatesView()
+                } label: {
+                    Label("Course Templates", systemImage: "rectangle.3.group")
+                }
+                .accessibilityIdentifier("courseTemplatesButton")
+            }
+        }
         .onChange(of: liveCourses.map(\.id), initial: true) { _, ids in
             if selectedCourseID == nil || !ids.contains(selectedCourseID!) {
                 selectedCourseID = ids.first

@@ -1,8 +1,8 @@
 # Aggie GPA
 
-**Unofficial GPA Planner for UC Davis Students — 1.4.0 (Build 19)**
+**Unofficial GPA Planner for UC Davis Students — 1.4.1 (Build 21)**
 
-Aggie GPA 是一个供 UC Davis 学生个人使用的非官方、完全离线的 iPhone 和 iPad GPA 记录、课程成绩册与规划工具。v1.4.0 可以记录 category、作业、考试和分数，进行不会改动正式成绩的成绩试算，解释当前成绩构成，并展示录分后的成绩影响。它没有账号、服务器或远程 AI。
+Aggie GPA 是一个供 UC Davis 学生个人使用的非官方、完全离线的 iPhone 和 iPad GPA 记录、课程成绩册与规划工具。v1.4.1 在保留既有课程、成绩册、规划和备份能力的基础上，继续扩展本地课程规划、学业提示和数据管理能力。它没有账号、服务器或远程 AI。
 
 > Unofficial student tool. Not affiliated with UC Davis.
 
@@ -29,7 +29,7 @@ Aggie GPA 是一个供 UC Davis 学生个人使用的非官方、完全离线的
 - 应用内支持“跟随系统 / English / 简体中文”即时切换；课程代码和用户录入内容保持原样。
 - iOS 27 原生 `glassEffect` / Glass button style；长列表和表单不过度玻璃化。
 - 三套原创图标候选、第二轮正式方案、6 个独立 SVG 图层与系统模式预览。
-- 83 个 Unit Tests 和 13 个 UI Tests。
+- 92 个 Unit Tests 和 41 个 UI Tests。
 
 ## 开发环境
 
@@ -61,7 +61,7 @@ Xcode 27 SDK 实际提供的 API 名称是 `glassEffect(_:in:)`、`GlassEffectCo
 2. Xcode > Settings > Accounts，点击左下角 `+`，选择 Apple Account；账号和密码请本人输入，Codex 不读取。
 3. 在左侧 Project Navigator 选择蓝色 `AggieGPA` project，再选择 TARGETS > AggieGPA > Signing & Capabilities。
 4. 勾选 Automatically manage signing，在 Team 选择你的 **Personal Team**。
-5. 如果 `com.easonzhou.aggiegpa` 已被占用，把 Bundle Identifier 改成只属于你的值，例如 `com.你的名字.aggiegpa`。
+5. 保持 Bundle Identifier 为 `com.easonzhou.aggiegpa`，这样 Run 会覆盖更新现有 App 并保留 SwiftData 数据；如果签名界面要求更换 identifier，请先暂停，不要创建第二个 App。
 6. 在 Xcode 顶部运行设备菜单选择已连接的 iPhone，按 `⌘R`。
 7. 若手机要求 Developer Mode：Settings > Privacy & Security > Developer Mode > On，按提示重启并在重启后确认。
 8. 第一次打开免费签名 App 时，如 iOS 要求信任开发者：Settings > General > VPN & Device Management > Developer App，选择对应 Apple Account 并点 Trust。

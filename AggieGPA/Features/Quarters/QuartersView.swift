@@ -11,6 +11,7 @@ struct QuartersView: View {
     @Query private var items: [GradeItem]
     @Query private var scales: [GradeScale]
     @Query private var forecasts: [ForecastScenario]
+    @Query private var reminderDefaults: [CourseReminderDefaults]
     let preferences: UserPreferences
     let initialSearchQuery: String
     @State private var searchText = ""
@@ -66,8 +67,13 @@ struct QuartersView: View {
                                             Button("Duplicate", systemImage: "plus.square.on.square") { duplicate(term) }
                                             Button("Delete", systemImage: "trash", role: .destructive) { pendingDelete = term }
                                         }
-                                        .swipeActions(edge: .trailing) {
-                                            Button("Delete", role: .destructive) { pendingDelete = term }
+                                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                            Button {
+                                                pendingDelete = term
+                                            } label: {
+                                                Label("Delete", systemImage: "trash")
+                                            }
+                                            .tint(.red)
                                         }
                                 }
                                 .onMove { source, destination in move(year: year, from: source, to: destination) }
@@ -96,6 +102,14 @@ struct QuartersView: View {
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
+                    NavigationLink {
+                        CourseTemplatesView()
+                    } label: {
+                        Label("Course Templates", systemImage: "rectangle.3.group")
+                    }
+                    .accessibilityIdentifier("courseTemplatesButton")
+                }
+                ToolbarItem(placement: .primaryAction) {
                     Button("Add Quarter", systemImage: "plus") { showNewTerm = true }
                         .accessibilityIdentifier("addQuarterButton")
                 }
@@ -104,9 +118,9 @@ struct QuartersView: View {
             .sheet(item: $editingTerm) { term in
                 TermEditorView(defaultAcademicYear: preferences.firstAcademicYear, term: term)
             }
-            .confirmationDialog("Delete this quarter and all of its courses?", isPresented: Binding(
+            .alert("Delete this quarter and all of its courses?", isPresented: Binding(
                 get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }
-            ), titleVisibility: .visible) {
+            )) {
                 Button("Delete Quarter", role: .destructive) {
                     if let pendingDelete { delete(pendingDelete) }
                     pendingDelete = nil
@@ -147,6 +161,8 @@ struct QuartersView: View {
         policies.filter { belongsToDeletedCourse($0.course) }.forEach(modelContext.delete)
         scales.filter { belongsToDeletedCourse($0.course) }.forEach(modelContext.delete)
         forecasts.filter { belongsToDeletedCourse($0.course) }.forEach(modelContext.delete)
+        let deletedCourseIDs = Set(termCourses.map(\.id))
+        reminderDefaults.filter { deletedCourseIDs.contains($0.courseID) }.forEach(modelContext.delete)
         termCourses.forEach { course in
             course.term = nil
             modelContext.delete(course)
@@ -181,7 +197,7 @@ private struct TermRow: View {
                 .foregroundStyle(DesignSystem.ColorToken.gold)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
-                Text(term.displayName).font(.headline)
+                Text(verbatim: term.displayName).font(.headline)
                 Text(verbatim: AppCopy.termSummary(units: result.attemptedUnits, courseCount: courses.count, locale: locale))
                     .font(.caption).foregroundStyle(.secondary)
             }

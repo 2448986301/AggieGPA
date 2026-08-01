@@ -82,6 +82,52 @@ struct ContentSurfaceModifier: ViewModifier {
     }
 }
 
+private struct AggieInputSurfaceModifier: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
+    let capsule: Bool
+    let horizontalPadding: CGFloat
+    let verticalPadding: CGFloat
+
+    private var strokeOpacity: Double {
+        reduceTransparency || colorSchemeContrast == .increased ? 0.22 : 0.09
+    }
+
+    func body(content: Content) -> some View {
+        if capsule {
+            content
+                .textFieldStyle(.plain)
+                .padding(.horizontal, horizontalPadding)
+                .padding(.vertical, verticalPadding)
+                .frame(minHeight: 44)
+                .background(Color(.tertiarySystemFill), in: Capsule())
+                .overlay {
+                    Capsule()
+                        .strokeBorder(.primary.opacity(strokeOpacity), lineWidth: 1)
+                }
+                .contentShape(Capsule())
+        } else {
+            content
+                .textFieldStyle(.plain)
+                .padding(.horizontal, horizontalPadding)
+                .padding(.vertical, verticalPadding)
+                .frame(minHeight: 44)
+                .background(
+                    Color(.tertiarySystemFill),
+                    in: RoundedRectangle(cornerRadius: DesignSystem.Radius.compact, style: .continuous)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.compact, style: .continuous)
+                        .strokeBorder(.primary.opacity(strokeOpacity), lineWidth: 1)
+                }
+                .contentShape(
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.compact, style: .continuous)
+                )
+        }
+    }
+}
+
 struct CampusBackground: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -119,6 +165,28 @@ extension View {
     func contentSurface(radius: CGFloat = DesignSystem.Radius.section) -> some View {
         modifier(ContentSurfaceModifier(radius: radius))
     }
+
+    /// A consistent continuous-corner field for forms placed on content surfaces.
+    func roundedInputSurface() -> some View {
+        modifier(
+            AggieInputSurfaceModifier(
+                capsule: false,
+                horizontalPadding: DesignSystem.Spacing.small,
+                verticalPadding: DesignSystem.Spacing.small
+            )
+        )
+    }
+
+    /// A compact numeric field whose interaction and visual boundary match a pill control.
+    func capsuleInputSurface() -> some View {
+        modifier(
+            AggieInputSurfaceModifier(
+                capsule: true,
+                horizontalPadding: DesignSystem.Spacing.small,
+                verticalPadding: DesignSystem.Spacing.small
+            )
+        )
+    }
 }
 
 struct AggieFeedbackBanner<Action: View>: View {
@@ -151,7 +219,7 @@ struct AggieFeedbackBanner<Action: View>: View {
             } else {
                 bannerContent
                     .glassEffect(
-                        .regular,
+                        .regular.tint(DesignSystem.ColorToken.gold.opacity(0.08)).interactive(),
                         in: RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
                     )
             }
@@ -179,8 +247,8 @@ struct AggieFeedbackBanner<Action: View>: View {
             }
         }
         .font(.subheadline)
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.roundedRectangle(radius: DesignSystem.Radius.compact))
+        .buttonStyle(.glass(.regular.interactive()))
+        .buttonBorderShape(.capsule)
         .controlSize(.regular)
         .padding(.horizontal, DesignSystem.Spacing.medium)
         .padding(.vertical, DesignSystem.Spacing.small)
