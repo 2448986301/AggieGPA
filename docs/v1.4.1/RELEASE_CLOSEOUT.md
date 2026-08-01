@@ -65,7 +65,7 @@ This table is updated only with evidence from the current 1.4.1 checkout.
 | SwiftData migration and backup safety | Verified | migration/data-safety coverage included in 100 passing unit tests |
 | Real iPhone in-place install | Verified | Existing `com.easonzhou.aggiegpa` `1.4.0 (19)` was updated in place to `1.4.1 (21)` on Eason’s iPhone; `devicectl` install and launch succeeded; no uninstall or data reset |
 | Real iPad in-place install | Verified | Existing `com.easonzhou.aggiegpa` `1.4.0 (19)` was updated in place to `1.4.1 (21)` on Eason’s iPad; `devicectl` install and launch succeeded; no uninstall or data reset |
-| GitHub branch and pull request | Pending final commit | remote branch and PR URL |
+| GitHub branch and pull request | Verified | commit `b0b1f15` pushed to `feature/v1.4.1-local-improvements`; Draft PR #9 targets `main`: https://github.com/2448986301/AggieGPA/pull/9 |
 
 ## Known limitations
 
