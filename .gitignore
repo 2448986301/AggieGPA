@@ -1,0 +1,26 @@
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.xcscmblueprint
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Signing and local secrets
+*.mobileprovision
+*.p12
+*.cer
+*.key
+.env
+
+# macOS
+.DS_Store
+
+# Local full-size llama.cpp evaluation copy; the release uses the checked-in
+# iOS-only subset under Packages/LlamaRuntimeIOS.
+Packages/LlamaRuntime/

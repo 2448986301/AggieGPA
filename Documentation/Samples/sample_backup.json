@@ -1,0 +1,55 @@
+{
+  "appVersion" : "1.0",
+  "courses" : [
+    {
+      "courseCode" : "CHE 002A",
+      "courseTitle" : "Demo General Chemistry",
+      "createdAt" : "2026-07-21T00:00:00Z",
+      "grade" : "A-",
+      "gradingBasis" : "Letter Grade",
+      "id" : "11111111-1111-1111-1111-111111111111",
+      "institution" : "UC Davis",
+      "isDemoData" : true,
+      "isIncludedInGPA" : true,
+      "isMajorCourse" : true,
+      "isRepeatCourse" : false,
+      "isTransferCourse" : false,
+      "isUpperDivision" : false,
+      "notes" : "Demo Data",
+      "repeatAttemptOrder" : 0,
+      "repeatHandlingMode" : "Manual Review Needed",
+      "termID" : "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
+      "units" : 5,
+      "updatedAt" : "2026-07-21T00:00:00Z"
+    }
+  ],
+  "exportDate" : "2026-07-21T00:00:00Z",
+  "plannerScenarios" : [],
+  "preferences" : {
+    "appearance" : "System",
+    "decimalPrecision" : 3,
+    "defaultGradingBasis" : "Letter Grade",
+    "displayName" : "",
+    "firstAcademicYear" : "2026–2027",
+    "hapticsEnabled" : true,
+    "major" : "Biological Sciences",
+    "showMajorGPA" : true,
+    "showRepeatSummary" : true,
+    "showUpperDivisionGPA" : true,
+    "targetGPA" : 3.5
+  },
+  "schemaVersion" : 1,
+  "terms" : [
+    {
+      "academicYear" : "2026–2027",
+      "createdAt" : "2026-07-21T00:00:00Z",
+      "displayName" : "Fall 2026",
+      "id" : "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
+      "isIncludedInCumulativeGPA" : true,
+      "notes" : "Demo Data",
+      "sortOrder" : 0,
+      "termType" : "Fall",
+      "updatedAt" : "2026-07-21T00:00:00Z"
+    }
+  ]
+}
