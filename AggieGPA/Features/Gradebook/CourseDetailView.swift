@@ -66,6 +66,7 @@ struct CourseDetailView: View {
     @State private var showSyllabusQuestion = false
     @State private var showSetup = false
     @State private var showCourseTemplates = false
+    @State private var showCourseEditor = false
     @State private var showTemplateSave = false
     @State private var showBulkCreate = false
     @State private var quickCategory: GradingCategory?
@@ -185,6 +186,12 @@ struct CourseDetailView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu("Course Settings", systemImage: "ellipsis.circle") {
+                    if course.term != nil {
+                        Section("Course") {
+                            Button("Edit Course", systemImage: "pencil") { showCourseEditor = true }
+                                .accessibilityIdentifier("editCourseButton")
+                        }
+                    }
                     Section("Gradebook") {
                         Button("Grading Policy", systemImage: "slider.horizontal.3") { showPolicyEditor = true }
                         Button("Add Category", systemImage: "folder.badge.plus") { editingCategory = nil; showCategoryEditor = true }
@@ -208,6 +215,11 @@ struct CourseDetailView: View {
         }
         .sheet(isPresented: $showCategoryEditor) {
             CategoryEditorView(course: course, category: editingCategory, nextSortOrder: courseCategories.count)
+        }
+        .sheet(isPresented: $showCourseEditor) {
+            if let term = course.term {
+                CourseEditorView(term: term, course: course)
+            }
         }
         .alert("Delete this category?", isPresented: isShowingCategoryDeletionAlert) {
             Button("Delete Category", role: .destructive) {

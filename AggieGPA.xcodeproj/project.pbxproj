@@ -11,6 +11,8 @@
 		C00000000000000000000131 /* llama.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C00000000000000000000120 /* llama.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D00000000000000000000003 /* ThinkingOrbsKit in Frameworks */ = {isa = PBXBuildFile; productRef = D00000000000000000000002 /* ThinkingOrbsKit */; };
 		E00000000000000000000003 /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000002 /* SnapshotTesting */; };
+		F00000000000000000000004 /* ThinkingOrbsKit in Download Activity Widget */ = {isa = PBXBuildFile; productRef = D00000000000000000000002 /* ThinkingOrbsKit */; };
+		F00000000000000000000003 /* AggieGPADownloadActivityWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F00000000000000000000120 /* AggieGPADownloadActivityWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,6 +30,13 @@
 			remoteGlobalIDString = 000000000000000100000000;
 			remoteInfo = AggieGPA;
 		};
+		F00000000000000160000000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F00000000000000100000000;
+			remoteInfo = AggieGPADownloadActivityWidget;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -40,6 +49,15 @@
 			);
 			name = "Embed Frameworks";
 		};
+		F00000000000000150000000 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				F00000000000000000000003 /* AggieGPADownloadActivityWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -47,6 +65,7 @@
 		A00000000000000000000120 /* AggieGPATests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AggieGPATests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B00000000000000000000120 /* AggieGPAUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AggieGPAUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C00000000000000000000120 /* llama.xcframework */ = {isa = PBXFileReference; explicitFileType = wrapper.xcframework; includeInIndex = 0; path = llama.xcframework; sourceTree = "<group>"; };
+		F00000000000000000000120 /* AggieGPADownloadActivityWidget.appex */ = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = AggieGPADownloadActivityWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -63,6 +82,11 @@
 		B00000000000000000000010 /* AggieGPAUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = AggieGPAUITests;
+			sourceTree = "<group>";
+		};
+		F00000000000000000000010 /* AggieGPADownloadActivityWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = AggieGPADownloadActivityWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -86,6 +110,12 @@
 			files = (
 			);
 		};
+		F00000000000000130000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+				F00000000000000000000004 /* ThinkingOrbsKit in Download Activity Widget */,
+			);
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -95,6 +125,7 @@
 				000000000000000000000010 /* AggieGPA */,
 				A00000000000000000000010 /* AggieGPATests */,
 				B00000000000000000000010 /* AggieGPAUITests */,
+				F00000000000000000000010 /* AggieGPADownloadActivityWidget */,
 				C00000000000000000000001 /* Packages */,
 				000000000000000000000020 /* Products */,
 			);
@@ -106,6 +137,7 @@
 				000000000000000000000120 /* AggieGPA.app */,
 				A00000000000000000000120 /* AggieGPATests.xctest */,
 				B00000000000000000000120 /* AggieGPAUITests.xctest */,
+				F00000000000000000000120 /* AggieGPADownloadActivityWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -137,6 +169,7 @@
 				000000000000000130000000 /* Frameworks */,
 				000000000000000140000000 /* Resources */,
 				000000000000000150000000 /* Embed Frameworks */,
+				F00000000000000150000000 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
@@ -146,6 +179,9 @@
 			name = AggieGPA;
 			packageProductDependencies = (
 				D00000000000000000000002 /* ThinkingOrbsKit */,
+			);
+			dependencies = (
+				F00000000000000170000000 /* PBXTargetDependency */,
 			);
 			productName = AggieGPA;
 			productReference = 000000000000000000000120 /* AggieGPA.app */;
@@ -196,6 +232,27 @@
 			productReference = B00000000000000000000120 /* AggieGPAUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		F00000000000000100000000 /* AggieGPADownloadActivityWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F00000000000000110000000 /* Build configuration list for PBXNativeTarget "AggieGPADownloadActivityWidget" */;
+			buildPhases = (
+				F00000000000000120000000 /* Sources */,
+				F00000000000000130000000 /* Frameworks */,
+				F00000000000000140000000 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				F00000000000000000000010 /* AggieGPADownloadActivityWidget */,
+			);
+			name = AggieGPADownloadActivityWidget;
+			packageProductDependencies = (
+				D00000000000000000000002 /* ThinkingOrbsKit */,
+			);
+			productName = AggieGPADownloadActivityWidget;
+			productReference = F00000000000000000000120 /* AggieGPADownloadActivityWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -217,6 +274,9 @@
 						CreatedOnToolsVersion = 27.0;
 						TestTargetID = 000000000000000100000000;
 					};
+					F00000000000000100000000 = {
+						CreatedOnToolsVersion = 27.0;
+					};
 				};
 			};
 			buildConfigurationList = 000000000000000010000000 /* Build configuration list for PBXProject "AggieGPA" */;
@@ -237,11 +297,12 @@
 			productRefGroup = 000000000000000000000020 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			targets = (
-				000000000000000100000000 /* AggieGPA */,
-				A00000000000000100000000 /* AggieGPATests */,
-				B00000000000000100000000 /* AggieGPAUITests */,
-			);
+				targets = (
+					000000000000000100000000 /* AggieGPA */,
+					A00000000000000100000000 /* AggieGPATests */,
+					B00000000000000100000000 /* AggieGPAUITests */,
+					F00000000000000100000000 /* AggieGPADownloadActivityWidget */,
+				);
 		};
 /* End PBXProject section */
 
@@ -257,6 +318,11 @@
 			);
 		};
 		B00000000000000140000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		F00000000000000140000000 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -279,6 +345,11 @@
 			files = (
 			);
 		};
+		F00000000000000120000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -291,6 +362,11 @@
 			isa = PBXTargetDependency;
 			target = 000000000000000100000000 /* AggieGPA */;
 			targetProxy = B00000000000000160000000 /* PBXContainerItemProxy */;
+		};
+		F00000000000000170000000 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F00000000000000100000000 /* AggieGPADownloadActivityWidget */;
+			targetProxy = F00000000000000160000000 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -433,14 +509,15 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = AggieGPA/AggieGPA.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 23;
+				CURRENT_PROJECT_VERSION = 24;
 				DEVELOPMENT_TEAM = LWND9UDGR2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Aggie GPA";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Scan a syllabus on this device to extract grading rules.";
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock your private GPA records on this device.";
+					INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+					INFOPLIST_KEY_NSCameraUsageDescription = "Scan a syllabus on this device to extract grading rules.";
+					INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock your private GPA records on this device.";
+					INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -474,14 +551,15 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = AggieGPA/AggieGPA.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 23;
+				CURRENT_PROJECT_VERSION = 24;
 				DEVELOPMENT_TEAM = LWND9UDGR2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Aggie GPA";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Scan a syllabus on this device to extract grading rules.";
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock your private GPA records on this device.";
+					INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+					INFOPLIST_KEY_NSCameraUsageDescription = "Scan a syllabus on this device to extract grading rules.";
+					INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock your private GPA records on this device.";
+					INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -575,6 +653,54 @@
 			};
 			name = Release;
 		};
+		F00000000000000111000000 /* Debug configuration for PBXNativeTarget "AggieGPADownloadActivityWidget" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 24;
+				DEVELOPMENT_TEAM = LWND9UDGR2;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_KEY_CFBundleDisplayName = "Aggie GPA Downloads";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_FILE = AggieGPADownloadActivityWidget-Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.easonzhou.aggiegpa.downloadactivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		F00000000000000112000000 /* Release configuration for PBXNativeTarget "AggieGPADownloadActivityWidget" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 24;
+				DEVELOPMENT_TEAM = LWND9UDGR2;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_KEY_CFBundleDisplayName = "Aggie GPA Downloads";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_FILE = AggieGPADownloadActivityWidget-Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.easonzhou.aggiegpa.downloadactivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -607,6 +733,14 @@
 			buildConfigurations = (
 				B00000000000000111000000 /* Debug configuration for PBXNativeTarget "AggieGPAUITests" */,
 				B00000000000000112000000 /* Release configuration for PBXNativeTarget "AggieGPAUITests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		F00000000000000110000000 /* Build configuration list for PBXNativeTarget "AggieGPADownloadActivityWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F00000000000000111000000 /* Debug configuration for PBXNativeTarget "AggieGPADownloadActivityWidget" */,
+				F00000000000000112000000 /* Release configuration for PBXNativeTarget "AggieGPADownloadActivityWidget" */,
 			);
 			defaultConfigurationName = Release;
 		};

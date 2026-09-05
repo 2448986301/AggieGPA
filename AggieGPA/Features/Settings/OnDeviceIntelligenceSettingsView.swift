@@ -3,7 +3,6 @@ import SwiftUI
 struct OnDeviceIntelligenceSettingsView: View {
     @Environment(\.locale) private var locale
     @State private var snapshot: AIModelStoreSnapshot?
-    @State private var progress: ModelDownloadProgress?
     @State private var operationTask: Task<Void, Never>?
     @State private var errorMessage: String?
 
@@ -49,7 +48,7 @@ struct OnDeviceIntelligenceSettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if let progress {
+            if let progress = snapshot?.records.compactMap(\.downloadProgress).first {
                 Section("Download Progress") {
                     if let fraction = progress.fraction {
                         ProgressView(value: fraction)
@@ -64,7 +63,14 @@ struct OnDeviceIntelligenceSettingsView: View {
         }
         .navigationTitle("On-Device Intelligence")
         .accessibilityIdentifier("onDeviceIntelligenceScreen")
-        .task { await refresh() }
+        .task {
+            await refresh()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled else { break }
+                await refresh()
+            }
+        }
         .onDisappear {
             operationTask?.cancel()
             operationTask = nil
@@ -122,26 +128,46 @@ struct OnDeviceIntelligenceSettingsView: View {
             LabeledContent("Quantization", value: record.descriptor.quantization)
             LabeledContent("Download Size", value: record.descriptor.storageLabel)
             LabeledContent("Status", value: statusLabel(record))
+            if let progress = record.downloadProgress {
+                VStack(alignment: .leading, spacing: 4) {
+                    if let fraction = progress.fraction {
+                        ProgressView(value: fraction)
+                    } else {
+                        ProgressView()
+                    }
+                    Text(downloadProgressLabel(progress))
+                        .font(.footnote)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Download progress")
+                .accessibilityValue(downloadProgressLabel(progress))
+            }
             if let lastUsedAt = record.lastUsedAt {
                 LabeledContent("Last Used", value: lastUsedAt.formatted(date: .abbreviated, time: .shortened))
             }
 
             HStack {
-                switch record.state {
-                case .notInstalled, .failed:
-                    Button(isFailed(record) ? "Retry" : "Download", systemImage: "arrow.down.circle") {
-                        download(record.descriptor)
+                if AIModelStore.isProductionSelectable(record.descriptor) {
+                    switch record.state {
+                    case .notInstalled, .failed:
+                        Button(isFailed(record) ? "Retry" : "Download", systemImage: "arrow.down.circle") {
+                            download(record.descriptor)
+                        }
+                    case .downloading:
+                        Button("Pause", systemImage: "pause.circle") { pause(record.id) }
+                        Button("Cancel", systemImage: "xmark.circle") { cancel(record.id) }
+                    case .paused:
+                        Button("Resume", systemImage: "play.circle") { download(record.descriptor) }
+                        Button("Cancel", systemImage: "xmark.circle") { cancel(record.id) }
+                    case .ready:
+                        if snapshot?.activeModelID != record.id {
+                            Button("Use This Model", systemImage: "checkmark.circle") { activate(record.id) }
+                        }
+                        Button("Remove", systemImage: "trash", role: .destructive) { remove(record.id) }
                     }
-                case .downloading:
-                    Button("Pause", systemImage: "pause.circle") { pause(record.id) }
-                    Button("Cancel", systemImage: "xmark.circle") { cancel(record.id) }
-                case .paused:
-                    Button("Resume", systemImage: "play.circle") { download(record.descriptor) }
-                    Button("Cancel", systemImage: "xmark.circle") { cancel(record.id) }
-                case .ready:
-                    if snapshot?.activeModelID != record.id {
-                        Button("Use This Model", systemImage: "checkmark.circle") { activate(record.id) }
-                    }
+                } else if record.state == .ready {
                     Button("Remove", systemImage: "trash", role: .destructive) { remove(record.id) }
                 }
             }
@@ -173,7 +199,10 @@ struct OnDeviceIntelligenceSettingsView: View {
     }
 
     private func statusLabel(_ record: AIModelRecord) -> String {
-        switch record.state {
+        if !AIModelStore.isProductionSelectable(record.descriptor) {
+            return "Not available for this device"
+        }
+        return switch record.state {
         case .notInstalled: "Not Downloaded"
         case .downloading: "Downloading"
         case .paused: "Paused"
@@ -194,14 +223,15 @@ struct OnDeviceIntelligenceSettingsView: View {
     private func download(_ descriptor: AIModelDescriptor) {
         operationTask?.cancel()
         errorMessage = nil
-        progress = .starting
         operationTask = Task {
             do {
                 _ = try await AIModelStore.shared.download(descriptor: descriptor) { value in
-                    Task { @MainActor in progress = value }
+                    // The store persists checkpoints independently. This
+                    // callback remains useful for an already-visible screen,
+                    // while the polling snapshot also handles re-entry.
+                    _ = value
                 }
                 await refresh()
-                progress = nil
             } catch is CancellationError {
                 await refresh()
             } catch let error as AIModelStoreError {
@@ -225,7 +255,6 @@ struct OnDeviceIntelligenceSettingsView: View {
         operationTask = Task {
             await AIModelStore.shared.cancelDownload(id: id)
             await refresh()
-            progress = nil
         }
     }
 

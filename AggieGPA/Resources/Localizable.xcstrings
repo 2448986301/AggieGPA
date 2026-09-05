@@ -3371,6 +3371,16 @@
         }
       }
     },
+    "Choose Template" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择模板"
+          }
+        }
+      }
+    },
     "Choose from Photos" : {
       "localizations" : {
         "zh-Hans" : {
@@ -4081,6 +4091,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "课程、作业或学期"
+          }
+        }
+      }
+    },
+    "Course or coursework" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "课程或课业"
           }
         }
       }
@@ -9337,6 +9357,16 @@
         }
       }
     },
+    "Not available for this device" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不适用于此设备"
+          }
+        }
+      }
+    },
     "Not reachable with the planned units" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -10519,6 +10549,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "预览"
+          }
+        }
+      }
+    },
+    "Preview Template" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预览模板"
           }
         }
       }
@@ -14604,6 +14644,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "设备接通电源前，正在使用较小的本地模型。"
+          }
+        }
+      }
+    },
+    "Using a model better suited to this device." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已使用更适合此设备的模型。"
           }
         }
       }

@@ -23,11 +23,13 @@ struct CourseTemplatesView: View {
             } else {
                 NavigationStack {
                     List {
-                        ForEach(templates) { template in
-                            NavigationLink {
-                                CourseTemplateDetailView(template: template)
-                            } label: {
-                                CourseTemplateRow(template: template)
+                        Section("Choose Template") {
+                            ForEach(templates) { template in
+                                NavigationLink {
+                                    CourseTemplateDetailView(template: template)
+                                } label: {
+                                    CourseTemplateRow(template: template)
+                                }
                             }
                         }
                     }
@@ -54,9 +56,13 @@ struct CourseTemplatesView: View {
 
     private func templateList(selection: Binding<UUID?>) -> some View {
         List(selection: selection) {
-            ForEach(templates) { template in
-                CourseTemplateRow(template: template)
-                    .tag(template.id)
+            Section("Choose Template") {
+                ForEach(templates) { template in
+                    CourseTemplateRow(template: template)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .tag(template.id)
+                }
             }
         }
         .navigationTitle("Course Templates")
@@ -158,7 +164,7 @@ struct CourseTemplateDetailView: View {
                 Button("Delete Template", systemImage: "trash", role: .destructive) { confirmDelete = true }
             }
         }
-        .navigationTitle("Template Preview")
+        .navigationTitle("Preview Template")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showCreateCourse) { TemplateCourseCreationView(template: template) }
         .sheet(isPresented: $showRename) { TemplateRenameView(template: template) }
@@ -313,7 +319,7 @@ struct TemplateCourseCreationView: View {
                     }
                 }
             }
-            .navigationTitle("Create from Template")
+            .navigationTitle("Create Course")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {

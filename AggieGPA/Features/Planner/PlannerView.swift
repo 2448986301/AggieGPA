@@ -24,7 +24,19 @@ struct PlannerView: View {
     @State private var showDemo = false
     @State private var showJourney = false
     @State private var showAllWhatIfCourses = false
+    @State private var cachedPlanningInputs: [GPAPlanningCourseInput] = []
+    @State private var cachedSnapshot: GPAPlanningSnapshot
+    @State private var scenarioPersistenceTask: Task<Void, Never>?
     @ScaledMetric(relativeTo: .largeTitle) private var heroNumberSize: CGFloat = 54
+
+    init(preferences: UserPreferences) {
+        self.preferences = preferences
+        _cachedSnapshot = State(initialValue: GPAPlanningEngine.resolve(
+            inputs: [],
+            scenario: GPAPlanningScenarioInput(targetGPA: preferences.targetGPA),
+            fallbackTargetUnits: 12
+        ))
+    }
 
     private var heroNumberFontWeight: Font.Weight {
         (legibilityWeight ?? .regular) == .bold ? .heavy : .bold
@@ -43,8 +55,7 @@ struct PlannerView: View {
     }
 
     private var planningInputs: [GPAPlanningCourseInput] {
-        GPAPlanningEngine.makeInputs(courses: liveCourses, policies: policies, categories: categories,
-                                     items: items, scales: scales, forecasts: forecasts)
+        cachedPlanningInputs
     }
 
     private var activeSavedPlan: PlannerScenario? {
@@ -63,7 +74,20 @@ struct PlannerView: View {
     }
 
     private var snapshot: GPAPlanningSnapshot {
-        GPAPlanningEngine.resolve(inputs: planningInputs, scenario: planningScenario, fallbackTargetUnits: 12)
+        cachedSnapshot
+    }
+
+    private var planningDataRevision: Int {
+        var hasher = Hasher()
+        for term in terms { hasher.combine(term.id); hasher.combine(term.updatedAt) }
+        for course in courses { hasher.combine(course.id); hasher.combine(course.updatedAt) }
+        for policy in policies { hasher.combine(policy.id); hasher.combine(policy.updatedAt) }
+        for category in categories { hasher.combine(category.id); hasher.combine(category.updatedAt) }
+        for item in items { hasher.combine(item.id); hasher.combine(item.updatedAt) }
+        for scale in scales { hasher.combine(scale.id); hasher.combine(scale.updatedAt) }
+        for forecast in forecasts { hasher.combine(forecast.id); hasher.combine(forecast.updatedAt) }
+        for plan in savedPlans { hasher.combine(plan.id); hasher.combine(plan.updatedAt) }
+        return hasher.finalize()
     }
 
     private var hasGPAContext: Bool {
@@ -113,6 +137,9 @@ struct PlannerView: View {
             .sheet(isPresented: $showDemo) { GPAIsolatedDemoView() }
         }
         .accessibilityIdentifier("gpaOverview")
+        .task(id: planningDataRevision) {
+            refreshPlanningCache()
+        }
     }
 
     private var iPadPlannerContent: some View {
@@ -520,6 +547,7 @@ struct PlannerView: View {
         withAnimation(DesignSystem.Motion.emphasized(reduceMotion: reduceMotion)) {
             inlineAssumptions[courseID] = grade
         }
+        refreshSnapshot()
         // Keep the inline What-If control and Full Simulation on the same
         // active scenario. Course detail and course rows resolve this plan
         // immediately, so there is no second, view-local projection state.
@@ -532,11 +560,45 @@ struct PlannerView: View {
             selectedCourseIDs: selectedCourseIDs,
             assumedGrades: saved.assumedGrades.merging([courseID: grade]) { _, new in new }
         )
-        _ = GPAPlanningEngine.persistActiveScenario(
-            updated,
-            in: modelContext,
-            savedPlans: savedPlans
+        scheduleScenarioPersistence(updated)
+    }
+
+    private func refreshPlanningCache() {
+        cachedPlanningInputs = GPAPlanningEngine.makeInputs(
+            courses: liveCourses,
+            policies: policies,
+            categories: categories,
+            items: items,
+            scales: scales,
+            forecasts: forecasts
         )
+        refreshSnapshot()
+    }
+
+    private func refreshSnapshot() {
+        cachedSnapshot = GPAPlanningEngine.resolve(
+            inputs: cachedPlanningInputs,
+            scenario: planningScenario,
+            fallbackTargetUnits: 12
+        )
+    }
+
+    private func scheduleScenarioPersistence(_ scenario: GPAPlanningScenarioInput) {
+        scenarioPersistenceTask?.cancel()
+        let plans = savedPlans
+        scenarioPersistenceTask = Task { @MainActor in
+            do {
+                try await Task.sleep(for: .milliseconds(350))
+                guard !Task.isCancelled else { return }
+                _ = GPAPlanningEngine.persistActiveScenario(
+                    scenario,
+                    in: modelContext,
+                    savedPlans: plans
+                )
+            } catch {
+                // A newer grade tap replaced this pending save.
+            }
+        }
     }
 
     private var visibleWhatIfStates: [GPAPlanningCourseState] {

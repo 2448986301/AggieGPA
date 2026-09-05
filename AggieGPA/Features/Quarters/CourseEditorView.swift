@@ -72,6 +72,7 @@ struct CourseEditorView: View {
                 }
                 Section("Details") {
                     TextField("Course title", text: $title)
+                        .accessibilityIdentifier("courseTitleField")
                     Picker("Grading basis", selection: $gradingBasis) {
                         ForEach(GradingBasis.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0) }
                     }
@@ -145,23 +146,36 @@ struct CourseEditorView: View {
         guard let units = DecimalFormatters.decimal(from: unitsText), units > 0, InputValidator.validUnits(units) else {
             validationMessage = "Enter units greater than 0 and no more than 50."; return
         }
+        let savedCourse: CourseRecord
+        var didChangeCourse = false
         if let course {
-            course.courseCode = normalizedCode
-            course.courseTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-            course.units = units
-            course.grade = grade
-            course.gradingBasis = gradingBasis
-            course.institution = institution
-            course.isMajorCourse = isMajor
-            course.isUpperDivision = isUpper
-            course.isTransferCourse = isTransfer
-            course.isIncludedInGPA = includeInGPA
-            course.isRepeatCourse = isRepeat
-            course.repeatAttemptOrder = attemptNumber
-            course.repeatHandlingMode = repeatMode
-            course.notes = notes
-            course.updatedAt = .now
-            SiriAliasStore.save(siriAliases, for: course.id)
+            // SwiftData publishes every assignment, even when the value did
+            // not change. Updating all fields here used to invalidate every
+            // broad course query before the sheet could begin dismissing.
+            // Only publish the fields the student actually edited.
+            var changed = false
+            func update<Value: Equatable>(_ keyPath: ReferenceWritableKeyPath<CourseRecord, Value>, to value: Value) {
+                guard course[keyPath: keyPath] != value else { return }
+                course[keyPath: keyPath] = value
+                changed = true
+            }
+            update(\.courseCode, to: normalizedCode)
+            update(\.courseTitle, to: title.trimmingCharacters(in: .whitespacesAndNewlines))
+            update(\.units, to: units)
+            update(\.grade, to: grade)
+            update(\.gradingBasis, to: gradingBasis)
+            update(\.institution, to: institution)
+            update(\.isMajorCourse, to: isMajor)
+            update(\.isUpperDivision, to: isUpper)
+            update(\.isTransferCourse, to: isTransfer)
+            update(\.isIncludedInGPA, to: includeInGPA)
+            update(\.isRepeatCourse, to: isRepeat)
+            update(\.repeatAttemptOrder, to: attemptNumber)
+            update(\.repeatHandlingMode, to: repeatMode)
+            update(\.notes, to: notes)
+            if changed { course.updatedAt = .now }
+            didChangeCourse = changed
+            savedCourse = course
         } else {
             let record = CourseRecord(courseCode: normalizedCode,
                                              courseTitle: title.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -172,9 +186,27 @@ struct CourseEditorView: View {
                                              repeatAttemptOrder: attemptNumber, repeatHandlingMode: repeatMode,
                                              notes: notes)
             modelContext.insert(record)
-            SiriAliasStore.save(siriAliases, for: record.id)
+            didChangeCourse = true
+            savedCourse = record
         }
-        try? modelContext.save()
+        let normalizedAliases = siriAliases
+            .split(whereSeparator: { $0 == "," || $0 == "\n" || $0 == "，" })
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        let didChangeAliases = Set(normalizedAliases) != Set(SiriAliasStore.aliases(for: savedCourse.id))
         dismiss()
+        guard didChangeCourse || didChangeAliases else { return }
+        let aliases = siriAliases
+        Task { @MainActor in
+            do {
+                try await Task.sleep(for: .milliseconds(150))
+                if didChangeAliases { SiriAliasStore.save(aliases, for: savedCourse.id) }
+                if didChangeCourse { try modelContext.save() }
+            } catch is CancellationError {
+                // The context's autosave remains a safe fallback.
+            } catch {
+                modelContext.rollback()
+            }
+        }
     }
 }

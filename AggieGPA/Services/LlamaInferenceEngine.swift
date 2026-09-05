@@ -41,6 +41,23 @@ private nonisolated func aggieLlamaBatchAdd(
 }
 
 actor LlamaInferenceEngine {
+    nonisolated struct RuntimeConfiguration: Equatable, Sendable {
+        let contextLength: UInt32
+        let batchSize: UInt32
+        let microBatchSize: UInt32
+
+        static func production(for tier: AIBenchmarkQualityTier) -> Self {
+            switch tier {
+            case .efficient:
+                Self(contextLength: 4_096, batchSize: 512, microBatchSize: 256)
+            case .balanced:
+                Self(contextLength: 4_096, batchSize: 384, microBatchSize: 192)
+            case .enhanced:
+                Self(contextLength: 3_072, batchSize: 256, microBatchSize: 128)
+            }
+        }
+    }
+
     struct Generation: Sendable {
         var text: String
         var firstTokenSeconds: Double?
@@ -55,8 +72,13 @@ actor LlamaInferenceEngine {
     private let generationCancellation: LlamaCancellationFlag
     private var batch: llama_batch
     private let contextLength: Int
+    private let batchSize: Int
 
-    private init(modelURL: URL, cancellationFlag: LlamaCancellationFlag) throws {
+    private init(
+        modelURL: URL,
+        tier: AIBenchmarkQualityTier,
+        cancellationFlag: LlamaCancellationFlag
+    ) throws {
         llama_backend_init()
         var modelParameters = llama_model_default_params()
 #if targetEnvironment(simulator)
@@ -78,10 +100,11 @@ actor LlamaInferenceEngine {
         }
 
         let threads = max(2, min(8, ProcessInfo.processInfo.processorCount - 2))
+        let runtime = RuntimeConfiguration.production(for: tier)
         var contextParameters = llama_context_default_params()
-        contextParameters.n_ctx = 8_192
-        contextParameters.n_batch = 2_048
-        contextParameters.n_ubatch = 512
+        contextParameters.n_ctx = runtime.contextLength
+        contextParameters.n_batch = runtime.batchSize
+        contextParameters.n_ubatch = runtime.microBatchSize
         contextParameters.n_threads = Int32(threads)
         contextParameters.n_threads_batch = Int32(threads)
         contextParameters.offload_kqv = true
@@ -97,7 +120,8 @@ actor LlamaInferenceEngine {
         context = loadedContext
         vocabulary = llama_model_get_vocab(loadedModel)
         generationCancellation = cancellationFlag
-        batch = llama_batch_init(2_048, 0, 1)
+        batch = llama_batch_init(Int32(runtime.batchSize), 0, 1)
+        batchSize = Int(runtime.batchSize)
         contextLength = Int(llama_n_ctx(loadedContext))
     }
 
@@ -108,11 +132,18 @@ actor LlamaInferenceEngine {
         llama_backend_free()
     }
 
-    static func load(modelURL: URL) async throws -> LlamaInferenceEngine {
+    static func load(
+        modelURL: URL,
+        tier: AIBenchmarkQualityTier
+    ) async throws -> LlamaInferenceEngine {
         let cancellationFlag = LlamaCancellationFlag()
         return try await withTaskCancellationHandler {
             try await Task.detached(priority: .userInitiated) {
-                try LlamaInferenceEngine(modelURL: modelURL, cancellationFlag: cancellationFlag)
+                try LlamaInferenceEngine(
+                    modelURL: modelURL,
+                    tier: tier,
+                    cancellationFlag: cancellationFlag
+                )
             }.value
         } onCancel: {
             cancellationFlag.cancel()
@@ -138,7 +169,8 @@ actor LlamaInferenceEngine {
         var offset = 0
         while offset < tokens.count {
             try Task.checkCancellation()
-            let end = min(offset + 2_048, tokens.count)
+            guard !generationCancellation.isCancelled else { throw CancellationError() }
+            let end = min(offset + batchSize, tokens.count)
             aggieLlamaBatchClear(&batch)
             for tokenIndex in offset..<end {
                 let isFinalPromptToken = tokenIndex == tokens.count - 1
@@ -158,6 +190,7 @@ actor LlamaInferenceEngine {
 
         while generated < maximumTokens {
             try Task.checkCancellation()
+            guard !generationCancellation.isCancelled else { throw CancellationError() }
             let token = llama_sampler_sample(sampler, context, batch.n_tokens - 1)
             if llama_vocab_is_eog(vocabulary, token) { break }
             pendingBytes.append(contentsOf: tokenPiece(token))
@@ -273,6 +306,20 @@ nonisolated enum LlamaEngineError: LocalizedError {
 }
 #else
 actor LlamaInferenceEngine {
+    nonisolated struct RuntimeConfiguration: Equatable, Sendable {
+        let contextLength: UInt32
+        let batchSize: UInt32
+        let microBatchSize: UInt32
+
+        static func production(for tier: AIBenchmarkQualityTier) -> Self {
+            switch tier {
+            case .efficient: Self(contextLength: 4_096, batchSize: 512, microBatchSize: 256)
+            case .balanced: Self(contextLength: 4_096, batchSize: 384, microBatchSize: 192)
+            case .enhanced: Self(contextLength: 3_072, batchSize: 256, microBatchSize: 128)
+            }
+        }
+    }
+
     struct Generation: Sendable {
         var text: String
         var firstTokenSeconds: Double?
@@ -281,7 +328,10 @@ actor LlamaInferenceEngine {
         var peakObservedMemoryBytes: UInt64?
     }
 
-    static func load(modelURL: URL) async throws -> LlamaInferenceEngine {
+    static func load(
+        modelURL: URL,
+        tier: AIBenchmarkQualityTier
+    ) async throws -> LlamaInferenceEngine {
         throw ProviderError.unavailable(String(localized: "The open-source local model runtime is not linked in this build."))
     }
 

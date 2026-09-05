@@ -41,6 +41,28 @@ struct QuartersView: View {
         }
     }
 
+    private var isSearching: Bool {
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var matchingCourses: [CourseRecord] {
+        guard isSearching else { return [] }
+        return courses.filter {
+            !$0.isDeleted && ($0.courseCode.localizedCaseInsensitiveContains(searchText)
+                || $0.courseTitle.localizedCaseInsensitiveContains(searchText))
+        }
+        .sorted { $0.courseCode.localizedStandardCompare($1.courseCode) == .orderedAscending }
+    }
+
+    private var matchingItems: [GradeItem] {
+        guard isSearching else { return [] }
+        return items.filter {
+            !$0.isDeleted && $0.title.localizedCaseInsensitiveContains(searchText)
+                && $0.course?.isDeleted == false
+        }
+        .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+    }
+
     private func courses(for term: AcademicTerm) -> [CourseRecord] {
         courses.filter { course in
             !course.isDeleted && course.term?.persistentModelID == term.persistentModelID
@@ -50,7 +72,9 @@ struct QuartersView: View {
     var body: some View {
         NavigationStack(path: $navigationPath) {
             Group {
-                if filtered.isEmpty {
+                if isSearching {
+                    searchResults
+                } else if filtered.isEmpty {
                     ContentUnavailableView(
                         liveTerms.isEmpty ? "No quarters yet" : "No matching quarters",
                         systemImage: liveTerms.isEmpty ? "calendar.badge.plus" : "magnifyingglass",
@@ -85,8 +109,8 @@ struct QuartersView: View {
                     .listStyle(.insetGrouped)
                 }
             }
-            .navigationTitle("Quarters")
-            .searchable(text: $searchText, prompt: "Course, coursework, or quarter")
+            .navigationTitle("Courses")
+            .searchable(text: $searchText, prompt: "Course or coursework")
             .onChange(of: initialSearchQuery, initial: true) { _, query in
                 searchText = query
             }
@@ -137,6 +161,58 @@ struct QuartersView: View {
             .task(id: courses.map(\.id)) {
                 openScreenshotCourseIfNeeded()
             }
+        }
+    }
+
+    @ViewBuilder
+    private var searchResults: some View {
+        if matchingCourses.isEmpty && matchingItems.isEmpty {
+            ContentUnavailableView.search(text: searchText)
+        } else {
+            List {
+                if !matchingCourses.isEmpty {
+                    Section("Courses") {
+                        ForEach(matchingCourses) { course in
+                            NavigationLink(value: course) {
+                                Label {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(verbatim: course.courseCode).font(.headline)
+                                        if !course.courseTitle.isEmpty {
+                                            Text(verbatim: course.courseTitle)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                } icon: {
+                                    Image(systemName: "book.closed")
+                                }
+                            }
+                            .accessibilityIdentifier("courseSearchResult-\(course.id.uuidString)")
+                        }
+                    }
+                }
+                if !matchingItems.isEmpty {
+                    Section("Coursework") {
+                        ForEach(matchingItems) { item in
+                            if let course = item.course {
+                                NavigationLink(value: course) {
+                                    Label {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(verbatim: item.title)
+                                            Text(verbatim: course.courseCode)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    } icon: {
+                                        Image(systemName: "checklist")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
         }
     }
 

@@ -62,6 +62,11 @@ nonisolated struct AIModelRecord: Codable, Equatable, Sendable, Identifiable {
     let descriptor: AIModelDescriptor
     var state: AIModelInstallState
     var resumeData: Data?
+    /// The last durable progress checkpoint for a background download. These
+    /// values are optional so manifests written by older builds continue to
+    /// decode without a migration step.
+    var receivedBytes: Int64?
+    var expectedBytes: Int64?
     var lastUsedAt: Date?
     var verifiedAt: Date?
 
@@ -70,6 +75,15 @@ nonisolated struct AIModelRecord: Codable, Equatable, Sendable, Identifiable {
     var storedBytes: Int64 {
         guard let size = try? localURL.resourceValues(forKeys: [.fileSizeKey]).fileSize else { return 0 }
         return Int64(size)
+    }
+
+    var downloadProgress: ModelDownloadProgress? {
+        guard state == .downloading || state == .paused else { return nil }
+        guard receivedBytes != nil || expectedBytes != nil else { return nil }
+        return ModelDownloadProgress(
+            receivedBytes: max(0, receivedBytes ?? 0),
+            expectedBytes: max(0, expectedBytes ?? descriptor.artifactBytes)
+        )
     }
 }
 
@@ -137,10 +151,11 @@ nonisolated enum AIModelStoreError: LocalizedError, Equatable, Sendable {
 actor AIModelStore {
     static let shared = AIModelStore()
     static let storageBudgetBytes: Int64 = 10_000_000_000
-    /// Balanced is the current Phase 8C device-validation candidate based on
-    /// the completed simulator matrix. It is not a shipped production default;
-    /// the physical iPhone/iPad resource gate must pass before promotion.
-    static let recommendedTier: AIBenchmarkQualityTier = .balanced
+    /// The 4B candidate remains in the catalog for migration/removal, but a
+    /// physical iPad Jetsam means it cannot be selected by this production
+    /// build. Efficient is the strongest tier that remains inside the safe
+    /// release policy until a later build passes repeated iPhone+iPad gates.
+    static let recommendedTier: AIBenchmarkQualityTier = .efficient
 
     private struct Manifest: Codable {
         var records: [String: AIModelRecord]
@@ -154,7 +169,9 @@ actor AIModelStore {
     private(set) var activeModelID: String?
     private(set) var powerPreference: AIPowerPreference
     private(set) var useEnhancedOnlyWhileCharging: Bool
-    private var activeDownloads: [String: AIModelDownloadDelegate] = [:]
+    private var activeDownloadTasks: [String: Task<AIModelRecord, Error>] = [:]
+    private var lastProgressPersistence: [String: (date: Date, receivedBytes: Int64)] = [:]
+    private var didReconcileStagingArtifacts = false
 
     init() {
         let manifest = Self.loadManifest()
@@ -167,6 +184,8 @@ actor AIModelStore {
                 descriptor: descriptor,
                 state: .notInstalled,
                 resumeData: nil,
+                receivedBytes: nil,
+                expectedBytes: nil,
                 lastUsedAt: nil,
                 verifiedAt: nil
             )
@@ -181,6 +200,10 @@ actor AIModelStore {
 
     static var recommendedDescriptor: AIModelDescriptor {
         descriptors.first { $0.tier == recommendedTier } ?? descriptors[0]
+    }
+
+    nonisolated static func isProductionSelectable(_ descriptor: AIModelDescriptor) -> Bool {
+        descriptor.id == recommendedDescriptor.id
     }
 
     nonisolated static var rootURL: URL {
@@ -203,7 +226,7 @@ actor AIModelStore {
     }
 
     nonisolated static func quickAvailability() -> Bool {
-        descriptors.contains { descriptor in
+        descriptors.filter(isProductionSelectable).contains { descriptor in
             let url = modelURL(for: descriptor)
             guard FileManager.default.fileExists(atPath: url.path) else { return false }
             guard let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize else { return false }
@@ -215,12 +238,14 @@ actor AIModelStore {
         guard let data = try? Data(contentsOf: manifestURL),
               let manifest = try? JSONDecoder().decode(Manifest.self, from: data),
               let id = manifest.activeModelID,
-              let descriptor = descriptors.first(where: { $0.id == id }) else { return nil }
+              let descriptor = descriptors.first(where: { $0.id == id }),
+              isProductionSelectable(descriptor) else { return nil }
         return descriptor.modelName
     }
 
     func snapshot() -> AIModelStoreSnapshot {
         refreshStates()
+        reconcileProductionSelection()
         persistManifest()
         return AIModelStoreSnapshot(
             records: records.values.sorted { $0.descriptor.tier.rawValue < $1.descriptor.tier.rawValue },
@@ -245,6 +270,9 @@ actor AIModelStore {
 
     func setActiveModel(id: String) async throws -> AIModelRecord {
         guard let record = records[id] else { throw AIModelStoreError.unknownModel }
+        guard Self.isProductionSelectable(record.descriptor) else {
+            throw AIModelStoreError.resourceConstrained
+        }
         guard record.state == .ready else { throw AIModelStoreError.modelNotInstalled }
         _ = try Self.validateArtifact(at: record.localURL, descriptor: record.descriptor)
         activeModelID = id
@@ -281,9 +309,10 @@ actor AIModelStore {
 
     func markUsed(id: String) throws {
         guard var record = records[id], record.state == .ready else { throw AIModelStoreError.modelNotInstalled }
-        _ = try Self.validateArtifact(at: record.localURL, descriptor: record.descriptor)
+        guard FileManager.default.fileExists(atPath: record.localURL.path) else {
+            throw AIModelStoreError.modelNotInstalled
+        }
         record.lastUsedAt = .now
-        record.verifiedAt = .now
         records[id] = record
         persistManifest()
     }
@@ -299,85 +328,161 @@ actor AIModelStore {
         progress: @escaping @Sendable (ModelDownloadProgress) -> Void = { _ in }
     ) async throws -> AIModelRecord {
         guard Self.descriptors.contains(descriptor) else { throw AIModelStoreError.unknownModel }
-        refreshStates()
-        if let ready = records[descriptor.id], ready.state == .ready {
-            _ = try Self.validateArtifact(at: ready.localURL, descriptor: descriptor)
-            if activeModelID == nil { activeModelID = descriptor.id; persistManifest() }
-            return ready
+        if let active = activeDownloadTasks[descriptor.id] {
+            // The network operation is deliberately independent from the
+            // caller's task. A view disappearing or the app being suspended
+            // must not cancel the durable URLSession download.
+            return try await active.value
         }
 
-        try checkStorage(for: descriptor)
-        var record = records[descriptor.id]!
-        record.state = .downloading
-        record.lastUsedAt = nil
-        records[descriptor.id] = record
-        persistManifest()
-
-        let delegate = AIModelDownloadDelegate(progress: progress)
-        activeDownloads[descriptor.id] = delegate
-        defer { activeDownloads[descriptor.id] = nil }
+        let task = Task { [descriptor, progress] in
+            try await self.performDownload(descriptor: descriptor, progress: progress)
+        }
+        activeDownloadTasks[descriptor.id] = task
         do {
-            let downloaded = try await delegate.download(
-                descriptor.downloadURL,
-                resumeData: record.resumeData
-            )
-            defer { try? FileManager.default.removeItem(at: downloaded.location) }
-            guard let http = downloaded.response as? HTTPURLResponse, 200..<300 ~= http.statusCode else {
-                throw AIModelStoreError.downloadFailed
-            }
-            try Task.checkCancellation()
-            _ = try Self.validateArtifact(at: downloaded.location, descriptor: descriptor)
-            try Self.atomicInstall(source: downloaded.location, descriptor: descriptor)
-            record.state = .ready
-            record.resumeData = nil
-            record.verifiedAt = .now
-            record.lastUsedAt = .now
-            records[descriptor.id] = record
-            if activeModelID == nil { activeModelID = descriptor.id }
-            persistManifest()
-            return record
-        } catch let paused as AIModelDownloadPaused {
-            record.state = .paused
-            record.resumeData = paused.resumeData
-            records[descriptor.id] = record
-            persistManifest()
-            throw paused
-        } catch is CancellationError {
-            record.state = .notInstalled
-            record.resumeData = nil
-            records[descriptor.id] = record
-            persistManifest()
-            throw CancellationError()
+            let result = try await task.value
+            activeDownloadTasks[descriptor.id] = nil
+            return result
         } catch {
-            record.state = .failed(error.localizedDescription)
-            records[descriptor.id] = record
-            persistManifest()
+            activeDownloadTasks[descriptor.id] = nil
             throw error
         }
     }
 
     func pauseDownload(id: String) {
-        activeDownloads[id]?.pause()
+        ModelDownloadCoordinator.shared.pause(descriptorID: id)
     }
 
     func cancelDownload(id: String) {
-        activeDownloads[id]?.cancel()
-        if var record = records[id], case .paused = record.state {
+        ModelDownloadCoordinator.shared.cancel(descriptorID: id)
+        if var record = records[id], record.state == .downloading || record.state == .paused {
             record.state = .notInstalled
             record.resumeData = nil
+            record.receivedBytes = nil
+            record.expectedBytes = nil
             records[id] = record
             persistManifest()
         }
     }
 
+    /// Reconnects the actor to a background URLSession task after a cold launch.
+    /// A missing task is restarted with the last resume data, if any. The
+    /// final file is still validated and atomically promoted before it can be
+    /// reported as ready.
+    func resumePersistedDownloadsIfNeeded() {
+        reconcileStagingArtifactsIfNeeded()
+        refreshStates()
+        // A pre-release build could have left an unsafe 4B/8B task in the
+        // manifest. Cancel it before the background session can restore it;
+        // restricted models must never resume implicitly.
+        let restrictedPending = records.values.filter {
+            $0.state == .downloading && !Self.isProductionSelectable($0.descriptor)
+        }
+        for restricted in restrictedPending {
+            ModelDownloadCoordinator.shared.cancel(descriptorID: restricted.id)
+            guard var record = records[restricted.id] else { continue }
+            record.state = .notInstalled
+            record.resumeData = nil
+            record.receivedBytes = nil
+            record.expectedBytes = nil
+            records[restricted.id] = record
+        }
+
+        let pending = records.values
+            .filter { $0.state == .downloading && Self.isProductionSelectable($0.descriptor) }
+            .sorted { $0.descriptor.artifactBytes < $1.descriptor.artifactBytes }
+        guard let record = pending.first else { return }
+
+        for extra in pending.dropFirst() {
+            guard var extraRecord = records[extra.id] else { continue }
+            extraRecord.state = .paused
+            extraRecord.resumeData = nil
+            records[extra.id] = extraRecord
+        }
+        persistManifest()
+
+        ModelDownloadCoordinator.shared.recover(
+            descriptorID: record.id,
+            modelName: record.descriptor.modelName,
+            url: record.descriptor.downloadURL,
+            expectedBytes: record.expectedBytes ?? record.descriptor.artifactBytes,
+            receivedBytes: record.receivedBytes ?? 0,
+            resumeData: record.resumeData
+        )
+    }
+
+    /// Called by the download coordinator for durable progress checkpoints.
+    /// Manifest writes are throttled so a fast server cannot turn every
+    /// callback into synchronous file-system work.
+    func recordDownloadProgress(id: String, progress: ModelDownloadProgress, forcePersist: Bool = false) {
+        guard var record = records[id], record.state == .downloading || record.state == .paused else { return }
+        record.receivedBytes = max(0, progress.receivedBytes)
+        record.expectedBytes = max(0, progress.expectedBytes)
+        records[id] = record
+
+        let now = Date()
+        let previous = lastProgressPersistence[id]
+        let shouldPersist = forcePersist
+            || previous == nil
+            || now.timeIntervalSince(previous?.date ?? .distantPast) >= 1
+            || progress.receivedBytes - (previous?.receivedBytes ?? 0) >= 8 * 1_024 * 1_024
+        guard shouldPersist else { return }
+        lastProgressPersistence[id] = (now, progress.receivedBytes)
+        persistManifest()
+    }
+
+    /// Completes a download received while no caller was waiting on it (for
+    /// example after the app was relaunched by a background URLSession event).
+    func completeBackgroundDownload(id: String, location: URL, response: URLResponse) {
+        defer {
+            try? FileManager.default.removeItem(at: location)
+            ModelDownloadCoordinator.shared.backgroundFinalizationCompleted(descriptorID: id)
+        }
+        guard let record = records[id], record.state == .downloading else { return }
+
+        do {
+            _ = try finalizeDownloadedArtifact(
+                location: location,
+                response: response,
+                descriptor: record.descriptor
+            )
+        } catch {
+            failRecord(id: id, error: error)
+        }
+    }
+
+    /// Records a terminal background failure when there is no foreground
+    /// caller to receive the error. Resume data is preserved whenever the
+    /// system supplied it.
+    func failBackgroundDownload(id: String, resumeData: Data?, message: String) {
+        guard var record = records[id], record.state == .downloading else { return }
+        if let resumeData, !resumeData.isEmpty {
+            record.state = .paused
+            record.resumeData = resumeData
+        } else {
+            record.state = .failed(message)
+            record.resumeData = nil
+        }
+        records[id] = record
+        persistManifest()
+        Task { @MainActor in
+            ModelDownloadActivityController.shared.finish(
+                downloadID: id,
+                outcome: resumeData?.isEmpty == false ? .paused : .failed
+            )
+        }
+    }
+
     func remove(id: String) throws {
         guard var record = records[id] else { throw AIModelStoreError.unknownModel }
-        if activeDownloads[id] != nil { throw AIModelStoreError.modelInUse }
+        if record.state == .downloading { throw AIModelStoreError.modelInUse }
         if FileManager.default.fileExists(atPath: record.localURL.path) {
             try FileManager.default.removeItem(at: record.localURL)
         }
         record.state = .notInstalled
         record.resumeData = nil
+        record.receivedBytes = nil
+        record.expectedBytes = nil
         record.verifiedAt = nil
         record.lastUsedAt = nil
         records[id] = record
@@ -398,10 +503,157 @@ actor AIModelStore {
         record.verifiedAt = .now
         record.lastUsedAt = .now
         record.resumeData = nil
+        record.receivedBytes = nil
+        record.expectedBytes = nil
         records[descriptor.id] = record
-        if activeModelID == nil { activeModelID = descriptor.id }
+        if activeModelID == nil, Self.isProductionSelectable(descriptor) {
+            activeModelID = descriptor.id
+        }
         persistManifest()
         return record
+    }
+
+    private func performDownload(
+        descriptor: AIModelDescriptor,
+        progress: @escaping @Sendable (ModelDownloadProgress) -> Void
+    ) async throws -> AIModelRecord {
+        reconcileStagingArtifactsIfNeeded()
+        refreshStates()
+        if let ready = records[descriptor.id], ready.state == .ready {
+            _ = try Self.validateArtifact(at: ready.localURL, descriptor: descriptor)
+            if activeModelID == nil, Self.isProductionSelectable(descriptor) {
+                activeModelID = descriptor.id
+                persistManifest()
+            }
+            return ready
+        }
+
+        try checkStorage(for: descriptor)
+        var record = records[descriptor.id]!
+        let resumeData = record.resumeData
+        record.state = .downloading
+        record.lastUsedAt = nil
+        record.receivedBytes = record.receivedBytes ?? 0
+        record.expectedBytes = descriptor.artifactBytes
+        records[descriptor.id] = record
+        lastProgressPersistence[descriptor.id] = nil
+        persistManifest()
+
+        let initialProgress = record.downloadProgress ?? .starting
+        progress(initialProgress)
+        do {
+            let downloaded = try await ModelDownloadCoordinator.shared.download(
+                descriptorID: descriptor.id,
+                modelName: descriptor.modelName,
+                url: descriptor.downloadURL,
+                expectedBytes: descriptor.artifactBytes,
+                receivedBytes: record.receivedBytes ?? 0,
+                resumeData: resumeData,
+                progress: progress
+            )
+            defer {
+                try? FileManager.default.removeItem(at: downloaded.location)
+                ModelDownloadCoordinator.shared.backgroundFinalizationCompleted(descriptorID: descriptor.id)
+            }
+            guard records[descriptor.id]?.state == .downloading else {
+                throw CancellationError()
+            }
+            return try finalizeDownloadedArtifact(
+                location: downloaded.location,
+                response: downloaded.response,
+                descriptor: descriptor
+            )
+        } catch let paused as ModelDownloadPaused {
+            guard var current = records[descriptor.id], current.state != .notInstalled else {
+                throw paused
+            }
+            current.state = .paused
+            current.resumeData = paused.resumeData
+            records[descriptor.id] = current
+            recordDownloadProgress(
+                id: descriptor.id,
+                progress: current.downloadProgress ?? initialProgress,
+                forcePersist: true
+            )
+            throw paused
+        } catch let interrupted as ModelDownloadInterrupted {
+            guard var current = records[descriptor.id], current.state != .notInstalled else {
+                throw interrupted
+            }
+            if let data = interrupted.resumeData, !data.isEmpty {
+                current.state = .paused
+                current.resumeData = data
+            } else {
+                current.state = .failed(interrupted.message)
+                current.resumeData = nil
+            }
+            records[descriptor.id] = current
+            persistManifest()
+            Task { @MainActor in
+                ModelDownloadActivityController.shared.finish(
+                    downloadID: descriptor.id,
+                    outcome: interrupted.resumeData?.isEmpty == false ? .paused : .failed
+                )
+            }
+            throw interrupted
+        } catch is CancellationError {
+            if var current = records[descriptor.id], current.state != .notInstalled {
+                current.state = .notInstalled
+                current.resumeData = nil
+                current.receivedBytes = nil
+                current.expectedBytes = nil
+                records[descriptor.id] = current
+                persistManifest()
+            }
+            throw CancellationError()
+        } catch {
+            failRecord(id: descriptor.id, error: error)
+            throw error
+        }
+    }
+
+    private func finalizeDownloadedArtifact(
+        location: URL,
+        response: URLResponse,
+        descriptor: AIModelDescriptor
+    ) throws -> AIModelRecord {
+        guard let http = response as? HTTPURLResponse, 200..<300 ~= http.statusCode else {
+            throw AIModelStoreError.downloadFailed
+        }
+        _ = try Self.validateArtifact(at: location, descriptor: descriptor)
+        try Self.atomicInstall(source: location, descriptor: descriptor)
+
+        guard var record = records[descriptor.id], record.state == .downloading else {
+            throw CancellationError()
+        }
+        record.state = .ready
+        record.resumeData = nil
+        record.receivedBytes = nil
+        record.expectedBytes = nil
+        record.verifiedAt = .now
+        record.lastUsedAt = .now
+        records[descriptor.id] = record
+        if activeModelID == nil, Self.isProductionSelectable(descriptor) {
+            activeModelID = descriptor.id
+        }
+        lastProgressPersistence[descriptor.id] = nil
+        persistManifest()
+        Task { @MainActor in
+            ModelDownloadActivityController.shared.finish(downloadID: descriptor.id, outcome: .success)
+        }
+        return record
+    }
+
+    private func failRecord(id: String, error: any Error) {
+        guard var record = records[id], record.state == .downloading else { return }
+        record.state = .failed(error.localizedDescription)
+        record.resumeData = nil
+        records[id] = record
+        lastProgressPersistence[id] = nil
+        persistManifest()
+        Task { @MainActor in
+            ModelDownloadActivityController.shared.finish(downloadID: id, outcome: .failed)
+        }
     }
 
     private func checkStorage(for descriptor: AIModelDescriptor) throws {
@@ -434,6 +686,81 @@ actor AIModelStore {
                 records[id] = record
             }
         }
+    }
+
+    /// Repairs the staging file left by the pre-release installer. That
+    /// installer used a literal filename, so a process termination after the
+    /// copy could leave a complete model beside a manifest still marked as
+    /// downloading. Only a file that passes the descriptor's exact size,
+    /// magic, and SHA-256 checks can be promoted; every other partial is
+    /// removed and the persisted download path is allowed to resume safely.
+    private func reconcileStagingArtifactsIfNeeded() {
+        guard !didReconcileStagingArtifacts else { return }
+        didReconcileStagingArtifacts = true
+
+        guard let urls = try? FileManager.default.contentsOfDirectory(
+            at: Self.rootURL,
+            includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey],
+            options: []
+        ) else { return }
+
+        var manifestChanged = false
+        for url in urls where url.pathExtension == "partial" {
+            guard let descriptor = Self.descriptors.first(where: { descriptor in
+                (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) == descriptor.artifactBytes
+            }) else {
+                try? FileManager.default.removeItem(at: url)
+                continue
+            }
+
+            do {
+                _ = try Self.validateArtifact(at: url, descriptor: descriptor)
+                let destination = Self.modelURL(for: descriptor)
+                if FileManager.default.fileExists(atPath: destination.path) {
+                    do {
+                        _ = try Self.validateArtifact(at: destination, descriptor: descriptor)
+                        try FileManager.default.removeItem(at: url)
+                        continue
+                    } catch {
+                        try? FileManager.default.removeItem(at: destination)
+                    }
+                }
+                try FileManager.default.moveItem(at: url, to: destination)
+                Self.excludeFromBackup(destination)
+
+                guard var record = records[descriptor.id] else { continue }
+                record.state = .ready
+                record.resumeData = nil
+                record.receivedBytes = nil
+                record.expectedBytes = nil
+                record.verifiedAt = .now
+                record.lastUsedAt = .now
+                records[descriptor.id] = record
+                if activeModelID == nil, Self.isProductionSelectable(descriptor) {
+                    activeModelID = descriptor.id
+                }
+                manifestChanged = true
+            } catch {
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
+
+        if manifestChanged {
+            persistManifest()
+        }
+    }
+
+    private func reconcileProductionSelection() {
+        if let activeModelID,
+           let active = records[activeModelID],
+           active.state == .ready,
+           Self.isProductionSelectable(active.descriptor) {
+            return
+        }
+        activeModelID = records.values
+            .filter { $0.state == .ready && Self.isProductionSelectable($0.descriptor) }
+            .sorted { $0.descriptor.artifactBytes > $1.descriptor.artifactBytes }
+            .first?.id
     }
 
     private func persistManifest() {
@@ -504,7 +831,7 @@ actor AIModelStore {
     private static func atomicInstall(source: URL, descriptor: AIModelDescriptor) throws {
         try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
         let destination = modelURL(for: descriptor)
-        let staging = rootURL.appending(path: ".(descriptor.id).(UUID().uuidString).partial", directoryHint: .notDirectory)
+        let staging = rootURL.appending(path: ".\(descriptor.id).\(UUID().uuidString).partial", directoryHint: .notDirectory)
         defer { try? FileManager.default.removeItem(at: staging) }
         try FileManager.default.copyItem(at: source, to: staging)
         _ = try validateArtifact(at: staging, descriptor: descriptor)
@@ -533,6 +860,18 @@ nonisolated enum OnDeviceAIModelLibrary {
         try await AIModelStore.shared.prepareRecommended(progress: progress)
     }
 
+    static func resumePersistedDownloadsIfNeeded() async {
+        await AIModelStore.shared.resumePersistedDownloadsIfNeeded()
+    }
+
+    static func pauseRecommendedDownload() async {
+        await AIModelStore.shared.pauseDownload(id: recommendedDescriptor.id)
+    }
+
+    static func cancelRecommendedDownload() async {
+        await AIModelStore.shared.cancelDownload(id: recommendedDescriptor.id)
+    }
+
     static func importModel(from source: URL) async throws -> AIModelRecord {
         try await AIModelStore.shared.installImportedModel(from: source)
     }
@@ -545,127 +884,5 @@ nonisolated enum OnDeviceAIModelLibrary {
     static func setActiveModel(id: String) async throws -> AIModelRecord {
         await AIResourceManager.shared.cancelCurrentInference()
         return try await AIModelStore.shared.setActiveModel(id: id)
-    }
-}
-
-private struct AIModelDownloadPaused: Error, Sendable {
-    let resumeData: Data?
-}
-
-private final class AIModelDownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
-    private let lock = NSLock()
-    private let progress: @Sendable (ModelDownloadProgress) -> Void
-    private var continuation: CheckedContinuation<(location: URL, response: URLResponse), any Error>?
-    private var task: URLSessionDownloadTask?
-    private var finished = false
-    private var paused = false
-
-    private let queue: OperationQueue = {
-        let queue = OperationQueue()
-        queue.name = "com.easonzhou.aggiegpa.model-download-v2"
-        queue.maxConcurrentOperationCount = 1
-        return queue
-    }()
-
-    init(progress: @escaping @Sendable (ModelDownloadProgress) -> Void) {
-        self.progress = progress
-    }
-
-    func download(_ url: URL, resumeData: Data?) async throws -> (location: URL, response: URLResponse) {
-        try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { continuation in
-                lock.lock()
-                self.continuation = continuation
-                let configuration = URLSessionConfiguration.ephemeral
-                configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-                configuration.waitsForConnectivity = true
-                configuration.timeoutIntervalForRequest = 120
-                configuration.timeoutIntervalForResource = 60 * 60
-                let session = URLSession(configuration: configuration, delegate: self, delegateQueue: queue)
-                self.task = resumeData.map(session.downloadTask(withResumeData:)) ?? session.downloadTask(with: url)
-                self.task?.resume()
-                lock.unlock()
-            }
-        } onCancel: {
-            self.cancel()
-        }
-    }
-
-    func pause() {
-        lock.lock()
-        paused = true
-        let task = self.task
-        lock.unlock()
-        task?.cancel(byProducingResumeData: { [weak self] data in
-            self?.finish(error: AIModelDownloadPaused(resumeData: data))
-        })
-    }
-
-    func cancel() {
-        lock.lock()
-        let task = self.task
-        lock.unlock()
-        task?.cancel()
-        finish(error: CancellationError())
-    }
-
-    func urlSession(
-        _ session: URLSession,
-        downloadTask: URLSessionDownloadTask,
-        didWriteData bytesWritten: Int64,
-        totalBytesWritten: Int64,
-        totalBytesExpectedToWrite: Int64
-    ) {
-        progress(.init(
-            receivedBytes: totalBytesWritten,
-            expectedBytes: totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : ModelDownloadProgress.starting.expectedBytes
-        ))
-    }
-
-    func urlSession(
-        _ session: URLSession,
-        downloadTask: URLSessionDownloadTask,
-        didFinishDownloadingTo location: URL
-    ) {
-        guard let response = downloadTask.response else {
-            finish(error: AIModelStoreError.downloadFailed)
-            return
-        }
-        do {
-            let stable = FileManager.default.temporaryDirectory
-                .appending(path: "(UUID().uuidString).gguf", directoryHint: .notDirectory)
-            try FileManager.default.copyItem(at: location, to: stable)
-            finish(value: (stable, response))
-        } catch {
-            finish(error: error)
-        }
-    }
-
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
-        guard let error else { return }
-        lock.lock()
-        let shouldIgnore = finished || paused
-        lock.unlock()
-        if !shouldIgnore { finish(error: error) }
-    }
-
-    private func finish(value: (URL, URLResponse)) {
-        lock.lock()
-        guard !finished else { lock.unlock(); return }
-        finished = true
-        let continuation = self.continuation
-        self.continuation = nil
-        lock.unlock()
-        continuation?.resume(returning: (value.0, value.1))
-    }
-
-    private func finish(error: any Error) {
-        lock.lock()
-        guard !finished else { lock.unlock(); return }
-        finished = true
-        let continuation = self.continuation
-        self.continuation = nil
-        lock.unlock()
-        continuation?.resume(throwing: error)
     }
 }

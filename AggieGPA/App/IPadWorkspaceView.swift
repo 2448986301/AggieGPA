@@ -11,6 +11,7 @@ struct IPadWorkspaceView: View {
     @State private var selectedCourseID: UUID?
     @State private var searchRequestID = 0
     @State private var showQuickAdd = false
+    @State private var showCourseTemplates = false
 
     private var liveCourses: [CourseRecord] {
         courses.filter { !$0.isDeleted }
@@ -49,10 +50,16 @@ struct IPadWorkspaceView: View {
                 preferences: preferences,
                 searchQuery: siriSearchQuery,
                 searchRequestID: searchRequestID,
-                selectedCourseID: $selectedCourseID
+                selectedCourseID: $selectedCourseID,
+                onCourseSelection: { showCourseTemplates = false },
+                showCourseTemplates: $showCourseTemplates
             )
         } detail: {
-            selectedDetail
+            if showCourseTemplates {
+                CourseTemplatesView()
+            } else {
+                selectedDetail
+            }
         }
         .navigationSplitViewStyle(.balanced)
     }
@@ -68,13 +75,15 @@ struct IPadWorkspaceView: View {
 
     @ViewBuilder
     private var sidebar: some View {
-        List {
+        List(selection: sidebarSelection) {
             Section("Productivity") {
                 Button("Search", systemImage: "magnifyingglass") {
                     selection = .quarters
                     searchRequestID &+= 1
+                    showCourseTemplates = false
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
                 .keyboardShortcut("k", modifiers: .command)
                 .hoverEffect(.highlight)
                 .accessibilityIdentifier("ipadSearchButton")
@@ -82,7 +91,8 @@ struct IPadWorkspaceView: View {
                 Button("Quick Add", systemImage: "text.badge.plus") {
                     showQuickAdd = true
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
                 .keyboardShortcut("n", modifiers: .command)
                 .hoverEffect(.highlight)
                 .accessibilityIdentifier("ipadQuickAddButton")
@@ -90,29 +100,40 @@ struct IPadWorkspaceView: View {
 
             Section {
                 ForEach(AppTab.allCases) { tab in
-                    Button {
-                        selection = tab
-                    } label: {
-                        Label(tab.title, systemImage: tab.symbol)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .keyboardShortcut(shortcut(for: tab), modifiers: .command)
-                    .hoverEffect(.highlight)
-                    .accessibilityIdentifier("ipadSidebarTab-\(tab.rawValue)")
-                    .accessibilitySortPriority(3)
-                    .accessibilityAddTraits(selection == tab ? .isSelected : [])
+                    Label(tab.title, systemImage: tab.symbol)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .tag(tab)
+                        .keyboardShortcut(shortcut(for: tab), modifiers: .command)
+                        .hoverEffect(.highlight)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("ipadSidebarTab-\(tab.rawValue)")
+                        .accessibilitySortPriority(3)
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityAddTraits(selection == tab ? .isSelected : [])
                 }
             }
         }
         .navigationTitle("Aggie GPA")
         .listStyle(.sidebar)
-        // Keep the system sidebar's compact rhythm.  The list supplies the
-        // platform's accessible row hit target; adding a second fixed height
-        // here was what made each row visibly taller than Apple's sidebar.
+        // Native list selection makes the full visible row the hit target and
+        // supplies first-party pointer, keyboard, and selected-state behavior.
         .listRowSpacing(0)
         .listSectionSpacing(4)
         .safeAreaPadding(.vertical, 0)
         .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 280)
+    }
+
+    private var sidebarSelection: Binding<AppTab?> {
+        Binding(
+            get: { selection },
+            set: { newValue in
+                if let newValue {
+                    selection = newValue
+                    if newValue != .quarters { showCourseTemplates = false }
+                }
+            }
+        )
     }
 
     @ViewBuilder
@@ -140,6 +161,8 @@ struct IPadCourseList: View {
     let searchQuery: String
     let searchRequestID: Int
     @Binding var selectedCourseID: UUID?
+    let onCourseSelection: () -> Void
+    @Binding var showCourseTemplates: Bool
     @State private var searchText = ""
     @FocusState private var searchFieldFocused: Bool
 
@@ -171,10 +194,18 @@ struct IPadCourseList: View {
                         .tag(course.id)
                         .contentShape(Rectangle())
                         .hoverEffect(.highlight)
+                        // Keep the native List(selection:) interaction while
+                        // also returning the outer detail column to the course
+                        // when the already-selected row is tapped again.
+                        .simultaneousGesture(TapGesture().onEnded {
+                            selectedCourseID = course.id
+                            onCourseSelection()
+                        })
                         .accessibilitySortPriority(2)
                         .contextMenu {
                             Button("Open Course", systemImage: "arrow.right") {
                                 selectedCourseID = course.id
+                                onCourseSelection()
                             }
                         }
                     }
@@ -186,8 +217,8 @@ struct IPadCourseList: View {
         .navigationSplitViewColumnWidth(min: 240, ideal: 300, max: 340)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                NavigationLink {
-                    CourseTemplatesView()
+                Button {
+                    showCourseTemplates = true
                 } label: {
                     Label("Course Templates", systemImage: "rectangle.3.group")
                 }

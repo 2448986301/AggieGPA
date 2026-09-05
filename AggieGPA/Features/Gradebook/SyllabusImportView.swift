@@ -24,6 +24,7 @@ struct SyllabusImportView: View {
     @State private var documentLoadTask: Task<Void, Never>?
     @State private var photoLoadTask: Task<Void, Never>?
     @State private var modelAvailability = OnDeviceSyllabusParser.availability()
+    @State private var modelSnapshot: AIModelStoreSnapshot?
     @State private var errorMessage: String?
     @State private var showFileImporter = false
     @State private var showModelImporter = false
@@ -125,11 +126,14 @@ struct SyllabusImportView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(didSave ? "Done" : "Cancel") { cancelAll(); dismiss() }
+                    Button(didSave ? "Done" : "Cancel") {
+                        cancelAll(cancelModelDownload: true)
+                        dismiss()
+                    }
                 }
                 if isWorking, activityState == nil {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Cancel Analysis") { cancelAll() }
+                        Button("Cancel Analysis") { cancelAll(cancelModelDownload: true) }
                     }
                 }
             }
@@ -146,8 +150,15 @@ struct SyllabusImportView: View {
                 loadSelectedPhotos(items)
             }
             .sheet(isPresented: $showScanner) { DocumentScannerView { images in load(images) } }
-            .task { modelAvailability = OnDeviceSyllabusParser.availability() }
-            .onDisappear { cancelAll() }
+            .task {
+                while !Task.isCancelled {
+                    await refreshModelState()
+                    try? await Task.sleep(for: .seconds(1))
+                }
+            }
+            // Leaving the flow detaches the view from progress updates. It
+            // must not cancel the durable background model download.
+            .onDisappear { cancelAll(cancelModelDownload: false) }
             // Keep the activity affordance attached to the visible window
             // edge. In a sheet containing a GeometryReader and List, a
             // safe-area inset can otherwise be positioned after the List's
@@ -213,11 +224,12 @@ struct SyllabusImportView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
-            switch modelAvailability {
-            case .available:
-                Label(OnDeviceAIModelLibrary.activeModelName, systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(DesignSystem.ColorToken.success)
-            case .downloadRequired:
+            if case .runtimeUnavailable = modelAvailability {
+                Label(modelAvailability.message(locale: locale), systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+            } else if let record = recommendedModelRecord {
+                modelDownloadContent(for: record)
+            } else {
                 LabeledContent("Model download") {
                     Text(OnDeviceAIModelLibrary.recommendedDescriptor.storageLabel)
                 }
@@ -227,9 +239,6 @@ struct SyllabusImportView: View {
                     showModelImporter = true
                 }
                 .disabled(isWorking)
-            case .runtimeUnavailable:
-                Label(modelAvailability.message(locale: locale), systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.orange)
             }
 
             Button("Use Manual Rule Recognition", systemImage: "text.magnifyingglass") {
@@ -241,6 +250,72 @@ struct SyllabusImportView: View {
                 analyze(mode: .localRules, document: source)
             }
             .disabled(isWorking || manualSourceDocument == nil)
+        }
+    }
+
+    private var recommendedModelRecord: AIModelRecord? {
+        modelSnapshot?.records.first { $0.id == OnDeviceAIModelLibrary.recommendedDescriptor.id }
+    }
+
+    @ViewBuilder
+    private func modelDownloadContent(for record: AIModelRecord) -> some View {
+        switch record.state {
+        case .ready:
+            Label(OnDeviceAIModelLibrary.activeModelName, systemImage: "checkmark.circle.fill")
+                .foregroundStyle(DesignSystem.ColorToken.success)
+        case .downloading:
+            LabeledContent("Model download") {
+                Text(OnDeviceAIModelLibrary.recommendedDescriptor.storageLabel)
+            }
+            if let progress = record.downloadProgress {
+                if let fraction = progress.fraction {
+                    ProgressView(value: fraction)
+                } else {
+                    ProgressView()
+                }
+                Text(downloadProgressLabel(progress))
+                    .font(.footnote)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            HStack {
+                Button("Pause", systemImage: "pause.circle") {
+                    Task { await OnDeviceAIModelLibrary.pauseRecommendedDownload() }
+                }
+                Button("Cancel", systemImage: "xmark.circle") {
+                    cancelAll(cancelModelDownload: true)
+                }
+            }
+            .buttonStyle(.bordered)
+        case .paused:
+            if let progress = record.downloadProgress {
+                ProgressView(value: progress.fraction ?? 0)
+                Text(downloadProgressLabel(progress))
+                    .font(.footnote)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            Button("Resume Download", systemImage: "play.circle") { downloadModel() }
+                .disabled(isWorking)
+            Button("Cancel", systemImage: "xmark.circle") {
+                cancelAll(cancelModelDownload: true)
+            }
+            .buttonStyle(.bordered)
+        case .failed(let message):
+            Label(message, systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.orange)
+            Button("Retry Download", systemImage: "arrow.clockwise") { downloadModel() }
+                .disabled(isWorking)
+        case .notInstalled:
+            LabeledContent("Model download") {
+                Text(OnDeviceAIModelLibrary.recommendedDescriptor.storageLabel)
+            }
+            Button("Download Local Model", systemImage: "arrow.down.circle") { downloadModel() }
+                .disabled(isWorking)
+            Button("Import GGUF from Files", systemImage: "square.and.arrow.down") {
+                showModelImporter = true
+            }
+            .disabled(isWorking)
         }
     }
 
@@ -275,7 +350,7 @@ struct SyllabusImportView: View {
     private var activityOverlay: some View {
         AcademicAIActivityOverlay(
             state: activityState,
-            onCancel: cancelAll,
+            onCancel: { cancelAll(cancelModelDownload: true) },
             isExpanded: $activityIsPressed
         )
     }
@@ -640,11 +715,13 @@ struct SyllabusImportView: View {
                 _ = try await OnDeviceAIModelLibrary.prepareRecommended { download in
                     Task { @MainActor in phase = .downloadingModel(download) }
                 }
-                modelAvailability = .available
+                await refreshModelState()
                 phase = .idle
             } catch is CancellationError {
+                await refreshModelState()
                 phase = .idle
             } catch {
+                await refreshModelState()
                 modelAvailability = .downloadRequired
                 let message = localizedModelError(error)
                 phase = .unavailable(message)
@@ -711,15 +788,30 @@ struct SyllabusImportView: View {
         }
     }
 
-    private func cancelAll() {
+    private func refreshModelState() async {
+        let runtimeAvailability = OnDeviceSyllabusParser.availability(locale: locale)
+        let storeSnapshot = await OnDeviceAIModelLibrary.snapshot()
+        modelSnapshot = storeSnapshot
+
+        guard runtimeAvailability != .runtimeUnavailable else {
+            modelAvailability = .runtimeUnavailable
+            return
+        }
+        modelAvailability = recommendedModelRecord?.state == .ready ? .available : .downloadRequired
+    }
+
+    private func cancelAll(cancelModelDownload: Bool) {
         analysisTask?.cancel()
-        modelTask?.cancel()
         documentLoadTask?.cancel()
         photoLoadTask?.cancel()
+        if cancelModelDownload {
+            modelTask?.cancel()
+            Task { await OnDeviceAIModelLibrary.cancelRecommendedDownload() }
+        }
         analysisTask = nil
-        modelTask = nil
         documentLoadTask = nil
         photoLoadTask = nil
+        if cancelModelDownload { modelTask = nil }
         activityIsPressed = false
         if phase != .complete && phase != .needsReview { phase = .idle }
     }

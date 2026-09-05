@@ -12,10 +12,8 @@ nonisolated enum AIResourceSelectionReason: Equatable, Sendable {
     var messageKey: String {
         switch self {
         case .userSelected: "Using the selected local model."
-        case .lowPowerMode: "Using a smaller local model because Low Power Mode is on."
-        case .thermalState: "Using a smaller local model because the device is warm."
-        case .chargingPreference: "Using a smaller local model until the device is charging."
-        case .memoryPressure: "Using a smaller local model because available memory is limited."
+        case .lowPowerMode, .thermalState, .chargingPreference, .memoryPressure:
+            "Using a model better suited to this device."
         }
     }
 }
@@ -56,6 +54,7 @@ actor AIResourceManager {
     private var engine: LlamaInferenceEngine?
     private var loadedModelID: String?
     private var activeLeaseCount = 0
+    private var activeInferenceID: UUID?
     private var idleUnloadTask: Task<Void, Never>?
 
     init(modelStore: AIModelStore = .shared, idleUnloadDuration: Duration = .seconds(90)) {
@@ -81,25 +80,35 @@ actor AIResourceManager {
     ) async throws -> AIResourceInferenceResult {
         let selection = try await selectModel()
         try Task.checkCancellation()
+        guard activeInferenceID == nil else { throw AIModelStoreError.modelInUse }
+        let inferenceID = UUID()
+        activeInferenceID = inferenceID
         activeLeaseCount += 1
         idleUnloadTask?.cancel()
         defer {
             activeLeaseCount -= 1
+            if activeInferenceID == inferenceID { activeInferenceID = nil }
             if activeLeaseCount == 0 { scheduleIdleUnload() }
         }
 
         do {
-            let loadStarted = ContinuousClock.now
-            let engine = try await engine(for: selection.model)
-            let modelLoadSeconds = seconds(from: loadStarted, to: .now)
-            let generation = try await engine.generateJSON(prompt: prompt, maximumTokens: maximumTokens)
-            try await modelStore.markUsed(id: selection.model.id)
-            return AIResourceInferenceResult(generation: generation, selection: selection, modelLoadSeconds: modelLoadSeconds)
+            return try await runInference(
+                selection: selection,
+                prompt: prompt,
+                maximumTokens: maximumTokens
+            )
         } catch is CancellationError {
             await unloadNow()
             throw CancellationError()
         } catch {
-            if Task.isCancelled { await unloadNow() }
+            await unloadNow()
+            if let fallback = await fallbackSelection(after: selection) {
+                return try await runInference(
+                    selection: fallback,
+                    prompt: prompt,
+                    maximumTokens: maximumTokens
+                )
+            }
             throw error
         }
     }
@@ -108,13 +117,16 @@ actor AIResourceManager {
     /// cancels the engine and keeps the rest of the app available.
     func handleThermalState(_ state: ProcessInfo.ThermalState = ProcessInfo.processInfo.thermalState) async {
         if state == .critical {
-            if let engine { await engine.cancelGeneration() }
-            await unloadNow()
+            await cancelCurrentInference()
         }
     }
 
     func cancelCurrentInference() async {
         if let engine { await engine.cancelGeneration() }
+        let deadline = ContinuousClock.now + .seconds(5)
+        while activeInferenceID != nil, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
         await unloadNow()
     }
 
@@ -145,10 +157,48 @@ actor AIResourceManager {
         _ = try await modelStore.verifyReadyModel(id: descriptor.id)
         self.engine = nil
         loadedModelID = nil
-        let loaded = try await LlamaInferenceEngine.load(modelURL: AIModelStore.modelURL(for: descriptor))
+        let loaded = try await LlamaInferenceEngine.load(
+            modelURL: AIModelStore.modelURL(for: descriptor),
+            tier: descriptor.tier
+        )
         engine = loaded
         loadedModelID = descriptor.id
         return loaded
+    }
+
+    private func runInference(
+        selection: AIResourceSelection,
+        prompt: String,
+        maximumTokens: Int
+    ) async throws -> AIResourceInferenceResult {
+        let loadStarted = ContinuousClock.now
+        let engine = try await engine(for: selection.model)
+        let modelLoadSeconds = seconds(from: loadStarted, to: .now)
+        let generation = try await engine.generateJSON(prompt: prompt, maximumTokens: maximumTokens)
+        try await modelStore.markUsed(id: selection.model.id)
+        return AIResourceInferenceResult(
+            generation: generation,
+            selection: selection,
+            modelLoadSeconds: modelLoadSeconds
+        )
+    }
+
+    private func fallbackSelection(after failed: AIResourceSelection) async -> AIResourceSelection? {
+        let snapshot = await modelStore.snapshot()
+        let availableMemory = Self.availableMemoryBytes
+        guard let record = snapshot.records
+            .filter({
+                $0.state == .ready
+                    && Self.rank($0.descriptor.tier) < Self.rank(failed.model.tier)
+                    && Self.canSafelyLoad($0.descriptor.tier, availableMemoryBytes: availableMemory)
+            })
+            .sorted(by: { Self.rank($0.descriptor.tier) > Self.rank($1.descriptor.tier) })
+            .first else { return nil }
+        return AIResourceSelection(
+            model: record.descriptor,
+            downgradedFrom: failed.model,
+            reason: .memoryPressure
+        )
     }
 
     private func selectModel() async throws -> AIResourceSelection {
@@ -228,8 +278,8 @@ actor AIResourceManager {
     /// estimate, so selection remains governed by the other safety policies.
     static func requiredMemoryHeadroomBytes(for tier: AIBenchmarkQualityTier) -> UInt64 {
         switch tier {
-        case .efficient: 3_000_000_000
-        case .balanced: 4_500_000_000
+        case .efficient: 3_500_000_000
+        case .balanced: 5_500_000_000
         case .enhanced: 6_500_000_000
         }
     }
