@@ -9,6 +9,8 @@ struct GPAFullSimulationView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.locale) private var locale
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .body) private var gradeMinimumWidth = 64.0
     @Query private var courses: [CourseRecord]
     @Query private var policies: [CourseGradingPolicy]
     @Query private var categories: [GradingCategory]
@@ -26,7 +28,9 @@ struct GPAFullSimulationView: View {
     @State private var assumedGrades: [UUID: CourseGrade]
     @State private var hasInitializedSelection = false
     @State private var savedMessage: String?
+    @State private var saveFailed = false
     @State private var cachedPlanningInputs: [GPAPlanningCourseInput] = []
+    @State private var cachedAllCourseStates: [GPAPlanningCourseState] = []
     @State private var cachedSnapshot: GPAPlanningSnapshot
     @State private var scenarioPersistenceTask: Task<Void, Never>?
 
@@ -81,7 +85,8 @@ struct GPAFullSimulationView: View {
     }
 
     private var selectableCourses: [GPAPlanningCourseState] {
-        snapshot.courses.filter { $0.isIncludedInGPA }
+        let scoped = Dictionary(uniqueKeysWithValues: snapshot.courses.map { ($0.id, $0) })
+        return cachedAllCourseStates.filter(\.isGPAEligible).map { scoped[$0.id] ?? $0 }
     }
 
     var body: some View {
@@ -107,14 +112,17 @@ struct GPAFullSimulationView: View {
         // the scroll edge; an always-visible material creates a large opaque
         // band over the initial What-If content.
         .toolbarBackground(.automatic, for: .navigationBar)
-        .onAppear { initializeSelectionIfNeeded() }
         .task(id: planningDataRevision) { refreshPlanningCache() }
+        .onChange(of: targetText) { _, _ in refreshSnapshot() }
+        .onChange(of: includeAllCourses) { _, _ in refreshSnapshot() }
+        .onChange(of: selectedCourseIDs) { _, _ in refreshSnapshot() }
         .animation(DesignSystem.Motion.quick(reduceMotion: reduceMotion), value: snapshot.projected.gpa)
         .accessibilityIdentifier("gpaFullSimulation")
+        .saveFailureAlert(isPresented: $saveFailed)
     }
 
     private var summary: some View {
-        AppCard {
+        Group {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
                 Text("GPA path").font(.headline)
                 if let final = snapshot.final?.gpa {
@@ -146,17 +154,34 @@ struct GPAFullSimulationView: View {
                 }
             }
         }
+        .padding(24)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 32, style: .continuous))
         .accessibilityIdentifier("gpaSimulationSummary")
     }
 
     private var targetSection: some View {
         AppSection("Target and scope", subtitle: "Choose the courses this plan should include") {
-            HStack {
-                TextField("Target GPA", text: $targetText)
-                    .keyboardType(.decimalPad)
-                    .roundedInputSurface()
-                    .accessibilityIdentifier("gpaSimulationTargetField")
-                Text("/ 4.0").foregroundStyle(.secondary)
+            let targetLayout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                : AnyLayout(HStackLayout(spacing: 8))
+            targetLayout {
+                Text("Target GPA")
+                if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 12) }
+                HStack(spacing: 8) {
+                    TextField("Target GPA", text: $targetText)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.center)
+                        .textFieldStyle(.plain)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .frame(width: dynamicTypeSize.isAccessibilitySize ? gradeMinimumWidth * 1.3 : 76)
+                        .background(Color(.tertiarySystemFill), in: Capsule())
+                        .overlay { Capsule().strokeBorder(.primary.opacity(0.1), lineWidth: 1) }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                        .accessibilityIdentifier("gpaSimulationTargetField")
+                    Text("/ 4.0").foregroundStyle(.secondary)
+                }
             }
             Toggle("Include all eligible courses", isOn: Binding(
                 get: { includeAllCourses },
@@ -202,7 +227,7 @@ struct GPAFullSimulationView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                if !includeAllCourses && course.officialGrade.isPending {
+                if !includeAllCourses {
                     Toggle("Include", isOn: Binding(
                         get: { selectedCourseIDs.contains(course.id) },
                         set: { included in
@@ -211,40 +236,28 @@ struct GPAFullSimulationView: View {
                         }
                     ))
                     .labelsHidden()
+                    .accessibilityIdentifier("gpaSimulationInclude-\(course.courseCode)")
                     .accessibilityLabel(Text(verbatim: AppLocalization.formatted(
                         "Include %@", locale: locale, course.courseCode
                     )))
                 }
             }
             if course.officialGrade.isPending {
-                HStack(spacing: DesignSystem.Spacing.xSmall) {
-                    ForEach(alternativeIDs(for: course), id: \.self) { rawValue in
-                        Button(rawValue) {
-                            if let grade = CourseGrade(rawValue: rawValue) {
-                                setAssumption(grade, for: course.id)
-                            }
-                        }
-                        .modifier(GradeAlternativeButtonStyle(isSelected: course.selectedGrade?.rawValue == rawValue))
-                        .buttonBorderShape(.capsule)
-                        .controlSize(.small)
-                        .accessibilityIdentifier("gpaSimulationGrade-\(course.courseCode)-\(rawValue)")
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 4) { gradeButtons(for: course) }
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: gradeMinimumWidth), spacing: 4)], alignment: .leading, spacing: 4) {
+                        gradeButtons(for: course)
                     }
-                    if assumedGrades[course.id] != nil {
-                        Button("Use Current") { clearAssumption(for: course.id) }
-                            .buttonStyle(.bordered)
-                            .buttonBorderShape(.capsule)
-                            .controlSize(.small)
-                    }
-                    Spacer()
-                    Text(DecimalFormatters.string(snapshot.projected.gpa, precision: preferences.decimalPrecision))
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(DesignSystem.ColorToken.gold)
-                        .accessibilityIdentifier("gpaSimulationCourseImpact-\(course.courseCode)")
+                }
+                .disabled(!includeAllCourses && !selectedCourseIDs.contains(course.id))
+                if assumedGrades[course.id] != nil {
+                    Button("Use Current") { clearAssumption(for: course.id) }
+                        .buttonStyle(.borderless)
+                        .accessibilityIdentifier("gpaSimulationUseCurrent-\(course.courseCode)")
                 }
             }
         }
         .padding(.vertical, DesignSystem.Spacing.small)
-        .opacity(includeAllCourses || selectedCourseIDs.contains(course.id) || !course.officialGrade.isPending ? 1 : 0.52)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("gpaSimulationCourse-\(course.courseCode)")
     }
@@ -289,7 +302,7 @@ struct GPAFullSimulationView: View {
                 Label("View Saved Plans", systemImage: "pin")
             }
             if let savedMessage {
-                Label(savedMessage, systemImage: "checkmark.circle.fill")
+                Label(LocalizedStringKey(savedMessage), systemImage: "checkmark.circle.fill")
                     .font(.footnote).foregroundStyle(DesignSystem.ColorToken.success)
                     .accessibilityIdentifier("gpaSimulationSavedMessage")
             }
@@ -317,13 +330,29 @@ struct GPAFullSimulationView: View {
     }
 
     private func alternatives(for course: GPAPlanningCourseState) -> [CourseGrade] {
-        var values: [CourseGrade] = [.bPlus, .aMinus, .a]
-        if let current = course.currentGrade, !values.contains(current) { values.insert(current, at: 0) }
+        var values: [CourseGrade] = [.a, .aMinus, .bPlus]
+        if let current = course.currentGrade, !values.contains(current) { values.append(current) }
         return values
     }
 
     private func alternativeIDs(for course: GPAPlanningCourseState) -> [String] {
         alternatives(for: course).map(\.rawValue)
+    }
+
+    private func gradeButtons(for course: GPAPlanningCourseState) -> some View {
+        ForEach(alternativeIDs(for: course), id: \.self) { rawValue in
+            Button {
+                if let grade = CourseGrade(rawValue: rawValue) { setAssumption(grade, for: course.id) }
+            } label: {
+                Text(rawValue).frame(minWidth: 24)
+            }
+            .modifier(GradeAlternativeButtonStyle(isSelected: course.selectedGrade?.rawValue == rawValue))
+            .buttonBorderShape(.capsule)
+            .controlSize(.small)
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
+            .accessibilityIdentifier("gpaSimulationGrade-\(course.courseCode)-\(rawValue)")
+        }
     }
 
     private func courseStageDescription(_ course: GPAPlanningCourseState) -> String {
@@ -413,7 +442,8 @@ struct GPAFullSimulationView: View {
         ) != nil {
             savedMessage = "Plan saved. Results will recalculate from your current courses."
         } else {
-            savedMessage = "Couldn’t save this plan."
+            savedMessage = nil
+            saveFailed = true
         }
     }
 
@@ -441,6 +471,12 @@ struct GPAFullSimulationView: View {
             scales: scales,
             forecasts: forecasts
         )
+        initializeSelectionIfNeeded()
+        cachedAllCourseStates = GPAPlanningEngine.resolve(
+            inputs: cachedPlanningInputs,
+            scenario: GPAPlanningScenarioInput(targetGPA: targetGPA, assumedGrades: assumedGrades),
+            fallbackTargetUnits: 12
+        ).courses
         refreshSnapshot()
     }
 

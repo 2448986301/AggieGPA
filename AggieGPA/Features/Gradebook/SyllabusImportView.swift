@@ -3,6 +3,7 @@ import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 import VisionKit
+import OSLog
 
 struct SyllabusImportView: View {
     @Environment(\.dismiss) private var dismiss
@@ -25,16 +26,22 @@ struct SyllabusImportView: View {
     @State private var photoLoadTask: Task<Void, Never>?
     @State private var modelAvailability = OnDeviceSyllabusParser.availability()
     @State private var modelSnapshot: AIModelStoreSnapshot?
+    @State private var resources: AISyllabusResources?
+    @State private var visionModelSnapshot: AIVisualModelStoreSnapshot?
+    @State private var visionModelTask: Task<Void, Never>?
     @State private var errorMessage: String?
     @State private var showFileImporter = false
-    @State private var showModelImporter = false
+    @State private var importsModelFile = false
     @State private var showScanner = false
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var didSave = false
     @State private var activityIsPressed = false
+    @State private var showsModelSettings = false
+    @State private var showsSourceOptions = false
+    @State private var visionProgress: SyllabusVisionProgress?
 
     private var isWorking: Bool {
-        analysisTask != nil || modelTask != nil || documentLoadTask != nil || photoLoadTask != nil
+        analysisTask != nil || documentLoadTask != nil || photoLoadTask != nil || (modelTask != nil && phase == .loadingModel)
     }
     private var activityContentInset: CGFloat {
         guard activityState != nil else { return 0 }
@@ -50,11 +57,21 @@ struct SyllabusImportView: View {
             || ProcessInfo.processInfo.arguments.contains("--uitest-in-memory")
             || ProcessInfo.processInfo.arguments.contains("--screenshot-demo")
     }
-    private var canAnalyze: Bool { modelAvailability == .available || usesTestProvider }
+    private var containsImagePages: Bool {
+        document?.pages.contains(where: { $0.imageData != nil }) == true
+    }
+    private var canAnalyze: Bool {
+        canAnalyze(document)
+    }
+    private func canAnalyze(_ candidate: SyllabusTextExtractor.Document?) -> Bool {
+        guard !usesTestProvider else { return true }
+        guard let resources else { return false }
+        return resources.unavailableReason(for: candidate) == nil
+    }
     private var activityState: AcademicAIActivityState? {
         // Downloads expose real percentage progress below. The orb is reserved
         // for the genuinely indeterminate model/analysis work that follows.
-        guard analysisTask != nil || documentLoadTask != nil || (modelTask != nil && phase == .loadingModel) else {
+        guard analysisTask != nil || documentLoadTask != nil || (modelTask != nil && phase == .loadingModel) || (visionModelTask != nil && phase == .loadingModel) else {
             return nil
         }
         switch phase {
@@ -76,6 +93,17 @@ struct SyllabusImportView: View {
         case .idle, .needsReview, .complete, .unavailable:
             return .reasoningSyllabus
         }
+    }
+
+    private var activityProgressDetail: String? {
+        guard activityState != nil else { return nil }
+        if let fraction = visionProgress?.fraction {
+            return String(format: AppLocalization.string("Reading image · %lld%%", locale: locale), Int64(fraction * 100))
+        }
+        if visionProgress == .organizingResult {
+            return AppLocalization.string("Organizing grading information", locale: locale)
+        }
+        return phase.displayText(locale: locale)
     }
 
     var body: some View {
@@ -110,8 +138,8 @@ struct SyllabusImportView: View {
                         List {
                             statusSection
                             sourceSection
-                            modelSection
                             if let draft { review(draft) }
+                            modelSection
                             sourcePreview
                             if let errorMessage { errorSection(errorMessage) }
                         }
@@ -137,13 +165,9 @@ struct SyllabusImportView: View {
                     }
                 }
             }
-            .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.pdf, .image, .plainText]) { selection in
+            .fileImporter(isPresented: $showFileImporter, allowedContentTypes: importsModelFile ? [.data] : [.pdf, .image, .plainText]) { selection in
                 guard case .success(let url) = selection else { return }
-                load(url)
-            }
-            .fileImporter(isPresented: $showModelImporter, allowedContentTypes: [.data]) { selection in
-                guard case .success(let url) = selection else { return }
-                importModel(url)
+                if importsModelFile { importModel(url) } else { load(url) }
             }
             .onChange(of: selectedPhotos) { _, items in
                 guard !items.isEmpty else { return }
@@ -151,6 +175,9 @@ struct SyllabusImportView: View {
             }
             .sheet(isPresented: $showScanner) { DocumentScannerView { images in load(images) } }
             .task {
+#if DEBUG
+                if installImageSettingsLayoutPreview() { return }
+#endif
                 while !Task.isCancelled {
                     await refreshModelState()
                     try? await Task.sleep(for: .seconds(1))
@@ -169,10 +196,70 @@ struct SyllabusImportView: View {
         }
     }
 
+#if DEBUG
+    // Presentation fixtures only: no downloads, model verification, or saved
+    // records. Use the real settings views to check every layout state.
+    private func installImageSettingsLayoutPreview() -> Bool {
+        let prefix = "--screenshot-image-settings-"
+        guard usesTestProvider,
+              let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix(prefix) }) else { return false }
+        let state: AIVisualModelInstallState
+        switch String(argument.dropFirst(prefix.count)) {
+        case "ready": state = .ready
+        case "downloading": state = .downloading
+        case "paused": state = .paused
+        case "failed": state = .failed("Layout preview")
+        default: state = .notInstalled
+        }
+        let descriptor = OnDeviceAIVisionModelLibrary.descriptor
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 160, height: 100)).image { context in
+            UIColor.secondarySystemBackground.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 160, height: 100))
+            UIImage(systemName: "doc.richtext")?.draw(in: CGRect(x: 60, y: 25, width: 40, height: 50))
+        }
+        document = .init(pages: [.init(number: 1, text: nil, image: image.cgImage)], source: .image)
+        visionModelSnapshot = .init(record: .init(
+            descriptor: descriptor, state: state, activeArtifact: .model,
+            modelResumeData: nil, projectorResumeData: nil,
+            modelReceivedBytes: descriptor.model.bytes / 2,
+            projectorReceivedBytes: 0, verifiedAt: nil
+        ), storageUsedBytes: 0, hasLocalBundle: state == .ready)
+        showsModelSettings = true
+        return true
+    }
+#endif
+
     private var sourceSection: some View {
         Section("Syllabus Source") {
-            Button("Choose PDF, Image, or Text", systemImage: "folder") { showFileImporter = true }
+            if let document {
+                Label {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(course.courseCode).font(.headline)
+                        Text(String(format: AppLocalization.string("%lld pages selected", locale: locale), Int64(document.pages.count)))
+                            .font(.subheadline).foregroundStyle(.secondary)
+                        if let provider = draft?.providerName {
+                            Text(providerLabel(provider)).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                } icon: {
+                    Image(systemName: containsImagePages ? "doc.richtext" : "doc.text")
+                        .foregroundStyle(.tint)
+                }
+                DisclosureGroup("Change Syllabus", isExpanded: $showsSourceOptions) { sourceControls }
+                    .disabled(isWorking)
+            } else {
+                sourceControls
+            }
+        }
+    }
+
+    @ViewBuilder private var sourceControls: some View {
+            Button("Choose PDF, Image, or Text", systemImage: "folder") {
+                importsModelFile = false
+                showFileImporter = true
+            }
                 .disabled(isWorking)
+                .accessibilityIdentifier("syllabusChooseFileButton")
             PhotosPicker(selection: $selectedPhotos, maxSelectionCount: 12, matching: .images) {
                 Label("Choose from Photos", systemImage: "photo.on.rectangle")
             }
@@ -182,7 +269,7 @@ struct SyllabusImportView: View {
                     .disabled(isWorking)
             }
 
-            Text("The local model reads text extracted by PDFKit. Scanned pages without embedded text can still be entered manually.")
+            Text("Images are analyzed by the local image model. Text pages use the local text model. Nothing is uploaded.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             TextEditor(text: $pastedText)
@@ -196,7 +283,8 @@ struct SyllabusImportView: View {
                             .allowsHitTesting(false)
                     }
                 }
-            Button("Analyze Pasted Text", systemImage: "doc.text.magnifyingglass") {
+            Button {
+                Logger(subsystem: "com.easonzhou.aggiegpa", category: "SyllabusImport").notice("analyze pasted action")
                 let source = SyllabusTextExtractor.Document(
                     pages: [.init(number: 1, text: pastedText, image: nil)],
                     source: .pastedText
@@ -206,55 +294,156 @@ struct SyllabusImportView: View {
                 // @State value again in the same action is timing-sensitive
                 // in an adaptive iPad sheet and can otherwise skip analysis.
                 analyze(document: source)
+            } label: {
+                Label("Analyze Pasted Text", systemImage: "doc.text.magnifyingglass")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .foregroundStyle(DesignSystem.ColorToken.navy)
             }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.ColorToken.gold)
             .disabled(pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isWorking || !canAnalyze)
             .accessibilityIdentifier("parseSyllabusButton")
             if let document, document.source != .pastedText {
                 Button("Analyze Selected Syllabus", systemImage: "play.circle") { analyze() }
                     .disabled(isWorking || !canAnalyze)
             }
-        }
     }
 
     private var modelSection: some View {
-        Section("On-Device Analysis") {
-            Label("Runs On Device", systemImage: "iphone.gen3.radiowaves.left.and.right")
-                .font(.headline)
-            Text("Syllabus text stays on this iPhone or iPad. No account, API key, cloud inference, or Apple Intelligence is used.")
-                .font(.footnote)
+        Section {
+            Label("Private, on-device analysis", systemImage: "lock.shield")
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
-
-            if case .runtimeUnavailable = modelAvailability {
-                Label(modelAvailability.message(locale: locale), systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.orange)
-            } else if let record = recommendedModelRecord {
-                modelDownloadContent(for: record)
-            } else {
-                LabeledContent("Model download") {
-                    Text(OnDeviceAIModelLibrary.recommendedDescriptor.storageLabel)
-                }
-                Button("Download Local Model", systemImage: "arrow.down.circle") { downloadModel() }
-                    .disabled(isWorking)
-                Button("Import GGUF from Files", systemImage: "square.and.arrow.down") {
-                    showModelImporter = true
-                }
-                .disabled(isWorking)
+            if !usesTestProvider, document != nil || !pastedText.isEmpty,
+               let reason = resources?.unavailableReason(for: document) {
+                Text(AppLocalization.string(reason, locale: locale))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
-
-            Button("Use Manual Rule Recognition", systemImage: "text.magnifyingglass") {
-                guard let source = manualSourceDocument else {
-                    errorMessage = AppLocalization.string("Choose a syllabus or paste its grading section first.", locale: locale)
-                    return
+            DisclosureGroup("Analysis Settings", isExpanded: $showsModelSettings) {
+                VStack(alignment: .leading, spacing: 20) {
+                    if let model = draft?.modelName ?? (containsImagePages ? OnDeviceAIVisionModelLibrary.descriptor.modelName : nil) {
+                        LabeledContent("Model", value: model)
+                    }
+                    if !containsImagePages || document?.pages.contains(where: { $0.imageData == nil }) == true {
+                        VStack(alignment: .leading, spacing: 12) {
+                            if case .runtimeUnavailable = modelAvailability {
+                                Label(modelAvailability.message(locale: locale), systemImage: "exclamationmark.triangle")
+                                    .foregroundStyle(.orange)
+                            } else if let record = recommendedModelRecord {
+                                modelDownloadContent(for: record)
+                            } else {
+                                LabeledContent("Model download") {
+                                    Text(OnDeviceAIModelLibrary.recommendedDescriptor.storageLabel)
+                                }
+                                Button("Download Local Model", systemImage: "arrow.down.circle") { downloadModel() }
+                                    .disabled(isWorking)
+                                Button("Import GGUF from Files", systemImage: "square.and.arrow.down") {
+                                    importsModelFile = true
+                                    showFileImporter = true
+                                }
+                                .disabled(isWorking)
+                            }
+                        }
+                    }
+                    if containsImagePages { visionModelContent }
+                    if manualSourceDocument != nil {
+                        Button("Use Manual Rule Recognition", systemImage: "text.magnifyingglass") {
+                            guard let source = manualSourceDocument else {
+                                errorMessage = AppLocalization.string("Choose a syllabus or paste its grading section first.", locale: locale)
+                                return
+                            }
+                            document = source
+                            analyze(mode: .localRules, document: source)
+                        }
+                        .disabled(isWorking || manualSourceDocument == nil)
+                    }
                 }
-                document = source
-                analyze(mode: .localRules, document: source)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 8)
+                .buttonStyle(.borderless)
             }
-            .disabled(isWorking || manualSourceDocument == nil)
+            .accessibilityIdentifier("syllabusAnalysisSettings")
+        } footer: {
+            Text("Nothing is uploaded. Review the result before saving.")
         }
+        .listRowSeparator(.hidden)
     }
 
     private var recommendedModelRecord: AIModelRecord? {
         modelSnapshot?.records.first { $0.id == OnDeviceAIModelLibrary.recommendedDescriptor.id }
+    }
+
+    private var visionModelContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 6) {
+        Label("Image understanding", systemImage: "photo.badge.magnifyingglass")
+            .font(.headline)
+        Text("Reads tables and grading text directly from the selected syllabus pages on this device.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+        if let record = visionModelSnapshot?.record {
+            switch record.state {
+            case .ready:
+                Label("Image model files verified", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(DesignSystem.ColorToken.success)
+                Text("The model will load when you start analysis.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            case .downloading, .paused:
+                if let progress = record.progress {
+                    ProgressView(value: progress.fraction)
+                    Text(downloadProgressLabel(progress.asDownloadProgress))
+                        .font(.footnote)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                HStack {
+                    if record.state == .downloading {
+                        Button("Pause", systemImage: "pause.circle") {
+                            Task { await OnDeviceAIVisionModelLibrary.pause() }
+                        }
+                    } else {
+                        Button("Resume Download", systemImage: "play.circle") { downloadVisionModel() }
+                    }
+                    Button("Cancel", systemImage: "xmark.circle") {
+                        cancelAll(cancelModelDownload: true)
+                    }
+                }
+                .buttonStyle(.bordered)
+            case .failed:
+                Label("Image model download needs another try", systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+                Button("Retry Image Model", systemImage: "arrow.clockwise") { downloadVisionModel() }
+                    .disabled(isWorking)
+            case .notInstalled:
+                LabeledContent("Image model") {
+                    Text(OnDeviceAIVisionModelLibrary.descriptor.storageLabel)
+                }
+                if visionModelSnapshot?.hasLocalBundle == true {
+                    Button("Verify Local Image Model", systemImage: "checkmark.shield") { verifyVisionModel() }
+                        .disabled(isWorking || visionModelTask != nil)
+                } else {
+                    Button("Download Image Understanding Model", systemImage: "arrow.down.circle") {
+                        downloadVisionModel()
+                    }
+                    .disabled(isWorking)
+                }
+            }
+        } else {
+            LabeledContent("Image model") {
+                Text(OnDeviceAIVisionModelLibrary.descriptor.storageLabel)
+            }
+            Button("Download Image Understanding Model", systemImage: "arrow.down.circle") {
+                downloadVisionModel()
+            }
+            .disabled(isWorking)
+        }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("syllabusImageModelDetails")
     }
 
     @ViewBuilder
@@ -313,14 +502,15 @@ struct SyllabusImportView: View {
             Button("Download Local Model", systemImage: "arrow.down.circle") { downloadModel() }
                 .disabled(isWorking)
             Button("Import GGUF from Files", systemImage: "square.and.arrow.down") {
-                showModelImporter = true
+                importsModelFile = true
+                showFileImporter = true
             }
             .disabled(isWorking)
         }
     }
 
     @ViewBuilder private var statusSection: some View {
-        if activityState == nil, isWorking || phase != .idle {
+        if draft == nil, activityState == nil, phase != .idle, !isDownloadingPhase {
             Section("Analysis Status") {
                 HStack(spacing: DesignSystem.Spacing.small) {
                     if case .downloadingModel(let download) = phase,
@@ -346,12 +536,19 @@ struct SyllabusImportView: View {
         }
     }
 
+    private var isDownloadingPhase: Bool {
+        if case .downloadingModel = phase { return true }
+        return false
+    }
+
     @ViewBuilder
     private var activityOverlay: some View {
         AcademicAIActivityOverlay(
             state: activityState,
             onCancel: { cancelAll(cancelModelDownload: true) },
-            isExpanded: $activityIsPressed
+            isExpanded: $activityIsPressed,
+            progressDetail: activityProgressDetail,
+            progressFraction: visionProgress?.fraction
         )
     }
 
@@ -541,9 +738,21 @@ struct SyllabusImportView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            Button("Confirm & Import") { confirm() }
-                .disabled(currentDraft.categories.isEmpty || didSave)
+            Button { confirm() } label: {
+                Text("Confirm & Import")
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+                    .foregroundStyle(DesignSystem.ColorToken.navy)
+            }
+                .buttonStyle(.borderedProminent)
+                .tint(DesignSystem.ColorToken.gold)
+                .disabled(currentDraft.categories.isEmpty || didSave || confirmationIssue(currentDraft) != nil || isWorking)
                 .accessibilityIdentifier("confirmSyllabusRulesButton")
+            if let issue = confirmationIssue(currentDraft) {
+                Text(AppLocalization.string(issue, locale: locale))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
             Button("Analyze Again", systemImage: "arrow.clockwise") { analyze() }
                 .disabled(isWorking || document == nil || !canAnalyze)
         } footer: {
@@ -664,7 +873,7 @@ struct SyllabusImportView: View {
                 }.value
                 try Task.checkCancellation()
                 document = loadedDocument
-                if canAnalyze { analyze(document: loadedDocument) }
+                if canAnalyze(loadedDocument) { analyze(document: loadedDocument) }
             } catch is CancellationError {
                 phase = .idle
             } catch {
@@ -676,8 +885,9 @@ struct SyllabusImportView: View {
 
     private func load(_ images: [UIImage]) {
         do {
-            document = try SyllabusTextExtractor.read(images: images)
-            if canAnalyze { analyze() }
+            let loadedDocument = try SyllabusTextExtractor.read(images: images)
+            document = loadedDocument
+            if canAnalyze(loadedDocument) { analyze(document: loadedDocument) }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -689,14 +899,22 @@ struct SyllabusImportView: View {
         photoLoadTask = Task {
             defer { photoLoadTask = nil; selectedPhotos = [] }
             do {
-                var images: [UIImage] = []
-                for item in items {
+                var pages: [SyllabusTextExtractor.Page] = []
+                for (index, item) in items.enumerated() {
                     try Task.checkCancellation()
-                    guard let data = try await item.loadTransferable(type: Data.self), let image = UIImage(data: data) else { continue }
-                    images.append(image)
+                    guard let data = try await item.loadTransferable(type: Data.self) else {
+                        throw SyllabusTextExtractor.ExtractionError.noReadableContent
+                    }
+                    let page = try await Task.detached(priority: .userInitiated) {
+                        try SyllabusTextExtractor.readImageData(data, number: index + 1)
+                    }.value
+                    try Task.checkCancellation()
+                    pages.append(page)
                 }
-                guard !images.isEmpty else { throw SyllabusTextExtractor.ExtractionError.noReadableContent }
-                load(images)
+                guard !pages.isEmpty else { throw SyllabusTextExtractor.ExtractionError.noReadableContent }
+                let loadedDocument = SyllabusTextExtractor.Document(pages: pages, source: .image)
+                document = loadedDocument
+                if canAnalyze(loadedDocument) { analyze(document: loadedDocument) }
             } catch is CancellationError {
                 phase = .idle
             } catch {
@@ -706,10 +924,13 @@ struct SyllabusImportView: View {
     }
 
     private func downloadModel() {
+        guard modelTask == nil else { return }
+        Logger(subsystem: "com.easonzhou.aggiegpa", category: "SyllabusImport").notice("download click received; action started")
         modelTask?.cancel()
         errorMessage = nil
         phase = .downloadingModel(.starting)
         modelTask = Task {
+            Logger(subsystem: "com.easonzhou.aggiegpa", category: "SyllabusImport").notice("download task started")
             defer { modelTask = nil }
             do {
                 _ = try await OnDeviceAIModelLibrary.prepareRecommended { download in
@@ -717,15 +938,71 @@ struct SyllabusImportView: View {
                 }
                 await refreshModelState()
                 phase = .idle
+            } catch is ModelDownloadPaused {
+                await refreshModelState()
+                phase = .idle
             } catch is CancellationError {
                 await refreshModelState()
                 phase = .idle
             } catch {
+                Logger(subsystem: "com.easonzhou.aggiegpa", category: "SyllabusImport").error("download task failed: \(String(describing: error), privacy: .public)")
                 await refreshModelState()
                 modelAvailability = .downloadRequired
                 let message = localizedModelError(error)
                 phase = .unavailable(message)
                 errorMessage = message
+            }
+        }
+    }
+
+    private func downloadVisionModel() {
+        guard visionModelTask == nil else { return }
+        visionModelTask?.cancel()
+        errorMessage = nil
+        phase = .downloadingModel(
+            .init(receivedBytes: 0, expectedBytes: OnDeviceAIVisionModelLibrary.descriptor.totalBytes)
+        )
+        visionModelTask = Task {
+            defer { visionModelTask = nil }
+            do {
+                _ = try await OnDeviceAIVisionModelLibrary.prepare { download in
+                    Task { @MainActor in
+                        phase = .downloadingModel(download.asDownloadProgress)
+                    }
+                }
+                await refreshModelState()
+                phase = .idle
+            } catch is ModelDownloadPaused {
+                await refreshModelState()
+                phase = .idle
+            } catch is CancellationError {
+                await refreshModelState()
+                phase = .idle
+            } catch {
+                await refreshModelState()
+                let message = localizedModelError(error)
+                phase = .unavailable(message)
+                errorMessage = message
+            }
+        }
+    }
+
+    private func verifyVisionModel() {
+        guard visionModelTask == nil else { return }
+        errorMessage = nil
+        phase = .loadingModel
+        visionModelTask = Task {
+            defer { visionModelTask = nil }
+            do {
+                _ = try await OnDeviceAIVisionModelLibrary.verifyReady()
+                try Task.checkCancellation()
+                await refreshModelState()
+                phase = .idle
+            } catch is CancellationError {
+                phase = .idle
+            } catch {
+                errorMessage = localizedModelError(error)
+                phase = .unavailable(errorMessage ?? "")
             }
         }
     }
@@ -762,11 +1039,12 @@ struct SyllabusImportView: View {
     }
 
     private func analyze(mode: SyllabusAnalysisMode, document: SyllabusTextExtractor.Document) {
-        guard mode == .localRules || canAnalyze else {
-            errorMessage = OnDeviceSyllabusParser.availability().message(locale: locale)
+        guard analysisTask == nil else { return }
+        guard mode == .localRules || canAnalyze(document) else {
+            errorMessage = resources?.unavailableReason(for: document).map { AppLocalization.string($0, locale: locale) }
+                ?? OnDeviceSyllabusParser.availability().message(locale: locale)
             return
         }
-        analysisTask?.cancel()
         errorMessage = nil
         draft = nil
         didSave = false
@@ -789,9 +1067,17 @@ struct SyllabusImportView: View {
     }
 
     private func refreshModelState() async {
+        visionProgress = analysisTask == nil ? nil : await AIResourceManager.shared.syllabusVisionProgress()
         let runtimeAvailability = OnDeviceSyllabusParser.availability(locale: locale)
-        let storeSnapshot = await OnDeviceAIModelLibrary.snapshot()
+        let snapshot = await AIResourceManager.shared.syllabusResources()
+        let storeSnapshot = snapshot.text
+        let visionSnapshot = snapshot.visual
+        resources = snapshot
+        if modelSnapshot?.records != storeSnapshot.records {
+            Logger(subsystem: "com.easonzhou.aggiegpa", category: "SyllabusImport").notice("model snapshot updated")
+        }
         modelSnapshot = storeSnapshot
+        visionModelSnapshot = visionSnapshot
 
         guard runtimeAvailability != .runtimeUnavailable else {
             modelAvailability = .runtimeUnavailable
@@ -807,17 +1093,18 @@ struct SyllabusImportView: View {
         if cancelModelDownload {
             modelTask?.cancel()
             Task { await OnDeviceAIModelLibrary.cancelRecommendedDownload() }
+            visionModelTask?.cancel()
+            Task { await OnDeviceAIVisionModelLibrary.cancel() }
         }
-        analysisTask = nil
-        documentLoadTask = nil
-        photoLoadTask = nil
-        if cancelModelDownload { modelTask = nil }
+        // Each task clears its own handle after it has actually returned.
+        // Clearing here would enable a second request while the first still
+        // owns an inference context or is finishing image preprocessing.
         activityIsPressed = false
         if phase != .complete && phase != .needsReview { phase = .idle }
     }
 
     private func confirm() {
-        guard let draft else { return }
+        guard let draft, confirmationIssue(draft) == nil, !isWorking, !didSave else { return }
         let policy = policies.first { $0.course?.persistentModelID == course.persistentModelID } ?? CourseGradingPolicy(course: course)
         if policy.modelContext == nil { modelContext.insert(policy) }
         switch draft.gradingMode {
@@ -832,7 +1119,16 @@ struct SyllabusImportView: View {
         // Keep the extracted text and page boundaries with the course. This
         // is the local source used by the later Course Detail Ask/Search
         // action; it avoids making students select the same PDF again.
-        if let document { SyllabusSourceStore.save(document: document, for: policy.id) }
+        if let recognizedSource = draft.recognizedSource, recognizedSource.hasContent {
+            SyllabusSourceStore.save(
+                sourceText: recognizedSource.text,
+                pagesData: recognizedSource.pagesData,
+                source: draft.source,
+                for: policy.id
+            )
+        } else if let document {
+            SyllabusSourceStore.save(document: document, for: policy.id)
+        }
         policy.updatedAt = .now
 
         var categoriesByName = Dictionary(uniqueKeysWithValues: courseCategories.map { ($0.name.lowercased(), $0) })
@@ -886,6 +1182,21 @@ struct SyllabusImportView: View {
         }
     }
 
+    private func confirmationIssue(_ draft: SyllabusImportDraft) -> String? {
+        let weighted = draft.categories.contains { $0.weightPercent != nil }
+        if weighted {
+            if draft.categories.contains(where: { !$0.isExtraCredit && $0.weightPercent == nil }) {
+                return "Enter the missing weights before importing."
+            }
+            if draft.weightTotal != 100 || draft.categories.contains(where: { ($0.weightPercent ?? 0) < 0 || ($0.weightPercent ?? 0) > 100 }) {
+                return "Check that category weights total 100% before importing."
+            }
+        } else if draft.categories.contains(where: { $0.totalPoints == nil }) {
+            return "Enter the missing weights before importing."
+        }
+        return nil
+    }
+
     private func courseBinding(_ keyPath: WritableKeyPath<SyllabusCourseInformation, String?>) -> Binding<String> {
         Binding(get: { draft?.courseInformation[keyPath: keyPath] ?? "" }, set: { draft?.courseInformation[keyPath: keyPath] = $0.isEmpty ? nil : $0 })
     }
@@ -908,7 +1219,18 @@ struct SyllabusImportView: View {
     }
 
     private var manualSourceDocument: SyllabusTextExtractor.Document? {
-        if let document { return document }
+        if let document {
+            let textPages = document.pages.compactMap { page -> SyllabusTextExtractor.Page? in
+                guard let text = page.text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
+                    return nil
+                }
+                return .init(number: page.number, text: text, image: nil)
+            }
+            if !textPages.isEmpty {
+                return .init(pages: textPages, source: document.source)
+            }
+            return nil
+        }
         let text = pastedText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
         return .init(pages: [.init(number: 1, text: text, image: nil)], source: .pastedText)

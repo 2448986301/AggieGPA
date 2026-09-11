@@ -128,6 +128,7 @@ struct SettingsView: View {
                 Section { DisclaimerBanner() }
             }
             .navigationTitle("Settings")
+            .ipadProductivityToolbar()
             .scrollDismissesKeyboard(.immediately)
             .onChange(of: preferences.displayName) { _, _ in save() }
             .onChange(of: preferences.major) { _, _ in save() }

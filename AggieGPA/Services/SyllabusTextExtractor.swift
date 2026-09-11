@@ -1,6 +1,8 @@
 import Foundation
 import PDFKit
 import UIKit
+import ImageIO
+import UniformTypeIdentifiers
 
 /// Reads document-native text and page images. This type deliberately contains no Vision or OCR API.
 nonisolated enum SyllabusTextExtractor {
@@ -13,6 +15,18 @@ nonisolated enum SyllabusTextExtractor {
         let number: Int
         let text: String?
         let image: CGImage?
+        /// A bounded, orientation-correct copy kept for the on-device vision
+        /// runtime. `CGImage` is useful for the preview, but it is not a
+        /// portable inference input and cannot survive a detached task by
+        /// itself.
+        let imageData: Data?
+
+        init(number: Int, text: String?, image: CGImage?, imageData: Data? = nil) {
+            self.number = number
+            self.text = text
+            self.image = image
+            self.imageData = imageData ?? image.flatMap(SyllabusTextExtractor.encodedImageData)
+        }
     }
 
     struct Document: @unchecked Sendable {
@@ -81,18 +95,67 @@ nonisolated enum SyllabusTextExtractor {
             }
             return Document(pages: [Page(number: 1, text: text, image: nil)], source: .pastedText)
         }
-        if let image = UIImage(contentsOfFile: url.path)?.cgImage {
-            return Document(pages: [Page(number: 1, text: nil, image: image)], source: .image)
+        if let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+           let image = normalizedImage(from: source),
+           let imageData = encodedImageData(from: image) {
+            return Document(
+                pages: [Page(number: 1, text: nil, image: image, imageData: imageData)],
+                source: .image
+            )
         }
         throw ExtractionError.unsupportedTextDocument
     }
 
     static func read(images: [UIImage]) throws -> Document {
-        let pages = images.enumerated().compactMap { offset, image in
-            image.cgImage.map { Page(number: offset + 1, text: nil, image: $0) }
+        let pages = try images.enumerated().map { offset, image in
+            guard image.size.width > 0, image.size.height > 0 else {
+                throw ExtractionError.noReadableContent
+            }
+            let scale = min(CGFloat(1), CGFloat(2048) / max(image.size.width, image.size.height))
+            let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            format.opaque = true
+            let normalized = UIGraphicsImageRenderer(size: size, format: format).image { context in
+                UIColor.white.setFill()
+                context.fill(CGRect(origin: .zero, size: size))
+                image.draw(in: CGRect(origin: .zero, size: size))
+            }
+            guard let cgImage = normalized.cgImage else { throw ExtractionError.noReadableContent }
+            guard let imageData = encodedImageData(from: cgImage) else {
+                throw ExtractionError.noReadableContent
+            }
+            return Page(
+                number: offset + 1,
+                text: nil,
+                image: cgImage,
+                imageData: imageData
+            )
         }
         guard !pages.isEmpty else { throw ExtractionError.noReadableContent }
         return Document(pages: pages, source: .camera)
+    }
+
+    /// Decode a bounded, orientation-correct raster without first allocating
+    /// the full-resolution camera image. Preserve every selected page.
+    static func readImageData(_ data: Data, number: Int) throws -> Page {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = normalizedImage(from: source) else {
+            throw ExtractionError.noReadableContent
+        }
+        guard let imageData = encodedImageData(from: image) else {
+            throw ExtractionError.noReadableContent
+        }
+        return Page(number: number, text: nil, image: image, imageData: imageData)
+    }
+
+    private static func normalizedImage(from source: CGImageSource) -> CGImage? {
+        CGImageSourceCreateThumbnailAtIndex(source, 0, [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: 2048,
+            kCGImageSourceShouldCacheImmediately: true
+        ] as CFDictionary)
     }
 
     private static func readPDF(_ url: URL) throws -> Document {
@@ -111,9 +174,37 @@ nonisolated enum SyllabusTextExtractor {
             page.draw(with: .mediaBox, to: context)
             let image = UIGraphicsGetImageFromCurrentImageContext()?.cgImage
             UIGraphicsEndImageContext()
-            return image.map { Page(number: index + 1, text: nil, image: $0) }
+            return image.flatMap { image -> Page? in
+                guard let imageData = encodedImageData(from: image) else { return nil }
+                return Page(
+                    number: index + 1,
+                    text: nil,
+                    image: image,
+                    imageData: imageData
+                )
+            }
         }
         guard !pages.isEmpty else { throw ExtractionError.noReadableContent }
         return Document(pages: pages, source: .pdf)
+    }
+
+    /// Keep the inference payload bounded and independent from the source
+    /// provider. JPEG is sufficient for syllabus pages and avoids retaining a
+    /// potentially huge Photos/Files original in memory while analysis runs.
+    private static func encodedImageData(from image: CGImage) -> Data? {
+        let data = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(
+            data,
+            UTType.jpeg.identifier as CFString,
+            1,
+            nil
+        ) else { return nil }
+        CGImageDestinationAddImage(
+            destination,
+            image,
+            [kCGImageDestinationLossyCompressionQuality: 0.84] as CFDictionary
+        )
+        guard CGImageDestinationFinalize(destination) else { return nil }
+        return data as Data
     }
 }

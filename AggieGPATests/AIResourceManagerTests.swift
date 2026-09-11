@@ -3,6 +3,24 @@ import XCTest
 @testable import AggieGPA
 
 final class AIResourceManagerTests: XCTestCase {
+    func testRetirementTargetTracksPreloadHeadroomWithoutUnderflow() {
+        XCTAssertEqual(AIResourceManager.retirementHeadroomTarget(loadHeadroom: 0), 0)
+        XCTAssertEqual(AIResourceManager.retirementHeadroomTarget(loadHeadroom: 64 * 1_024 * 1_024), 0)
+        XCTAssertEqual(
+            AIResourceManager.retirementHeadroomTarget(loadHeadroom: 3_500_000_000),
+            3_500_000_000 - 128 * 1_024 * 1_024
+        )
+    }
+
+    func testUnloadingAnUnusedManagerDoesNotLoadOrReserveAnEngine() async {
+        let manager = AIResourceManager()
+        await manager.unloadIfIdle()
+        await manager.unloadIfIdle()
+        let snapshot = await manager.snapshot()
+        XCTAssertNil(snapshot.loadedModelID)
+        XCTAssertEqual(snapshot.activeLeaseCount, 0)
+    }
+
     func testPhase8DModelStoreIsOutsideBundleAndPinsAllThreeTiers() async {
         let snapshot = await AIModelStore.shared.snapshot()
 

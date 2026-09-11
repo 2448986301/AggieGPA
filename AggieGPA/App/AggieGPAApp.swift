@@ -11,7 +11,10 @@ struct AggieGPAApp: App {
     init() {
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("--screenshot-demo") {
-            UserDefaults.standard.set(true, forKey: "showFocusNext")
+            // Preview defaults must not overwrite a student's durable preference.
+            var overrides = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
+            overrides["showFocusNext"] = true
+            UserDefaults.standard.setVolatileDomain(overrides, forName: UserDefaults.argumentDomain)
         }
         let inMemory = arguments.contains("--uitest-in-memory") || arguments.contains("--screenshot-demo")
         let result = PersistentStoreService.makeContainer(inMemory: inMemory)

@@ -8,6 +8,7 @@ struct GradeBreakdownSetupView: View {
     @Environment(\.modelContext) private var modelContext
     let course: CourseRecord
     @State private var selection: Template = .homeworkLabsMidtermsFinal
+    @State private var saveFailed = false
 
     private enum Template: String, CaseIterable, Identifiable {
         case homeworkExams, homeworkQuizzesExams, homeworkLabsMidtermsFinal, points
@@ -45,7 +46,7 @@ struct GradeBreakdownSetupView: View {
                             selection = template
                         } label: {
                             HStack {
-                                Text(template.title)
+                                Text(LocalizedStringKey(template.title))
                                 Spacer()
                                 if selection == template { Image(systemName: "checkmark.circle.fill") }
                             }
@@ -55,7 +56,7 @@ struct GradeBreakdownSetupView: View {
                 }
                 Section("Preview") {
                     ForEach(selection.categories, id: \.0) { category in
-                        LabeledContent(category.0, value: "\(compact(category.2))%")
+                        LabeledContent(LocalizedStringKey(category.0), value: "\(compact(category.2))%")
                     }
                     LabeledContent("Total", value: "100%")
                         .fontWeight(.semibold)
@@ -71,6 +72,7 @@ struct GradeBreakdownSetupView: View {
                 }
             }
         }
+        .saveFailureAlert(isPresented: $saveFailed)
     }
 
     private func save() {
@@ -82,8 +84,13 @@ struct GradeBreakdownSetupView: View {
             modelContext.insert(GradingCategory(course: course, name: definition.0, categoryType: definition.1,
                                                 weight: definition.2, calculationMode: .totalPoints, sortOrder: index))
         }
-        try? modelContext.save()
-        dismiss()
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            modelContext.rollback()
+            saveFailed = true
+        }
     }
 
     private static let standardScale: [GradeScaleBoundary] = [
@@ -110,6 +117,7 @@ struct QuickGradeItemView: View {
     @State private var showMore = false
     @State private var categoryID: UUID?
     @State private var validation: String?
+    @State private var saveFailed = false
     @FocusState private var focusedField: Field?
 
     private enum Field { case title, points }
@@ -142,7 +150,7 @@ struct QuickGradeItemView: View {
                 }
                 if let validation {
                     Section {
-                        Label(validation, systemImage: "exclamationmark.circle.fill").foregroundStyle(.red)
+                        Label(LocalizedStringKey(validation), systemImage: "exclamationmark.circle.fill").foregroundStyle(.red)
                     }
                     .transition(.opacity)
                 }
@@ -163,6 +171,7 @@ struct QuickGradeItemView: View {
             .onChange(of: categoryID) { _, _ in validation = nil }
         }
         .presentationDetents([.medium, .large])
+        .saveFailureAlert(isPresented: $saveFailed)
     }
 
     private var isExam: Bool {
@@ -192,7 +201,13 @@ struct QuickGradeItemView: View {
         guard let points = DecimalFormatters.decimal(from: possible), points > 0 else { validation = "Enter possible points greater than zero."; return }
         modelContext.insert(GradeItem(course: course, category: categories.first { $0.id == categoryID }, title: clean,
                                       dueDate: dueDate, possiblePoints: points, status: .upcoming))
-        try? modelContext.save(); dismiss()
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            modelContext.rollback()
+            saveFailed = true
+        }
     }
 }
 
@@ -212,6 +227,7 @@ struct RecordScoreView: View {
     @State private var earned: String
     @State private var possible: String
     @State private var validation: String?
+    @State private var saveFailed = false
     @FocusState private var focusedField: Field?
 
     private enum Field { case earned, possible }
@@ -251,7 +267,7 @@ struct RecordScoreView: View {
                 }
                 if let validation {
                     Section {
-                        Label(validation, systemImage: "exclamationmark.circle.fill").foregroundStyle(.red)
+                        Label(LocalizedStringKey(validation), systemImage: "exclamationmark.circle.fill").foregroundStyle(.red)
                     }
                     .transition(.opacity)
                 }
@@ -268,6 +284,7 @@ struct RecordScoreView: View {
             .onChange(of: possible) { _, _ in validation = nil }
         }
         .presentationDetents([.medium, .large])
+        .saveFailureAlert(isPresented: $saveFailed)
     }
 
     private var saveButton: some View {
@@ -294,7 +311,13 @@ struct RecordScoreView: View {
             previousUpdatedAt: item.updatedAt
         )
         item.earnedPoints = earnedValue; item.possiblePoints = possibleValue; item.status = .graded; item.updatedAt = .now
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            saveFailed = true
+            return
+        }
         onSaved?(change)
         dismiss()
     }

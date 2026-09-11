@@ -10,6 +10,7 @@ final class NotificationAppDelegate: NSObject, UIApplicationDelegate, UNUserNoti
         UNUserNotificationCenter.current().delegate = self
         Task {
             await OnDeviceAIModelLibrary.resumePersistedDownloadsIfNeeded()
+            await OnDeviceAIVisionModelLibrary.resumePersistedDownloadsIfNeeded()
         }
         return true
     }

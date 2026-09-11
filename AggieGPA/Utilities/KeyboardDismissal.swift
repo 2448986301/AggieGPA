@@ -2,8 +2,9 @@ import SwiftUI
 import UIKit
 
 /// Installs one window-level tap recognizer for the SwiftUI app. The recognizer
-/// deliberately ignores touches inside text controls, while taps on buttons,
-/// section headers, cards, and other non-editable surfaces end editing.
+/// ignores text controls and native controls (including their subviews). Taps on
+/// section headers, cards, and other non-editable surfaces end editing without
+/// delaying or competing with navigation gestures.
 ///
 /// Keeping this at the root avoids subtly different keyboard behavior between
 /// forms and sheets and does not require every feature view to know about
@@ -36,7 +37,7 @@ private struct KeyboardDismissalInstaller: UIViewRepresentable {
 }
 
 @MainActor
-private final class KeyboardDismissalCoordinator: NSObject, UIGestureRecognizerDelegate {
+final class KeyboardDismissalCoordinator: NSObject, UIGestureRecognizerDelegate {
     static let shared = KeyboardDismissalCoordinator()
     private static let recognizerName = "AggieGPA.KeyboardDismissal"
 
@@ -48,6 +49,9 @@ private final class KeyboardDismissalCoordinator: NSObject, UIGestureRecognizerD
         let recognizer = UITapGestureRecognizer(target: shared, action: #selector(handleTap(_:)))
         recognizer.name = recognizerName
         recognizer.cancelsTouchesInView = false
+        // This convenience gesture must never hold up native tab/row touches.
+        recognizer.delaysTouchesBegan = false
+        recognizer.delaysTouchesEnded = false
         recognizer.delegate = shared
         window.addGestureRecognizer(recognizer)
     }
@@ -58,13 +62,22 @@ private final class KeyboardDismissalCoordinator: NSObject, UIGestureRecognizerD
     }
 
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        var view = touch.view
+        !Self.isControlOrEditor(touch.view)
+    }
+
+    static func isControlOrEditor(_ touchedView: UIView?) -> Bool {
+        var view = touchedView
         while let current = view {
-            if current is UITextField || current is UITextView {
-                return false
+            if current is UIControl || current is UITextView {
+                return true
             }
             view = current.superview
         }
-        return true
+        return false
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                           shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        true
     }
 }

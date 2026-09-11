@@ -284,10 +284,16 @@ final class ModelDownloadCoordinator: NSObject, URLSessionDownloadDelegate, @unc
         for waiter in waiters {
             waiter.progress(progress)
         }
-        Task {
-            await AIModelStore.shared.recordDownloadProgress(id: descriptorID, progress: progress)
+        if AIVisualModelStore.isVisualDownloadID(descriptorID) {
+            Task {
+                _ = await AIVisualModelStore.shared.recordDownloadProgress(id: descriptorID, progress: progress)
+            }
+        } else {
+            Task {
+                await AIModelStore.shared.recordDownloadProgress(id: descriptorID, progress: progress)
+            }
+            updateActivity(descriptorID: descriptorID, progress: progress)
         }
-        updateActivity(descriptorID: descriptorID, progress: progress)
     }
 
     func urlSession(
@@ -381,11 +387,19 @@ final class ModelDownloadCoordinator: NSObject, URLSessionDownloadDelegate, @unc
             }
         } else {
             Task {
-                await AIModelStore.shared.completeBackgroundDownload(
-                    id: descriptorID,
-                    location: location,
-                    response: response
-                )
+                if AIVisualModelStore.isVisualDownloadID(descriptorID) {
+                    await AIVisualModelStore.shared.completeBackgroundDownload(
+                        id: descriptorID,
+                        location: location,
+                        response: response
+                    )
+                } else {
+                    await AIModelStore.shared.completeBackgroundDownload(
+                        id: descriptorID,
+                        location: location,
+                        response: response
+                    )
+                }
             }
         }
     }
@@ -404,11 +418,19 @@ final class ModelDownloadCoordinator: NSObject, URLSessionDownloadDelegate, @unc
         }
         if operation?.waiters.isEmpty != false {
             Task {
-                await AIModelStore.shared.failBackgroundDownload(
-                    id: descriptorID,
-                    resumeData: resumeData,
-                    message: "The model download was paused."
-                )
+                if AIVisualModelStore.isVisualDownloadID(descriptorID) {
+                    await AIVisualModelStore.shared.failBackgroundDownload(
+                        id: descriptorID,
+                        resumeData: resumeData,
+                        message: "The image understanding model download was paused."
+                    )
+                } else {
+                    await AIModelStore.shared.failBackgroundDownload(
+                        id: descriptorID,
+                        resumeData: resumeData,
+                        message: "The model download was paused."
+                    )
+                }
             }
         }
         finishActivity(descriptorID: descriptorID, outcome: .paused)
@@ -430,13 +452,22 @@ final class ModelDownloadCoordinator: NSObject, URLSessionDownloadDelegate, @unc
         } else if !(error is CancellationError) {
             let interrupted = error as? ModelDownloadInterrupted
             Task {
-                await AIModelStore.shared.failBackgroundDownload(
-                    id: descriptorID,
-                    resumeData: interrupted?.resumeData,
-                    message: error.localizedDescription.isEmpty
-                        ? "The model download failed."
-                        : error.localizedDescription
-                )
+                let message = error.localizedDescription.isEmpty
+                    ? "The model download failed."
+                    : error.localizedDescription
+                if AIVisualModelStore.isVisualDownloadID(descriptorID) {
+                    await AIVisualModelStore.shared.failBackgroundDownload(
+                        id: descriptorID,
+                        resumeData: interrupted?.resumeData,
+                        message: message
+                    )
+                } else {
+                    await AIModelStore.shared.failBackgroundDownload(
+                        id: descriptorID,
+                        resumeData: interrupted?.resumeData,
+                        message: message
+                    )
+                }
             }
         }
         finishActivity(
@@ -466,6 +497,10 @@ final class ModelDownloadCoordinator: NSObject, URLSessionDownloadDelegate, @unc
     }
 
     private func startActivity(descriptorID: String, modelName: String, progress: ModelDownloadProgress) {
+        // The vision bundle has two sequential files but one aggregate
+        // activity. AIVisualModelStore owns its aggregate percentage so the
+        // Live Activity never jumps back to zero when the projector starts.
+        guard !AIVisualModelStore.isVisualDownloadID(descriptorID) else { return }
         Task { @MainActor in
             ModelDownloadActivityController.shared.start(
                 downloadID: descriptorID,
@@ -477,12 +512,14 @@ final class ModelDownloadCoordinator: NSObject, URLSessionDownloadDelegate, @unc
     }
 
     private func updateActivity(descriptorID: String, progress: ModelDownloadProgress) {
+        guard !AIVisualModelStore.isVisualDownloadID(descriptorID) else { return }
         Task { @MainActor in
             ModelDownloadActivityController.shared.update(downloadID: descriptorID, progress: progress)
         }
     }
 
     private func finishActivity(descriptorID: String, outcome: ModelDownloadActivityOutcome) {
+        guard !AIVisualModelStore.isVisualDownloadID(descriptorID) else { return }
         Task { @MainActor in
             ModelDownloadActivityController.shared.finish(downloadID: descriptorID, outcome: outcome)
         }
