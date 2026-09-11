@@ -1,4 +1,5 @@
 import Foundation
+import SQLite3
 import SwiftData
 
 struct StoreBootstrapResult {
@@ -17,6 +18,7 @@ enum PersistentStoreService {
     static var v4Schema: Schema { Schema(versionedSchema: AggieGPASchemaV4.self) }
 
     static func makeContainer(inMemory: Bool) -> StoreBootstrapResult {
+        let inMemory = inMemory || AppDataIsolation.isEnabled
         // The Simulator does not always grant the production App Group. In that environment,
         // continue with the existing app-private store instead of presenting a recovery screen.
         // Physical builds still migrate once to, and then use, the shared App Group store.
@@ -74,6 +76,7 @@ enum PersistentStoreService {
     }
 
     static func makeConfiguration(inMemory: Bool) -> ModelConfiguration {
+        let inMemory = inMemory || AppDataIsolation.isEnabled
         if !inMemory {
             let storeURL = appGroupStoreURL() ?? legacyStoreURL()
             return ModelConfiguration(configurationName, schema: v4Schema, url: storeURL)
@@ -140,7 +143,13 @@ enum PersistentStoreService {
 
     private enum StoreError: LocalizedError {
         case appGroupUnavailable
-        var errorDescription: String? { "The local shared App Group is unavailable." }
+        case recoverySnapshotFailed
+        var errorDescription: String? {
+            switch self {
+            case .appGroupUnavailable: "The local shared App Group is unavailable."
+            case .recoverySnapshotFailed: "The local database could not be backed up and verified safely."
+            }
+        }
     }
 
     static func createVerifiedV1RecoveryBackupIfNeeded(storeURL: URL) throws {
@@ -152,19 +161,75 @@ enum PersistentStoreService {
         let marker = directory.appending(path: "v1-backup-verified.marker")
         guard !manager.fileExists(atPath: marker.path) else { return }
 
-        let v1Configuration = ModelConfiguration(configurationName, schema: v1Schema, url: storeURL)
-        let v1Container = try ModelContainer(for: v1Schema, configurations: [v1Configuration])
-        let context = ModelContext(v1Container)
+        // Never open a current store with the V1 model: Core Data can infer a
+        // downgrade and remove standalone entities added by newer schemas.
+        // Preserve the complete SQLite snapshot first, then migrate only a
+        // disposable copy for the portable JSON export.
+        try manager.createDirectory(at: directory, withIntermediateDirectories: true)
+        let identifier = UUID().uuidString
+        let snapshotURL = directory.appending(path: "pre-migration-\(identifier).store")
+        try makeVerifiedSQLiteSnapshot(from: storeURL, to: snapshotURL)
+        let workingDirectory = directory.appending(path: ".verify-\(identifier)", directoryHint: .isDirectory)
+        try manager.createDirectory(at: workingDirectory, withIntermediateDirectories: false)
+        defer { try? manager.removeItem(at: workingDirectory) }
+        let workingStore = workingDirectory.appending(path: "AggieGPA.store")
+        try manager.copyItem(at: snapshotURL, to: workingStore)
+        let configuration = ModelConfiguration(configurationName, schema: v4Schema, url: workingStore)
+        let copyContainer = try ModelContainer(for: v4Schema, migrationPlan: AggieGPAMigrationPlan.self, configurations: [configuration])
+        let context = ModelContext(copyContainer)
         let terms = try context.fetch(FetchDescriptor<AcademicTerm>())
         let scenarios = try context.fetch(FetchDescriptor<PlannerScenario>())
         let preferences = try context.fetch(FetchDescriptor<UserPreferences>()).first ?? UserPreferences()
-        let envelope = BackupService.makeEnvelope(terms: terms, scenarios: scenarios, preferences: preferences)
+        let envelope = BackupService.makeEnvelope(
+            terms: terms,
+            courses: try context.fetch(FetchDescriptor<CourseRecord>()),
+            scenarios: scenarios,
+            preferences: preferences,
+            policies: try context.fetch(FetchDescriptor<CourseGradingPolicy>()),
+            categories: try context.fetch(FetchDescriptor<GradingCategory>()),
+            items: try context.fetch(FetchDescriptor<GradeItem>()),
+            scales: try context.fetch(FetchDescriptor<GradeScale>()),
+            forecasts: try context.fetch(FetchDescriptor<ForecastScenario>()),
+            siriSettings: try context.fetch(FetchDescriptor<SiriAccessSettings>()).first,
+            templates: try context.fetch(FetchDescriptor<CourseTemplate>()),
+            reminderDefaults: try context.fetch(FetchDescriptor<CourseReminderDefaults>())
+        )
         let data = try BackupService.encode(envelope)
         _ = try BackupService.decode(data)
 
-        try manager.createDirectory(at: directory, withIntermediateDirectories: true)
-        let backupURL = directory.appending(path: "pre-v1.1-\(Int(Date.now.timeIntervalSince1970)).json")
+        let backupURL = directory.appending(path: "pre-migration-\(identifier).json")
         try data.write(to: backupURL, options: [.atomic, .completeFileProtection])
         try Data(backupURL.lastPathComponent.utf8).write(to: marker, options: .atomic)
+    }
+
+    private static func makeVerifiedSQLiteSnapshot(from sourceURL: URL, to destinationURL: URL) throws {
+        guard !FileManager.default.fileExists(atPath: destinationURL.path) else { throw StoreError.recoverySnapshotFailed }
+        var source: OpaquePointer?
+        var destination: OpaquePointer?
+        defer {
+            if let source { sqlite3_close(source) }
+            if let destination { sqlite3_close(destination) }
+        }
+        guard sqlite3_open_v2(sourceURL.path, &source, SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK,
+              sqlite3_open_v2(destinationURL.path, &destination, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK,
+              let source, let destination else { throw StoreError.recoverySnapshotFailed }
+        sqlite3_busy_timeout(source, 1000)
+        sqlite3_busy_timeout(destination, 1000)
+        guard let backup = sqlite3_backup_init(destination, "main", source, "main") else { throw StoreError.recoverySnapshotFailed }
+        let deadline = Date().addingTimeInterval(10)
+        var result: Int32 = SQLITE_OK
+        repeat {
+            result = sqlite3_backup_step(backup, 128)
+            if result == SQLITE_BUSY || result == SQLITE_LOCKED { Thread.sleep(forTimeInterval: 0.01) }
+        } while (result == SQLITE_OK || result == SQLITE_BUSY || result == SQLITE_LOCKED) && Date() < deadline
+        let finish = sqlite3_backup_finish(backup)
+        guard result == SQLITE_DONE, finish == SQLITE_OK else { throw StoreError.recoverySnapshotFailed }
+        var statement: OpaquePointer?
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_prepare_v2(destination, "PRAGMA quick_check", -1, &statement, nil) == SQLITE_OK,
+              sqlite3_step(statement) == SQLITE_ROW,
+              let text = sqlite3_column_text(statement, 0), String(cString: text) == "ok",
+              sqlite3_step(statement) == SQLITE_DONE else { throw StoreError.recoverySnapshotFailed }
+        try FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: destinationURL.path)
     }
 }

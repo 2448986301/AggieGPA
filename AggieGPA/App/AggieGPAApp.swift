@@ -16,7 +16,7 @@ struct AggieGPAApp: App {
             overrides["showFocusNext"] = true
             UserDefaults.standard.setVolatileDomain(overrides, forName: UserDefaults.argumentDomain)
         }
-        let inMemory = arguments.contains("--uitest-in-memory") || arguments.contains("--screenshot-demo")
+        let inMemory = AppDataIsolation.isEnabled
         let result = PersistentStoreService.makeContainer(inMemory: inMemory)
         container = result.container
         storeErrorMessage = result.errorMessage

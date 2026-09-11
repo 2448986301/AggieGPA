@@ -19,8 +19,7 @@ struct RootView: View {
 
     private var preference: UserPreferences? { preferences.first }
     private var isIsolatedPreview: Bool {
-        let arguments = ProcessInfo.processInfo.arguments
-        return arguments.contains("--uitest-in-memory") || arguments.contains("--screenshot-demo")
+        AppDataIsolation.isEnabled
     }
     private var preferredColorScheme: ColorScheme? {
         switch preference?.appearance ?? .system {
