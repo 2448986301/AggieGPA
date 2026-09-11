@@ -30,7 +30,7 @@
 - Final exported Release app: cover-install and ordinary launch passed on both physical devices; all 22 database tables match each device's pre-install snapshot.
 - Physical interaction and hitch profiling: passed for the tested paths below. Absolute zero latency cannot be guaranteed.
 - Final archived source: `9fefdcf8959d4795c21d9a0357cc8b48e997c8c8`; IPA SHA-256 `afcf190b7845bcb99b037f9930c187a83f5a5c2d8624b1eba80bea8762c735f6`. Tag/publication closeout follows below.
-- GitHub publication: pending; old release preserved.
+- GitHub publication: [v1.0.1 published](https://github.com/2448986301/AggieGPA/releases/tag/v1.0.1); old release preserved. [PR #10](https://github.com/2448986301/AggieGPA/pull/10) remains open and unmerged.
 
 ## Recovery implementation — subsequent work
 
@@ -128,3 +128,12 @@
 - Both post-test and final post-install database comparisons pass: 22 tables per device, matching schema, successful integrity checks, and every stored value identical to that device's fresh pre-test snapshot. The already-authorized two-grade repair remains intact; no additional changes were made to personal data.
 - Final core: 244 executed, 5 conditional skips, zero failures. All five migration/backup tests passed three consecutive repetitions. Physical UI/hitch and AI measurements above remain evidence for unchanged UI/AI paths; the new changes are data isolation and backup preparation, not a new visual redesign.
 - Retained limitations: no unique historical actor/source for the two repaired writes; iPad RPAC-injected AI termination is not labeled passing; larger unverified models remain restricted. The normal-launch/navigation data-preservation regression and explicit test isolation checks passed. The final package is approved for the requested GitHub release with those limitations documented.
+
+## Publication closeout — 2026-09-11 14:51 China time
+
+- Published [Aggie GPA 1.0.1](https://github.com/2448986301/AggieGPA/releases/tag/v1.0.1) at `2026-09-11T06:51:08Z`. Release ID `386834907`; no longer a draft.
+- Remote annotated tag `v1.0.1` resolves to the exact archived source `9fefdcf8959d4795c21d9a0357cc8b48e997c8c8`. The branch's subsequent changes are documentation only.
+- Uploaded the final IPA, standalone SHA-256 file and artifact manifest while the release was a draft; verified server-reported digests before publication. The published IPA is 6,732,454 bytes and its SHA-256 matches `afcf190b7845bcb99b037f9930c187a83f5a5c2d8624b1eba80bea8762c735f6`.
+- [PR #10](https://github.com/2448986301/AggieGPA/pull/10) is open from `codex/ipad-navigation-polish` to `main`, with `mergedAt: null`. No main-branch merge or force-push was performed.
+- Verified the old `v1.0.0` release ID `378644597`, IPA asset ID `548971102` and SHA-256 `7d032c610371ca5d788f90df45154589058315e605fc85c92c3bd7b3d4b2805b` remain unchanged.
+- The iPad installed-app query initially timed out, then succeeded on retry and confirmed 1.0.1 (25). Both final ordinary-launch and database-preservation gates are complete.
