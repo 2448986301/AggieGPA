@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 @MainActor
 final class AggieGPAUITests: XCTestCase {
@@ -91,8 +92,9 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(editor.waitForExistence(timeout: 5))
         let title = app.textFields["courseTitleField"]
         XCTAssertTrue(title.waitForExistence(timeout: 5))
-        title.tap()
+        title.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
         title.typeText(" Updated")
+        let updatedTitle = title.value as? String
         measureTapResponse(
             named: "Course Edit Save",
             // XCUI's tap call waits for the native sheet dismissal animation
@@ -102,7 +104,94 @@ final class AggieGPAUITests: XCTestCase {
             tap: { app.buttons["saveCourseButton"].tap() },
             response: { !editor.exists && course.exists }
         )
-        XCTAssertTrue(app.staticTexts["General Chemistry Updated"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[updatedTitle ?? "General Chemistry Updated"].firstMatch.waitForExistence(timeout: 5))
+        attachCurrentScreenshot(named: "release101-course-edit-saved")
+    }
+
+    func testCourseSaveFailurePreservesDraftAndRetry() {
+        let app = makeApp(extraArguments: ["--screenshot-demo", "--uitest-fail-course-save-once"])
+        waitForDemoDashboard(app)
+        tapCoursesDestination(app: app)
+        if !isIPadWorkspace(app) { tapDemoTerm(app) }
+        let course = app.descendants(matching: .any)["courseRow-CHE 002A"].firstMatch
+        scrollTo(course, in: app)
+        XCTAssertTrue(course.waitForExistence(timeout: 5))
+        if isIPadWorkspace(app) {
+            course.tap()
+            app.buttons["courseSettingsMenu"].tap()
+            let edit = app.buttons["editCourseButton"].exists ? app.buttons["editCourseButton"] : app.buttons["Edit Course"].firstMatch
+            edit.tap()
+        } else {
+            course.swipeRight(velocity: .slow)
+            app.buttons["Edit"].firstMatch.tap()
+        }
+        let editor = app.navigationBars["Edit Course"]
+        let title = app.textFields["courseTitleField"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        title.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        title.typeText(" Recovered")
+        let draft = title.value as? String
+        app.buttons["saveCourseButton"].tap()
+        let failure = app.alerts["Couldn’t save your changes"]
+        XCTAssertTrue(failure.waitForExistence(timeout: 5))
+        XCTAssertTrue(editor.exists)
+        failure.buttons["OK"].tap()
+        XCTAssertEqual(title.value as? String, draft)
+        attachCurrentScreenshot(named: "course-save-failure-draft-preserved")
+        app.buttons["saveCourseButton"].tap()
+        XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: editor)], timeout: 5) == .completed)
+        XCTAssertTrue(app.staticTexts[draft ?? "General Chemistry Recovered"].firstMatch.waitForExistence(timeout: 5))
+    }
+
+    func testSimulationTargetAndScopeStayEditable() {
+        let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-tab=planner"])
+        let full = app.descendants(matching: .any)["openFullSimulation"].firstMatch
+        XCTAssertTrue(full.waitForExistence(timeout: 5))
+        full.tap()
+        let target = app.textFields["gpaSimulationTargetField"]
+        XCTAssertTrue(target.waitForExistence(timeout: 5))
+        target.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5)).tap()
+        target.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 3) + "2.5")
+        XCTAssertEqual(target.value as? String, "2.5")
+        let metric = app.staticTexts["fullSimulationTargetGPA"]
+        XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == '2.500'"), object: metric)], timeout: 5) == .completed)
+        let all = app.switches["gpaSimulationIncludeAllToggle"].firstMatch
+        all.tap()
+        let include = app.switches["gpaSimulationInclude-BIS 002B"].firstMatch
+        scrollTo(include, in: app)
+        XCTAssertTrue(include.waitForExistence(timeout: 5))
+        include.tap()
+        XCTAssertTrue(include.exists, "An excluded course must keep its include control.")
+        XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '0'"), object: include)], timeout: 5) == .completed)
+        include.tap()
+        XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '1'"), object: include)], timeout: 5) == .completed)
+    }
+
+    func testSimulationAccessibilityLayoutStaysWithinWindow() {
+        XCTAssertTrue(UIApplication.shared.preferredContentSizeCategory.isAccessibilityCategory,
+                      "This test requires an actual Simulator accessibility text-size setting.")
+        let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-tab=planner", "--screenshot-chinese"])
+        let full = app.descendants(matching: .any)["openFullSimulation"].firstMatch
+        scrollTo(full, in: app)
+        XCTAssertTrue(full.waitForExistence(timeout: 5))
+        full.tap()
+        let target = app.textFields["gpaSimulationTargetField"]
+        scrollTo(target, in: app)
+        XCTAssertTrue(target.waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(target.frame.height, 60, "Verify rendered large text, not just launch arguments.")
+        XCTAssertTrue(app.staticTexts["当前范围内无法达到目标"].exists)
+        let firstGrade = app.buttons["gpaSimulationGrade-BIS 002B-A"].firstMatch
+        scrollTo(firstGrade, in: app)
+        XCTAssertTrue(firstGrade.waitForExistence(timeout: 5))
+        let bounds = app.windows.firstMatch.frame
+        for letter in ["A", "A-", "B+", "C"] {
+            let button = app.buttons["gpaSimulationGrade-BIS 002B-\(letter)"].firstMatch
+            XCTAssertTrue(button.exists)
+            XCTAssertGreaterThanOrEqual(button.frame.height, 44)
+            XCTAssertGreaterThanOrEqual(button.frame.minX, bounds.minX)
+            XCTAssertLessThanOrEqual(button.frame.maxX, bounds.maxX)
+        }
+        attachCurrentScreenshot(named: "simulation-real-accessibility-text-zh-Hans")
     }
 
     func testSearchOpensCanonicalCourseDetail() {
@@ -1293,6 +1382,43 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(refreshedProjected.waitForExistence(timeout: 5))
         let resolvedProjected = (refreshedProjected.value as? String) ?? refreshedProjected.label
         XCTAssertFalse(resolvedProjected.contains("A"), "Final grade did not replace the projected value: \(resolvedProjected)")
+        if isIPadWorkspace(app) {
+            let row = app.descendants(matching: .any)["courseRow-BIS 002B"].firstMatch
+            let updated = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "label CONTAINS %@", "Final B+"), object: row)
+            XCTAssertEqual(XCTWaiter.wait(for: [updated], timeout: 5), .completed)
+            XCTAssertFalse(row.label.contains("Current"))
+            XCTAssertFalse(row.label.contains("Projected"))
+            XCTAssertFalse(row.label.contains("Final report pending"))
+            attachCurrentScreenshot(named: "ipad-course-row-final-grade-synchronized")
+        }
+    }
+
+    func testIPadCompactCourseRowUsesChineseGradeSummary() throws {
+        let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-chinese"])
+        guard isIPadWorkspace(app) else { throw XCTSkip("iPad compact course row") }
+        openDemoCourse(app: app, courseCode: "CHE 002A")
+        let row = app.descendants(matching: .any)["courseRow-CHE 002A"].firstMatch
+        XCTAssertTrue(row.label.contains("当前"))
+        XCTAssertTrue(row.label.contains("88.14"))
+        XCTAssertTrue(row.label.contains("B+"))
+        XCTAssertFalse(row.label.contains("Current"))
+        attachCurrentScreenshot(named: "ipad-integrated-course-row-chinese")
+    }
+
+    func testPhoneCourseListRetainsGradeSummary() throws {
+        let app = makeApp(extraArguments: ["--screenshot-demo"])
+        guard !isIPadWorkspace(app) else { throw XCTSkip("Phone course list") }
+        tapCoursesDestination(app: app)
+        tapDemoTerm(app)
+        let row = app.descendants(matching: .any)["courseRow-CHE 002A"].firstMatch
+        scrollTo(row, in: app)
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.label.contains("CHE 002A"))
+        XCTAssertTrue(row.label.contains("Current 88.14%"))
+        XCTAssertTrue(row.label.contains("Projected 87.43%"))
+        XCTAssertTrue(row.label.contains("Final report pending"))
+        attachCurrentScreenshot(named: "iphone-course-list-grade-summary-retained")
     }
 
     func testGPAPlanningFlowUsesNaturalSimplifiedChineseLabels() {
@@ -1469,7 +1595,13 @@ final class AggieGPAUITests: XCTestCase {
         guard isIPadWorkspace(app) else {
             throw XCTSkip("Wide template navigation is verified on an iPad destination.")
         }
-        app.descendants(matching: .any)["ipadSidebarTab-quarters"].tap()
+        tapTab(app, label: "Courses")
+        let selectedCourse = app.descendants(matching: .any)["courseRow-CHE 002A"].firstMatch
+        XCTAssertTrue(selectedCourse.waitForExistence(timeout: 5))
+        selectedCourse.tap()
+        let selectedTitle = app.descendants(matching: .any)["courseGradeHero"]
+            .staticTexts["CHE 002A"].firstMatch
+        XCTAssertTrue(selectedTitle.waitForExistence(timeout: 5))
         let templatesButton = app.descendants(matching: .any)["courseTemplatesButton"]
         XCTAssertTrue(templatesButton.waitForExistence(timeout: 5))
         templatesButton.tap()
@@ -1489,6 +1621,7 @@ final class AggieGPAUITests: XCTestCase {
         XCTAssertTrue(course.waitForExistence(timeout: 5))
         course.tap()
         XCTAssertTrue(app.descendants(matching: .any)["courseGradeHero"].waitForExistence(timeout: 5))
+        XCTAssertTrue(selectedTitle.waitForExistence(timeout: 5), "Reselecting the same course must leave templates.")
         XCTAssertFalse(app.staticTexts["Preview Template"].exists)
     }
 
@@ -1501,19 +1634,182 @@ final class AggieGPAUITests: XCTestCase {
             throw XCTSkip("Productivity toolbar is verified on an iPad destination.")
         }
 
-        let search = app.descendants(matching: .any)["ipadSearchButton"]
-        let quickAdd = app.descendants(matching: .any)["ipadQuickAddButton"]
+        let search = app.descendants(matching: .any)["ipadSearchButton"].firstMatch
+        let quickAdd = app.descendants(matching: .any)["ipadQuickAddButton"].firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 5))
-        XCTAssertTrue(quickAdd.waitForExistence(timeout: 5))
 
         search.tap()
         XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(quickAdd.waitForExistence(timeout: 5))
 
         quickAdd.tap()
         XCTAssertTrue(app.navigationBars["Quick Add"].waitForExistence(timeout: 5))
         app.buttons["Cancel"].tap()
         XCTAssertFalse(app.navigationBars["Quick Add"].exists)
         attachCurrentScreenshot(named: "phase12-ipad-workspace-landscape-en")
+    }
+
+    func testIPadNativeSearchPreservesQueryAcrossTabs() throws {
+        let app = makeApp(extraArguments: ["--screenshot-demo"])
+        guard isIPadWorkspace(app) else { throw XCTSkip("iPad navigation") }
+        let search = app.descendants(matching: .any)["ipadSearchButton"].firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        let field = app.searchFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertEqual(app.searchFields.count, 1, "One scoped search field, not competing toolbar copies.")
+        // Selecting the search destination must be enough to start typing.
+        field.typeText("CHE")
+        let matchingCourse = app.descendants(matching: .any)["courseRow-CHE 002A"].firstMatch
+        XCTAssertTrue(matchingCourse.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["courseRow-BIS 002B"].exists)
+        attachCurrentScreenshot(named: "ipad-native-search-portrait-en")
+        tapTab(app, label: "GPA")
+        search.tap()
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertEqual(field.value as? String, "CHE", "Changing areas must preserve the search draft.")
+        XCTAssertTrue(matchingCourse.exists)
+    }
+
+    func testIPadCourseAndSearchKeepIndependentCourseIdentity() throws {
+        let app = makeApp(extraArguments: ["--screenshot-demo"])
+        guard isIPadWorkspace(app) else { throw XCTSkip("iPad split navigation") }
+        func assertDetail(_ code: String) {
+            let title = app.descendants(matching: .any)["courseGradeHero"]
+                .staticTexts[code].firstMatch
+            XCTAssertTrue(title.waitForExistence(timeout: 5), "Wrong detail destination; expected \(code)")
+        }
+        tapTab(app, label: "Courses")
+        for code in ["CHE 002A", "BIS 002B", "PSC 001", "CHE 002A"] {
+            let row = app.descendants(matching: .any)["courseRow-\(code)"].firstMatch
+            XCTAssertTrue(row.waitForExistence(timeout: 5))
+            row.tap()
+            assertDetail(code)
+        }
+
+        let search = app.descendants(matching: .any)["ipadSearchButton"].firstMatch
+        search.tap()
+        let field = app.searchFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.typeText("BIS")
+        let found = app.descendants(matching: .any)["courseRow-BIS 002B"].firstMatch
+        XCTAssertTrue(found.waitForExistence(timeout: 5))
+        found.tap()
+        assertDetail("BIS 002B")
+
+        tapTab(app, label: "Courses")
+        assertDetail("CHE 002A")
+        search.tap()
+        XCTAssertEqual(field.value as? String, "BIS")
+        assertDetail("BIS 002B")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        assertDetail("BIS 002B")
+        tapTab(app, label: "Courses")
+        assertDetail("CHE 002A")
+        attachCurrentScreenshot(named: "ipad-independent-course-selection-landscape")
+    }
+
+    func testIPadSearchNoResultsClearsStaleDetailAndRecovers() throws {
+        let app = makeApp(extraArguments: ["--screenshot-demo"])
+        guard isIPadWorkspace(app) else { throw XCTSkip("iPad split search") }
+        openDemoCourse(app: app, courseCode: "CHE 002A")
+        let search = app.descendants(matching: .any)["ipadSearchButton"].firstMatch
+        search.tap()
+        let field = app.searchFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.typeText("CHE")
+        let hero = app.descendants(matching: .any)["courseGradeHero"].firstMatch
+        XCTAssertTrue(hero.staticTexts["CHE 002A"].firstMatch.waitForExistence(timeout: 5))
+        // The field remains focused after typing; append an unmatched suffix.
+        field.typeText("zzzx")
+        let disappears = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: hero)
+        XCTAssertEqual(XCTWaiter.wait(for: [disappears], timeout: 5), .completed,
+                       "No search results must not leave an unrelated gradebook editable.")
+        XCTAssertFalse(app.descendants(matching: .any)["courseProjectedGradeMetric"].exists)
+        XCTAssertTrue(app.staticTexts["Select a course"].firstMatch.exists)
+        XCTAssertTrue(app.staticTexts["No Results"].firstMatch.exists)
+        attachCurrentScreenshot(named: "ipad-search-no-results-no-stale-detail")
+
+        let clear = field.buttons.firstMatch
+        XCTAssertTrue(clear.waitForExistence(timeout: 5), "Native search clear action is missing")
+        clear.tap()
+        let row = app.descendants(matching: .any)["courseRow-BIS 002B"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertTrue(hero.staticTexts["BIS 002B"].firstMatch.waitForExistence(timeout: 5))
+        tapTab(app, label: "Courses")
+        XCTAssertTrue(hero.staticTexts["CHE 002A"].firstMatch.waitForExistence(timeout: 5))
+        search.tap()
+        XCTAssertTrue(hero.staticTexts["BIS 002B"].firstMatch.waitForExistence(timeout: 5))
+        attachCurrentScreenshot(named: "ipad-search-cleared-selection-recovered")
+    }
+
+    func testIPadSearchEmptyStateUsesConciseChineseTitle() throws {
+        let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-chinese"])
+        guard isIPadWorkspace(app) else { throw XCTSkip("iPad split search") }
+        app.descendants(matching: .any)["ipadSearchButton"].firstMatch.tap()
+        let field = app.searchFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.typeText("zzzx")
+        XCTAssertTrue(app.staticTexts["无搜索结果"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["请检查拼写，或尝试其他关键词。"].firstMatch.exists)
+        XCTAssertFalse(app.descendants(matching: .any)["courseGradeHero"].exists)
+        attachCurrentScreenshot(named: "ipad-search-empty-state-zh-Hans")
+    }
+
+    func testIPadGlassCanvasLightAndDarkWhileScrolling() throws {
+        XCUIDevice.shared.orientation = .portrait
+        for dark in [false, true] {
+            let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-course-detail"]
+                              + (dark ? ["--screenshot-dark"] : []))
+            guard isIPadWorkspace(app) else { throw XCTSkip("iPad glass canvas") }
+            let search = app.descendants(matching: .any)["ipadSearchButton"].firstMatch
+            search.tap()
+            let field = app.searchFields.firstMatch
+            XCTAssertTrue(field.waitForExistence(timeout: 5))
+            field.typeText("CHE")
+            let hero = app.descendants(matching: .any)["courseGradeHero"].firstMatch
+            XCTAssertTrue(hero.waitForExistence(timeout: 5))
+            let theme = dark ? "dark" : "light"
+            attachCurrentScreenshot(named: "ipad-glass-search-\(theme)-top")
+            let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.8))
+            let to = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.3))
+            from.press(forDuration: 0.05, thenDragTo: to)
+            XCTAssertTrue(search.isHittable)
+            attachCurrentScreenshot(named: "ipad-glass-search-\(theme)-scrolled")
+            tapTab(app, label: "Today")
+            attachCurrentScreenshot(named: "ipad-glass-today-\(theme)")
+            search.tap()
+            XCTAssertEqual(field.value as? String, "CHE")
+            app.terminate()
+        }
+    }
+
+    func testIPadTabsPreserveFullSimulationNavigation() throws {
+        let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-tab=planner"])
+        guard isIPadWorkspace(app) else { throw XCTSkip("iPad navigation") }
+        let full = app.descendants(matching: .any)["openFullSimulation"].firstMatch
+        XCTAssertTrue(full.waitForExistence(timeout: 5))
+        full.tap()
+        let target = app.textFields["gpaSimulationTargetField"]
+        XCTAssertTrue(target.waitForExistence(timeout: 5))
+        tapTab(app, label: "Courses")
+        XCTAssertTrue(app.buttons["courseTemplatesButton"].waitForExistence(timeout: 5))
+        tapTab(app, label: "GPA")
+        XCTAssertTrue(target.waitForExistence(timeout: 5), "Returning to GPA must preserve its open detail.")
+        XCTAssertLessThan(target.frame.width, 120, "Keep the default target control compact.")
+        let a = app.buttons["gpaSimulationGrade-BIS 002B-A"].firstMatch
+        let aMinus = app.buttons["gpaSimulationGrade-BIS 002B-A-"].firstMatch
+        XCTAssertTrue(a.waitForExistence(timeout: 5))
+        XCTAssertLessThan(a.frame.minX, aMinus.frame.minX)
+        a.tap()
+        let projected = app.staticTexts["fullSimulationProjectedGPA"]
+        XCTAssertTrue(projected.waitForExistence(timeout: 5))
+        XCTAssertEqual(projected.label, "2.917")
+        XCTAssertEqual(app.staticTexts["fullSimulationCurrentGPA"].label, "2.361")
+        app.buttons["gpaSimulationUseCurrent-BIS 002B"].tap()
+        XCTAssertTrue(NSPredicate(format: "label == %@", "2.361").evaluate(with: projected))
+        attachCurrentScreenshot(named: "ipad-native-gpa-compact-controls-en")
     }
 
     func testExportDataFlow() {
@@ -1542,12 +1838,13 @@ final class AggieGPAUITests: XCTestCase {
         about.tap()
         let appVersion = app.descendants(matching: .any)["appVersion"]
         XCTAssertTrue(appVersion.waitForExistence(timeout: 5))
-        XCTAssertTrue(appVersion.label.contains("Version 1.0 (Build 24)"))
+        XCTAssertTrue(appVersion.label.contains("Version 1.0.1 (Build 25)"))
+        attachCurrentScreenshot(named: "release101-about-version")
         let whatsNew = app.staticTexts["What’s New"]
         XCTAssertTrue(whatsNew.waitForExistence(timeout: 5))
         whatsNew.tap()
         XCTAssertTrue(app.descendants(matching: .any)["versionHistoryView"].waitForExistence(timeout: 5))
-        for version in ["1.0"] {
+        for version in ["1.0.1", "1.0"] {
             let versionLabel = app.staticTexts["Version \(version)"]
             scrollTo(versionLabel, in: app)
             XCTAssertTrue(versionLabel.exists, "Version \(version) should appear in version history")
@@ -1672,89 +1969,46 @@ final class AggieGPAUITests: XCTestCase {
 
     func testIPadSidebarRowsHaveStableSpacingAndStageManagerAdaptiveWorkspace() throws {
         let app = makeApp(extraArguments: ["--screenshot-demo"])
-        guard isIPadWorkspace(app) else {
-            throw XCTSkip("The sidebar workspace is verified on an iPad destination.")
+        guard isIPadWorkspace(app) else { throw XCTSkip("iPad adaptive navigation") }
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+            XCUIDevice.shared.orientation = orientation
+            let destinations = ["Today", "Courses", "GPA", "Settings"].map { tab(app, label: $0) }
+            for destination in destinations {
+                XCTAssertTrue(destination.waitForExistence(timeout: 5))
+                XCTAssertTrue(destination.isHittable)
+                // The native iPad tab exposes its 36pt visual label frame,
+                // not the system's expanded input region. Don't enlarge the
+                // platform control to satisfy a custom-control frame test.
+                XCTAssertGreaterThan(destination.frame.height, 0)
+            }
+            for index in 0..<(destinations.count - 1) {
+                XCTAssertFalse(destinations[index].frame.intersects(destinations[index + 1].frame),
+                               "Adjacent tab targets must not overlap.")
+            }
+            tapTab(app, label: "Courses")
+            XCTAssertTrue(app.buttons["courseTemplatesButton"].waitForExistence(timeout: 5))
+            tapTab(app, label: "GPA")
+            XCTAssertTrue(app.descendants(matching: .any)["openFullSimulation"].firstMatch.waitForExistence(timeout: 5))
+            XCTAssertFalse(app.staticTexts["Select an area"].exists)
         }
-
-        let rows = [
-            app.descendants(matching: .any)["ipadSearchButton"].firstMatch,
-            app.descendants(matching: .any)["ipadQuickAddButton"].firstMatch,
-            app.descendants(matching: .any)["ipadSidebarTab-dashboard"].firstMatch,
-            app.descendants(matching: .any)["ipadSidebarTab-quarters"].firstMatch,
-            app.descendants(matching: .any)["ipadSidebarTab-planner"].firstMatch,
-            app.descendants(matching: .any)["ipadSidebarTab-settings"].firstMatch,
-        ]
-        for row in rows {
-            XCTAssertTrue(row.waitForExistence(timeout: 5))
-            XCTAssertGreaterThanOrEqual(row.frame.height, 44)
-            XCTAssertGreaterThan(row.frame.width, 150, "The full visible sidebar row must be exposed as the hit target.")
-        }
-
-        let rowHeights = rows.map(\.frame.height)
-        XCTAssertLessThanOrEqual(rowHeights.max()! - rowHeights.min()!, 2.0)
-        let rowsByVerticalPosition = rows.sorted { $0.frame.minY < $1.frame.minY }
-        let verticalGaps = zip(rowsByVerticalPosition, rowsByVerticalPosition.dropFirst())
-            .map { current, next in next.frame.minY - current.frame.maxY }
-        XCTAssertLessThanOrEqual(verticalGaps.max()! - verticalGaps.min()!, 4.0)
-        XCTAssertLessThanOrEqual(verticalGaps.max()!, 16.0)
-        let initialFrame = app.windows.firstMatch.frame
-        XCTAssertGreaterThan(initialFrame.width, 700)
-        XCTAssertFalse(app.staticTexts["Select an area"].exists)
-
-        // Non-course destinations use a two-column workspace, so the old
-        // permanent middle-column placeholder must never remain visible.
-        let plannerRow = app.buttons["ipadSidebarTab-planner"]
-        plannerRow.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
-        XCTAssertTrue(plannerRow.isSelected, "Tapping trailing whitespace must select the native row.")
-        XCTAssertFalse(app.staticTexts["Select an area"].exists)
-        let settingsRow = app.buttons["ipadSidebarTab-settings"]
-        settingsRow.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
-        XCTAssertTrue(settingsRow.isSelected, "The visible row, not only its icon or text, must navigate.")
-        XCTAssertFalse(app.staticTexts["Select an area"].exists)
-
-        // The app opts into automatic scene resizability. A full-screen iPad
-        // simulator does not expose Stage Manager's floating-window bounds,
-        // so rotating it can legitimately leave the XCUI window frame
-        // unchanged. Validate the adaptive minimum in that environment and
-        // assert the actual size transition when a resizable window is
-        // available.
-        XCUIDevice.shared.orientation = .portrait
-        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 3))
-        let portraitFrame = app.windows.firstMatch.frame
-        XCTAssertGreaterThan(portraitFrame.height, 500)
-        let simulatorExposesResizableWindow = portraitFrame.size != initialFrame.size
-        XCUIDevice.shared.orientation = .landscapeLeft
-        let landscapeFrame = app.windows.firstMatch.frame
-        XCTAssertGreaterThan(landscapeFrame.width, 700)
-        if simulatorExposesResizableWindow {
-            XCTAssertNotEqual(landscapeFrame.size, portraitFrame.size)
-        } else {
-            XCTAssertGreaterThanOrEqual(landscapeFrame.width, 700)
-        }
+        attachCurrentScreenshot(named: "ipad-native-tabs-landscape-en")
     }
 
     func testIPadSidebarUsesNaturalSimplifiedChineseLabels() throws {
-        XCUIDevice.shared.orientation = .portrait
         let app = makeApp(extraArguments: ["--screenshot-demo", "--screenshot-chinese"])
-        guard isIPadWorkspace(app) else {
-            throw XCTSkip("The sidebar workspace is verified on an iPad destination.")
+        guard isIPadWorkspace(app) else { throw XCTSkip("iPad localization") }
+        for label in ["今天", "课程", "GPA", "设置"] {
+            XCTAssertTrue(tab(app, label: label).waitForExistence(timeout: 5))
         }
-
-        XCTAssertTrue(app.staticTexts["快捷操作"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["搜索"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["快速添加"].waitForExistence(timeout: 5))
-        for identifier in [
-            "ipadSidebarTab-dashboard",
-            "ipadSidebarTab-quarters",
-            "ipadSidebarTab-planner",
-            "ipadSidebarTab-settings",
-        ] {
-            XCTAssertTrue(app.buttons[identifier].waitForExistence(timeout: 5))
-        }
+        let search = app.descendants(matching: .any)["ipadSearchButton"].firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        let field = app.searchFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertEqual(field.placeholderValue, "搜索课程")
+        XCTAssertEqual(app.searchFields.count, 1)
         XCTAssertFalse(app.staticTexts["Productivity"].exists)
-        XCTAssertFalse(app.buttons["Search"].exists)
-        XCTAssertFalse(app.staticTexts["选择一个栏目"].exists)
-        attachCurrentScreenshot(named: "phase9-ipad-sidebar-zh-Hans")
+        attachCurrentScreenshot(named: "ipad-native-search-zh-Hans")
     }
 
     func testPhase12AIActivityCapsuleOnIPad() throws {
@@ -2037,7 +2291,7 @@ final class AggieGPAUITests: XCTestCase {
         let measurementOptions = XCTMeasureOptions()
         measurementOptions.iterationCount = 3
 
-        measure(metrics: [XCTClockMetric(), XCTCPUMetric(), XCTMemoryMetric()], options: measurementOptions) {
+        measure(metrics: [XCTClockMetric(), XCTCPUMetric(), XCTMemoryMetric(), XCTHitchMetric(application: app)], options: measurementOptions) {
             tab(app, label: "Courses").tap()
             tab(app, label: "GPA").tap()
             tab(app, label: "Today").tap()
@@ -2150,6 +2404,43 @@ final class AggieGPAUITests: XCTestCase {
         measureTapResponseForQuickAdd()
         measureTapResponseForWhatIf()
         measureTapResponseForSyllabusImport()
+    }
+
+    func testIPadColdCourseNavigationReadiness() throws {
+        // Every trial uses a fresh process and isolated demo data. This measures
+        // XCTest tap/idle/accessibility readiness, not input-to-photon latency.
+        for trial in 1...3 {
+            let app = makeApp(extraArguments: ["--screenshot-demo"])
+            defer { app.terminate() }
+            guard isIPadWorkspace(app) else {
+                throw XCTSkip("This acceptance check exercises the iPad split workspace.")
+            }
+            waitForDemoDashboard(app)
+            let courses = tab(app, label: "Courses")
+            XCTAssertTrue(courses.waitForExistence(timeout: 5))
+            let row = app.descendants(matching: .any)["courseRow-CHE 002A"].firstMatch
+            measureTapResponse(
+                named: "Cold iPad Courses ready trial \(trial)",
+                tap: { courses.tap() },
+                response: { row.exists && row.isHittable }
+            )
+
+            let projected = app.descendants(matching: .any)["courseProjectedGradeMetric"].firstMatch
+            let target = app.descendants(matching: .any)["courseTargetGradeMetric"].firstMatch
+            let courseTitle = app.descendants(matching: .any)["courseGradeHero"]
+                .staticTexts["CHE 002A"].firstMatch
+            measureTapResponse(
+                named: "Cold iPad CHE detail ready trial \(trial)",
+                tap: { row.tap() },
+                response: { courseTitle.exists && projected.exists && projected.isHittable && target.isHittable }
+            )
+            projected.tap()
+            XCTAssertTrue(app.buttons["A"].firstMatch.waitForExistence(timeout: 5),
+                          "The first course visit must accept the next interaction.")
+            if trial == 3 {
+                attachCurrentScreenshot(named: "ipad-cold-course-projection-menu-ready")
+            }
+        }
     }
 
     func testTodayAssignmentAsksForCourseWhenSeveralCoursesExist() {
@@ -2513,20 +2804,6 @@ final class AggieGPAUITests: XCTestCase {
         let app = makeApp(extraArguments: ["--screenshot-demo"])
         waitForDemoDashboard(app)
 
-        if isIPadWorkspace(app) {
-            let quickAddButton = app.buttons["ipadQuickAddButton"]
-            XCTAssertTrue(quickAddButton.waitForExistence(timeout: 5))
-            let quickAddNavigation = app.navigationBars["Quick Add"]
-
-            measureTapResponse(
-                named: "Quick Add presentation",
-                tap: { quickAddButton.tap() },
-                response: { quickAddNavigation.exists }
-            )
-            app.terminate()
-            return
-        }
-
         let addMenu = app.buttons["dashboardAddCourse"]
         XCTAssertTrue(addMenu.waitForExistence(timeout: 5))
         addMenu.tap()
@@ -2623,6 +2900,9 @@ final class AggieGPAUITests: XCTestCase {
             XCTAssertTrue(course.waitForExistence(timeout: 5), "Missing iPad course \(courseCode)")
             XCTAssertTrue(course.isHittable, "iPad course row is not hittable: \(courseCode)")
             course.tap()
+            XCTAssertTrue(app.descendants(matching: .any)["courseGradeHero"]
+                .staticTexts[courseCode].firstMatch.waitForExistence(timeout: 5),
+                "The iPad detail must belong to the requested course: \(courseCode)")
             return
         }
         tapCoursesDestination(app: app)

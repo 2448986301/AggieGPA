@@ -18,6 +18,9 @@ struct RootView: View {
     @State private var showWhatsNew = false
 
     private var preference: UserPreferences? { preferences.first }
+    private var isIsolatedPreview: Bool {
+        AppDataIsolation.isEnabled
+    }
     private var preferredColorScheme: ColorScheme? {
         switch preference?.appearance ?? .system {
         case .system: nil
@@ -139,6 +142,7 @@ struct RootView: View {
             notificationCourse = courses.first { $0.id == id }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openCourseFromSiri)) { notification in
+            guard !isIsolatedPreview else { return }
             guard let rawID = notification.object as? String, let id = UUID(uuidString: rawID) else { return }
             guard let course = courses.first(where: { $0.id == id }) else { return }
             notificationCourse = course
@@ -154,10 +158,10 @@ struct RootView: View {
             SiriDraftConfirmationView(draft: draft)
         }
         .sheet(isPresented: $showWhatsNew, onDismiss: {
-            lastSeenReleaseNotesVersion = AppVersionHistory.currentVersion
+            if !isIsolatedPreview { lastSeenReleaseNotesVersion = AppVersionHistory.currentVersion }
         }) {
             WhatsNewSheet {
-                lastSeenReleaseNotesVersion = AppVersionHistory.currentVersion
+                if !isIsolatedPreview { lastSeenReleaseNotesVersion = AppVersionHistory.currentVersion }
             }
             .environment(\.locale, preference?.language.locale ?? .autoupdatingCurrent)
         }
@@ -165,9 +169,6 @@ struct RootView: View {
 
     private func bootstrapScreenshotModeIfNeeded() {
         let arguments = ProcessInfo.processInfo.arguments
-        if arguments.contains("--screenshot-demo") {
-            UserDefaults.standard.set(true, forKey: "showFocusNext")
-        }
         guard arguments.contains("--screenshot-demo"), preferences.isEmpty else { return }
         let preference = UserPreferences(displayName: "Alex", appearance: arguments.contains("--screenshot-dark") ? .dark : .light,
                                          language: arguments.contains("--screenshot-chinese") ? .simplifiedChinese : .english,
@@ -188,11 +189,13 @@ struct RootView: View {
     }
 
     private func refreshSiriSnapshotAndShortcutParameters() {
+        guard !isIsolatedPreview else { return }
         SiriSharedSnapshotStore.save(courses: courses, gradeItems: gradeItems, settings: siriAccessSettings.first)
         AggieGPAAppShortcuts.updateAppShortcutParameters()
     }
 
     private func refreshSiriIntegration() async {
+        guard !isIsolatedPreview else { return }
         refreshSiriSnapshotAndShortcutParameters()
         // Spotlight rebuilding walks the full SwiftData graph. It is only
         // useful when the student has enabled Siri access; keeping it behind
@@ -210,6 +213,7 @@ struct RootView: View {
     }
 
     private func handlePendingIntentNavigation() {
+        guard !isIsolatedPreview else { return }
         if let navigation = PendingSiriNavigationStore.peek() {
             switch navigation.kind {
             case .course:

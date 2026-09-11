@@ -23,6 +23,10 @@ struct CourseEditorView: View {
     @State private var notes: String
     @State private var siriAliases: String
     @State private var validationMessage: String?
+    @State private var saveFailed = false
+    #if DEBUG
+    @State private var hasInjectedSaveFailure = false
+    #endif
     @FocusState private var focusedField: Field?
 
     private enum Field { case code, units }
@@ -109,7 +113,7 @@ struct CourseEditorView: View {
                         .foregroundStyle(.secondary)
                 }
                 if let validationMessage {
-                    Section { Label(validationMessage, systemImage: "exclamationmark.circle").foregroundStyle(.red) }
+                    Section { Label(LocalizedStringKey(validationMessage), systemImage: "exclamationmark.circle").foregroundStyle(.red) }
                 }
             }
             .scrollDismissesKeyboard(.interactively)
@@ -124,6 +128,7 @@ struct CourseEditorView: View {
         }
         .presentationDetents([.large])
         .interactiveDismissDisabled(hasUnsavedInput)
+        .saveFailureAlert(isPresented: $saveFailed)
         .safeAreaInset(edge: .bottom) {
             if focusedField != nil {
                 HStack {
@@ -194,19 +199,20 @@ struct CourseEditorView: View {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         let didChangeAliases = Set(normalizedAliases) != Set(SiriAliasStore.aliases(for: savedCourse.id))
-        dismiss()
-        guard didChangeCourse || didChangeAliases else { return }
-        let aliases = siriAliases
-        Task { @MainActor in
-            do {
-                try await Task.sleep(for: .milliseconds(150))
-                if didChangeAliases { SiriAliasStore.save(aliases, for: savedCourse.id) }
-                if didChangeCourse { try modelContext.save() }
-            } catch is CancellationError {
-                // The context's autosave remains a safe fallback.
-            } catch {
-                modelContext.rollback()
+        do {
+            #if DEBUG
+            let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("--uitest-in-memory"), arguments.contains("--uitest-fail-course-save-once"), !hasInjectedSaveFailure {
+                hasInjectedSaveFailure = true
+                throw CocoaError(.fileWriteUnknown)
             }
+            #endif
+            if didChangeCourse { try modelContext.save() }
+            if didChangeAliases { SiriAliasStore.save(siriAliases, for: savedCourse.id) }
+            dismiss()
+        } catch {
+            modelContext.rollback()
+            saveFailed = true
         }
     }
 }

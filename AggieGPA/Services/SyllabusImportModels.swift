@@ -130,6 +130,16 @@ nonisolated struct SyllabusExtractionIssue: Identifiable, Codable, Equatable, Se
     var requiresUserReview: Bool
 }
 
+/// Text recognized from image pages is retained separately from the draft's
+/// grading fields. It keeps the later course-scoped syllabus search grounded
+/// in the imported pages without putting the original image into SwiftData.
+nonisolated struct SyllabusRecognizedSource: Codable, Equatable, Sendable {
+    var text: String?
+    var pagesData: Data?
+
+    var hasContent: Bool { text != nil || pagesData != nil }
+}
+
 nonisolated struct SyllabusImportDraft: Codable, Equatable, Sendable {
     var courseInformation = SyllabusCourseInformation()
     var categories: [SyllabusCategoryDraft] = []
@@ -145,6 +155,7 @@ nonisolated struct SyllabusImportDraft: Codable, Equatable, Sendable {
     var providerName: String?
     var modelName: String?
     var overallConfidence: Double = 0
+    var recognizedSource: SyllabusRecognizedSource?
 
     var weightTotal: Decimal { categories.compactMap(\.weightPercent).reduce(0, +) }
     var requiresReview: Bool {

@@ -16,6 +16,7 @@ struct CategoryEditorView: View {
     @State private var dropLowest: Int
     @State private var isExtraCredit: Bool
     @State private var validation: String?
+    @State private var saveFailed = false
     @State private var showMoreOptions = false
 
     init(course: CourseRecord, category: GradingCategory?, nextSortOrder: Int) {
@@ -48,7 +49,7 @@ struct CategoryEditorView: View {
                     }
                 }
                 if let validation {
-                    Section { Text(validation).foregroundStyle(.red) }
+                    Section { Text(LocalizedStringKey(validation)).foregroundStyle(.red) }
                         .transition(.opacity)
                 }
             }
@@ -60,7 +61,9 @@ struct CategoryEditorView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.accessibilityIdentifier("saveCategoryButton") }
             }
-        }.presentationDetents([.medium, .large])
+        }
+        .presentationDetents([.medium, .large])
+        .saveFailureAlert(isPresented: $saveFailed)
     }
 
     private func save() {
@@ -75,7 +78,13 @@ struct CategoryEditorView: View {
                                                 calculationMode: mode, dropLowestCount: dropLowest,
                                                 isExtraCredit: isExtraCredit, sortOrder: nextSortOrder))
         }
-        try? modelContext.save(); dismiss()
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            modelContext.rollback()
+            saveFailed = true
+        }
     }
 }
 
@@ -101,6 +110,7 @@ struct GradeItemEditorView: View {
     @State private var reminderLeadTime: ReminderLeadTime
     @State private var customReminderDate: Date
     @State private var validation: String?
+    @State private var saveFailed = false
     @State private var saveAnother = false
     @State private var showMoreOptions = false
     @FocusState private var focusedField: Field?
@@ -170,7 +180,7 @@ struct GradeItemEditorView: View {
                     }
                 }
                 if let validation {
-                    Section { Text(validation).foregroundStyle(.red) }
+                    Section { Text(LocalizedStringKey(validation)).foregroundStyle(.red) }
                         .transition(.opacity)
                 }
             }
@@ -185,6 +195,7 @@ struct GradeItemEditorView: View {
             }
         }
         .presentationDetents([.large])
+        .saveFailureAlert(isPresented: $saveFailed)
     }
 
     private var saveButton: some View {
@@ -225,7 +236,13 @@ struct GradeItemEditorView: View {
                                     customReminderDate: reminderLeadTime == .custom ? customReminderDate : nil)
             modelContext.insert(newItem); savedItem = newItem
         }
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            saveFailed = true
+            return
+        }
         let reminder = GradeItemReminderSnapshot(savedItem)
         Task {
             do {
@@ -256,6 +273,7 @@ struct GradingPolicyEditorView: View {
     @State private var useCommonScale: Bool
     @State private var scaleConfirmed: Bool
     @State private var validation: String?
+    @State private var saveFailed = false
 
     init(course: CourseRecord, policy: CourseGradingPolicy?, scale: GradeScale?) {
         self.course = course; self.policy = policy; self.scale = scale
@@ -297,7 +315,7 @@ struct GradingPolicyEditorView: View {
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 if let validation {
-                    Section { Text(validation).foregroundStyle(.red) }
+                    Section { Text(LocalizedStringKey(validation)).foregroundStyle(.red) }
                         .transition(.opacity)
                 }
             }
@@ -309,6 +327,7 @@ struct GradingPolicyEditorView: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.accessibilityIdentifier("saveGradingPolicyButton") }
             }
         }
+        .saveFailureAlert(isPresented: $saveFailed)
     }
 
     private func save() {
@@ -336,7 +355,13 @@ struct GradingPolicyEditorView: View {
         } else if let scale {
             scale.isLetterPredictionEnabled = false; scale.updatedAt = .now
         }
-        try? modelContext.save(); dismiss()
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            modelContext.rollback()
+            saveFailed = true
+        }
     }
 
     private static let commonScale: [GradeScaleBoundary] = [
@@ -369,6 +394,7 @@ struct ForecastEditorView: View {
     @State private var assumption: Double
     @State private var targetText: String
     @State private var validation: String?
+    @State private var saveFailed = false
 
     init(course: CourseRecord, policy: CourseGradingPolicy?, forecast: ForecastScenario?) {
         self.course = course; self.policy = policy; self.forecast = forecast
@@ -396,7 +422,7 @@ struct ForecastEditorView: View {
                 }
                 Section { Text("This scenario is stored locally and can be changed without altering entered scores.").font(.footnote).foregroundStyle(.secondary) }
                 if let validation {
-                    Section { Text(validation).foregroundStyle(.red) }
+                    Section { Text(LocalizedStringKey(validation)).foregroundStyle(.red) }
                         .transition(.opacity)
                 }
             }
@@ -416,6 +442,7 @@ struct ForecastEditorView: View {
                 }
             }
         }.presentationDetents([.medium])
+        .saveFailureAlert(isPresented: $saveFailed)
     }
 
     private func save() {
@@ -435,7 +462,13 @@ struct ForecastEditorView: View {
         }
         savedForecast.isSelectedForGPAForecast = true
         savedForecast.updatedAt = .now
-        try? modelContext.save(); dismiss()
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            modelContext.rollback()
+            saveFailed = true
+        }
     }
 }
 

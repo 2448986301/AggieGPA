@@ -1,6 +1,48 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Maintenance Update" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "维护更新" } } } },
+    "Refined iPad navigation and restored on-device image syllabus analysis." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "优化 iPad 导航，恢复设备端图片课程大纲分析。" } } } },
+    "Clearer course summaries, independent search selection, and reliable save feedback." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "课程摘要更清晰，搜索选择独立保留，保存结果及时反馈。" } } } },
+    "Visual syllabus analysis with source-page evidence and cancellable local processing." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "图片大纲分析保留来源页证据，本地处理可以取消。" } } } },
+    "Existing grades, local models, and privacy choices are preserved." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "保留现有成绩、本地模型和隐私选择。" } } } },
+    "%lld pages selected" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"已选择 %lld 页"}}}},
+    "Change Syllabus" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"更换大纲"}}}},
+    "Private, on-device analysis" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"仅在本机处理"}}}},
+    "Analysis Settings" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"分析设置"}}}},
+    "Nothing is uploaded. Review the result before saving." : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"内容不会上传，核对结果后才会保存。"}}}},
+    "Reading image · %lld%%" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"读取图像 · %lld%%"}}}},
+    "Organizing grading information" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"正在整理评分信息"}}}},
+    "Download Image Understanding Model" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"下载图像理解模型"}}}},
+    "Image model" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"图像模型"}}}},
+    "Image model download needs another try" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"图像模型下载失败，请重试"}}}},
+    "Image model ready" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"图像模型已就绪"}}}},
+    "Image understanding" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"图像理解"}}}},
+    "Image understanding was unavailable, so on-device text recognition was used. Review the extracted details before importing." : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"图像理解不可用，已改用设备端文字识别。导入前请检查提取结果。"}}}},
+    "Reads tables and grading text directly from the selected syllabus pages on this device." : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"直接读取所选大纲页面中的表格和评分文字，均在本机完成。"}}}},
+    "Resume Download" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"继续下载"}}}},
+    "Retry Image Model" : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"重试图像模型"}}}},
+    "Text pages use native extraction. Scanned pages use the on-device image understanding model, with text recognition as a safe fallback." : {"localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"文字页使用系统提取；扫描页使用设备端图像理解，失败时自动改用文字识别。"}}}},
+    "No Results" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "无搜索结果" } } } },
+    "Check the spelling or try a new search." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请检查拼写，或尝试其他关键词。" } } } },
+    "Course created: %@" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已创建课程：%@" } } } },
+    "Couldn’t delete this template. Try again." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未能删除课程模板，请重试。" } } } },
+    "Enter a course code, a quarter, and positive units." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请填写课程代码、选择学季，并输入大于 0 的学分。" } } } },
+    "Search courses" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "搜索课程" } } } },
+    "Couldn’t save your changes" : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未能保存" } } } },
+    "Couldn’t save your changes. Your input is still here. Try Save again." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未能保存更改。已保留你填写的内容，请重试。" } } } },
+    "Enter a course code." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请填写课程代码。" } } } },
+    "Enter units greater than 0 and no more than 50." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请填写大于 0、不超过 50 的学分。" } } } },
+    "Enter a category name." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请填写类别名称。" } } } },
+    "Enter a weight from 0 to 100." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请填写 0 到 100 之间的权重。" } } } },
+    "Enter a title." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请填写名称。" } } } },
+    "Possible points must be greater than zero." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "满分必须大于 0。" } } } },
+    "Enter a valid earned score." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请填写有效的已得分数。" } } } },
+    "Enter a target from 0 to 100." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请填写 0 到 100 之间的目标成绩。" } } } },
+    "Enter a scenario name." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请填写方案名称。" } } } },
+    "Enter a name." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请填写名称。" } } } },
+    "Enter possible points greater than zero." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请填写大于 0 的满分。" } } } },
+    "Enter valid earned and possible points." : { "localizations" : { "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请填写有效的得分和满分。" } } } },
     "" : {
 
     },
@@ -4560,7 +4602,10 @@
       }
     },
     "Current is where you are; choose a grade to preview the finish" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose projected grades to see how your GPA changes." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "选择预计成绩，查看 GPA 的变化。" } }
+      }
     },
     "Current is where you are; Projected is where you may finish" : {
       "extractionState" : "stale",
@@ -6827,7 +6872,10 @@
       }
     },
     "GPA path" : {
-
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "GPA preview" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "GPA 预览" } }
+      }
     },
     "GPA Rules" : {
       "comment" : "A link to the app's GPA rules",
@@ -9646,7 +9694,11 @@
     },
     "Only the inputs are saved; results recalculate from current course data" : {
       "comment" : "Text describing the purpose of the GPA full simulation view.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Save your choices. Results update with your course grades." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "保存你的选择，结果会随课程成绩更新。" } }
+      }
     },
     "Only the inputs are saved; results recalculate from your current course data" : {
       "extractionState" : "stale",
@@ -13112,7 +13164,14 @@
       }
     },
     "Target is not reachable with this scope" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前范围内无法达到目标"
+          }
+        }
+      }
     },
     "Target is reachable" : {
       "localizations" : {

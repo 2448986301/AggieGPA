@@ -818,9 +818,12 @@ actor AIModelStore {
         }
         try handle.seek(toOffset: 0)
         var hasher = SHA256()
-        while let chunk = try handle.read(upToCount: 1_048_576), !chunk.isEmpty {
+        while try autoreleasepool(invoking: {
+            try Task.checkCancellation()
+            guard let chunk = try handle.read(upToCount: 1_048_576), !chunk.isEmpty else { return false }
             hasher.update(data: chunk)
-        }
+            return true
+        }) {}
         let hash = hasher.finalize().map { String(format: "%02x", $0) }.joined()
         guard hash.caseInsensitiveCompare(descriptor.artifactSHA256) == .orderedSame else {
             throw AIModelStoreError.checksumMismatch

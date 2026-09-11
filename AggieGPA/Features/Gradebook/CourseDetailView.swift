@@ -894,7 +894,11 @@ struct CourseDetailView: View {
     }
 
     private var gradeHeroSummary: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
+        // Share calculations across all adaptive layout candidates and their
+        // accessibility labels. Recompute on the next view refresh, not per label.
+        let state = planningState
+        let summaryResult = result
+        return VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(verbatim: course.courseCode)
                     .font(.title3.bold())
@@ -910,31 +914,31 @@ struct CourseDetailView: View {
 
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: DesignSystem.Spacing.large) {
-                    currentGradeMetric
+                    currentGradeMetric(state: state, result: summaryResult)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    projectedGradeMetric
+                    projectedGradeMetric(state: state)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     targetGradeMetric
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
-                    currentGradeMetric
+                    currentGradeMetric(state: state, result: summaryResult)
                     HStack(alignment: .top, spacing: DesignSystem.Spacing.large) {
-                        projectedGradeMetric
+                        projectedGradeMetric(state: state)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         targetGradeMetric
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.medium) {
-                    currentGradeMetric
-                    projectedGradeMetric
+                    currentGradeMetric(state: state, result: summaryResult)
+                    projectedGradeMetric(state: state)
                     targetGradeMetric
                 }
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Based on graded work · \(percent(result.gradedWeight)) graded")
+                Text("Based on graded work · \(percent(summaryResult.gradedWeight)) graded")
                 Button {
                     showFinalGradePicker = true
                 } label: {
@@ -963,7 +967,7 @@ struct CourseDetailView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
 
-            if result.requiresManualReview {
+            if summaryResult.requiresManualReview {
                 Label("Check Course Settings before relying on predictions.", systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote).foregroundStyle(DesignSystem.ColorToken.warning)
             }
@@ -972,24 +976,24 @@ struct CourseDetailView: View {
         .accessibilityIdentifier("courseGradeSummary")
     }
 
-    private var currentGradeMetric: some View {
+    private func currentGradeMetric(state: GPAPlanningCourseState?, result: CourseGradeCalculationResult) -> some View {
         gradeMetric(
             title: "Current Grade",
-            value: percent(planningState?.currentPercentage ?? result.calculatedCurrentPercentage),
-            detail: planningState?.currentGrade?.rawValue ?? result.currentLetterGrade?.rawValue,
+            value: percent(state?.currentPercentage ?? result.calculatedCurrentPercentage),
+            detail: state?.currentGrade?.rawValue ?? result.currentLetterGrade?.rawValue,
             emphasized: true,
             identifier: "courseCurrentGradeMetric",
             accessibilityTitle: "Current"
         )
     }
 
-    private var projectedGradeMetric: some View {
+    private func projectedGradeMetric(state: GPAPlanningCourseState?) -> some View {
         Button {
             guard course.grade.isPending else { return }
             showProjectedGradePicker = true
         } label: {
-            let projected = planningState?.projectedGrade
-            let projectedPercentage = projectedPercentageText
+            let projected = state?.projectedGrade
+            let projectedPercentage = projectedPercentageText(state: state)
             gradeMetricVisual(
                 title: "Projected Grade",
                 value: projectedPercentage ?? projected?.rawValue ?? "—",
@@ -1003,7 +1007,7 @@ struct CourseDetailView: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: AppLocalization.string("Projected", locale: locale)))
-        .accessibilityValue(projectedGradeAccessibilityValue)
+        .accessibilityValue(projectedGradeAccessibilityValue(state: state))
         .accessibilityHint(Text(verbatim: AppLocalization.string("Opens projected grade choices", locale: locale)))
         .accessibilityIdentifier("courseProjectedGradeMetric")
         .overlay {
@@ -1014,8 +1018,8 @@ struct CourseDetailView: View {
         }
     }
 
-    private var projectedGradeAccessibilityValue: String {
-        let parts = [projectedPercentageText, planningState?.projectedGrade?.rawValue]
+    private func projectedGradeAccessibilityValue(state: GPAPlanningCourseState?) -> String {
+        let parts = [projectedPercentageText(state: state), state?.projectedGrade?.rawValue]
             .compactMap { $0 }
         return parts.isEmpty ? "—" : parts.joined(separator: " ")
     }
@@ -1023,8 +1027,8 @@ struct CourseDetailView: View {
     /// A forecast has a measured percentage. A letter-only plan assumption is
     /// shown at the confirmed scale boundary (≥93% · A), making the source
     /// clear instead of presenting a made-up exact score.
-    private var projectedPercentageText: String? {
-        guard let state = planningState, let percentage = state.projectedPercentage else { return nil }
+    private func projectedPercentageText(state: GPAPlanningCourseState?) -> String? {
+        guard let state, let percentage = state.projectedPercentage else { return nil }
         let formatted = percent(percentage)
         return state.projectedPercentageIsBoundary ? "≥\(formatted)" : formatted
     }
@@ -1087,12 +1091,14 @@ struct CourseDetailView: View {
                     .font(emphasized ? DesignSystem.Typography.heroNumber : DesignSystem.Typography.metric)
                     .monospacedDigit()
                     .contentTransition(.numericText())
+                    .fixedSize(horizontal: true, vertical: false)
                 if let detail {
                     Text(verbatim: detail)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(DesignSystem.ColorToken.gold)
                 }
             }
+            .fixedSize(horizontal: true, vertical: true)
         }
         .fixedSize(horizontal: false, vertical: true)
     }

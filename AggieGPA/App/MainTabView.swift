@@ -23,11 +23,9 @@ struct MainTabView: View {
 
     var body: some View {
         Group {
-            // Keep the persistent split workspace for roomy iPad windows. A
-            // compact Stage Manager window uses the native tab hierarchy instead
-            // of squeezing three columns into a narrow surface.
-            if UIDevice.current.userInterfaceIdiom == .pad,
-               horizontalSizeClass == .regular {
+            // Keep one navigation identity throughout iPad window resizing.
+            // The system adapts the same tabs between sidebar and tab bar.
+            if UIDevice.current.userInterfaceIdiom == .pad {
                 IPadWorkspaceView(preferences: preferences, selection: $selection, siriSearchQuery: $siriSearchQuery)
             } else {
                 phoneTabs
@@ -78,7 +76,7 @@ struct MainTabView: View {
 
     private func openSearch(_ query: String?) {
         siriSearchQuery = query ?? ""
-        selection = .quarters
+        selection = UIDevice.current.userInterfaceIdiom == .pad ? .search : .quarters
         PendingSiriNavigationStore.clear()
     }
 }
@@ -93,12 +91,13 @@ enum AppTab: String, Hashable, CaseIterable, Identifiable {
     case quarters
     case planner
     case settings
+    case search
 
     var id: String { rawValue }
     var title: LocalizedStringKey {
-        switch self { case .dashboard: "Today"; case .quarters: "Courses"; case .planner: "GPA"; case .settings: "Settings" }
+        switch self { case .dashboard: "Today"; case .quarters: "Courses"; case .planner: "GPA"; case .settings: "Settings"; case .search: "Search" }
     }
     var symbol: String {
-        switch self { case .dashboard: "sun.max"; case .quarters: "books.vertical"; case .planner: "chart.line.uptrend.xyaxis"; case .settings: "gearshape" }
+        switch self { case .dashboard: "sun.max"; case .quarters: "books.vertical"; case .planner: "chart.line.uptrend.xyaxis"; case .settings: "gearshape"; case .search: "magnifyingglass" }
     }
 }

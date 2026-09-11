@@ -18,7 +18,7 @@ enum AppVersionHistory {
 
     static var displayVersion: String {
         let components = currentVersion.split(separator: ".")
-        guard components.count >= 2 else { return currentVersion }
+        guard components.count == 3, components[2] == "0" else { return currentVersion }
         return components.prefix(2).joined(separator: ".")
     }
 
@@ -31,6 +31,16 @@ enum AppVersionHistory {
     }
 
     static let releases: [AppVersionRelease] = [
+        AppVersionRelease(
+            version: "1.0.1",
+            status: "Maintenance Update",
+            summary: "Refined iPad navigation and restored on-device image syllabus analysis.",
+            highlights: [
+                "Clearer course summaries, independent search selection, and reliable save feedback.",
+                "Visual syllabus analysis with source-page evidence and cancellable local processing.",
+                "Existing grades, local models, and privacy choices are preserved."
+            ]
+        ),
         AppVersionRelease(
             version: "1.0",
             status: "First Release",

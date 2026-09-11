@@ -111,10 +111,15 @@ struct CourseTemplateDetailView: View {
     @State private var showRename = false
     @State private var confirmDelete = false
     @State private var errorMessage: String?
+    @State private var createdCourseCode: String?
 
     var body: some View {
         List {
             Section {
+                if let createdCourseCode {
+                    Label("Course created: \(createdCourseCode)", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(DesignSystem.ColorToken.success)
+                }
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
                     Label(template.isBuiltIn ? "Built-in Template" : "Saved Template", systemImage: template.isBuiltIn ? "checkmark.seal" : "rectangle.3.group")
                         .font(.caption.weight(.semibold)).foregroundStyle(DesignSystem.ColorToken.gold)
@@ -166,13 +171,20 @@ struct CourseTemplateDetailView: View {
         }
         .navigationTitle("Preview Template")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showCreateCourse) { TemplateCourseCreationView(template: template) }
+        .sheet(isPresented: $showCreateCourse) {
+            TemplateCourseCreationView(template: template) { createdCourseCode = $0 }
+        }
         .sheet(isPresented: $showRename) { TemplateRenameView(template: template) }
         .alert("Delete this template?", isPresented: $confirmDelete) {
             Button("Delete Template", role: .destructive) {
                 modelContext.delete(template)
-                try? modelContext.save()
-                dismiss()
+                do {
+                    try modelContext.save()
+                    dismiss()
+                } catch {
+                    modelContext.rollback()
+                    errorMessage = "Couldn’t delete this template. Try again."
+                }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -180,7 +192,7 @@ struct CourseTemplateDetailView: View {
         }
         .alert("Couldn’t complete that action", isPresented: Binding(
             get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }
-        )) { Button("OK") {} } message: { Text(errorMessage ?? "Please try again.") }
+        )) { Button("OK") {} } message: { Text(LocalizedStringKey(errorMessage ?? "Please try again.")) }
         .animation(DesignSystem.Motion.standard(reduceMotion: reduceMotion), value: showCreateCourse)
         .accessibilityIdentifier("courseTemplatePreview")
     }
@@ -191,6 +203,7 @@ private struct TemplateRenameView: View {
     @Environment(\.modelContext) private var modelContext
     let template: CourseTemplate
     @State private var name: String
+    @State private var saveFailed = false
 
     init(template: CourseTemplate) {
         self.template = template
@@ -210,11 +223,18 @@ private struct TemplateRenameView: View {
                             template.name = trimmed
                             template.isBuiltIn = false
                             template.updatedAt = .now
-                            try? modelContext.save(); dismiss()
+                            do {
+                                try modelContext.save()
+                                dismiss()
+                            } catch {
+                                modelContext.rollback()
+                                saveFailed = true
+                            }
                         }
                     }
                 }
         }
+        .saveFailureAlert(isPresented: $saveFailed)
     }
 }
 
@@ -227,6 +247,7 @@ struct CourseTemplateSaveView: View {
     let categories: [GradingCategory]
     let scale: GradeScale?
     @State private var name: String
+    @State private var saveFailed = false
 
     init(course: CourseRecord, policy: CourseGradingPolicy?, categories: [GradingCategory], scale: GradeScale?) {
         self.course = course; self.policy = policy; self.categories = categories; self.scale = scale
@@ -258,11 +279,18 @@ struct CourseTemplateSaveView: View {
                             name: trimmed, course: course, policy: policy, categories: categories,
                             scale: scale, items: allItems.filter { !$0.isDeleted && $0.course?.id == course.id }
                         ))
-                        try? modelContext.save(); dismiss()
+                        do {
+                            try modelContext.save()
+                            dismiss()
+                        } catch {
+                            modelContext.rollback()
+                            saveFailed = true
+                        }
                     }
                 }
             }
         }
+        .saveFailureAlert(isPresented: $saveFailed)
     }
 }
 
@@ -272,6 +300,7 @@ struct TemplateCourseCreationView: View {
     @Environment(\.locale) private var locale
     @Query(sort: \AcademicTerm.sortOrder) private var terms: [AcademicTerm]
     let template: CourseTemplate
+    var onCreated: ((String) -> Void)? = nil
     @State private var selectedTermID: UUID?
     @State private var courseCode = ""
     @State private var courseTitle = ""
@@ -331,7 +360,7 @@ struct TemplateCourseCreationView: View {
             .onAppear { selectedTermID = selectedTermID ?? terms.first(where: { !$0.isDeleted })?.id }
             .alert("Couldn’t create course", isPresented: Binding(
                 get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }
-            )) { Button("OK") {} } message: { Text(errorMessage ?? "Please check the course details.") }
+            )) { Button("OK") {} } message: { Text(LocalizedStringKey(errorMessage ?? "Please check the course details.")) }
         }
     }
 
@@ -349,6 +378,7 @@ struct TemplateCourseCreationView: View {
                 copyCommonSettings: copyCommonSettings, copyReminders: copyReminders,
                 context: modelContext
             )
+            onCreated?(courseCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased())
             dismiss()
         } catch {
             errorMessage = error.localizedDescription

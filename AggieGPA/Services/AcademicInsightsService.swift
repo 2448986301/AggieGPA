@@ -338,18 +338,25 @@ enum InsightPriorityEngine {
         forecasts: [ForecastScenario],
         now: Date = .now
     ) -> [AcademicInsight] {
-        insights.sorted { lhs, rhs in
-            let left = score(
-                lhs, courses: courses, policies: policies, categories: categories,
-                items: items, scales: scales, forecasts: forecasts, now: now
+        // Sorting must not run the target solver for every comparator call.
+        // These contexts live only for this invocation, so edits, due dates and
+        // new forecasts are always reflected on the next view update.
+        let requestedCourseIDs = Set(insights.map(\.courseID))
+        var contexts: [UUID: CourseScoringContext] = [:]
+        for course in courses where requestedCourseIDs.contains(course.id) && contexts[course.id] == nil {
+            contexts[course.id] = scoringContext(
+                course: course, policies: policies, categories: categories,
+                items: items, scales: scales, forecasts: forecasts
             )
-            let right = score(
-                rhs, courses: courses, policies: policies, categories: categories,
-                items: items, scales: scales, forecasts: forecasts, now: now
-            )
-            if left != right { return left > right }
-            return lhs.id.uuidString < rhs.id.uuidString
         }
+        return insights.map { insight in
+            (insight: insight, score: contexts[insight.courseID].map {
+                score(insight, context: $0, now: now)
+            } ?? 0)
+        }.sorted { lhs, rhs in
+            if lhs.score != rhs.score { return lhs.score > rhs.score }
+            return lhs.insight.id.uuidString < rhs.insight.id.uuidString
+        }.map(\.insight)
     }
 
     static func score(
@@ -363,6 +370,24 @@ enum InsightPriorityEngine {
         now: Date = .now
     ) -> Double {
         guard let course = courses.first(where: { $0.id == insight.courseID }) else { return 0 }
+        return score(insight, context: scoringContext(
+            course: course, policies: policies, categories: categories,
+            items: items, scales: scales, forecasts: forecasts
+        ), now: now)
+    }
+
+    private struct CourseScoringContext {
+        let unitScore: Double
+        let items: [GradeItem]
+        let categories: [GradingCategory]
+        let targetScore: Double
+    }
+
+    private static func score(
+        _ insight: AcademicInsight,
+        context: CourseScoringContext,
+        now: Date
+    ) -> Double {
         var value: Double
         switch insight.severity {
         case .urgent: value = 800
@@ -370,10 +395,9 @@ enum InsightPriorityEngine {
         case .informative: value = 220
         case .positive: value = 80
         }
-        value += NSDecimalNumber(decimal: course.units).doubleValue * 12
-
-        let courseItems = items.filter { $0.course?.id == course.id && !$0.isDeleted }
-        let courseCategories = categories.filter { $0.course?.id == course.id && !$0.isDeleted }
+        value += context.unitScore
+        let courseItems = context.items
+        let courseCategories = context.categories
         if let itemID = insight.itemID, let item = courseItems.first(where: { $0.id == itemID }) {
             if item.status == .missing { value += 500 }
             if let due = item.dueDate {
@@ -386,6 +410,20 @@ enum InsightPriorityEngine {
             value += itemImpact(item, categories: courseCategories, items: courseItems) * 10
         }
 
+        value += context.targetScore
+        return value
+    }
+
+    private static func scoringContext(
+        course: CourseRecord,
+        policies: [CourseGradingPolicy],
+        categories: [GradingCategory],
+        items: [GradeItem],
+        scales: [GradeScale],
+        forecasts: [ForecastScenario]
+    ) -> CourseScoringContext {
+        let courseItems = items.filter { $0.course?.id == course.id && !$0.isDeleted }
+        let courseCategories = categories.filter { $0.course?.id == course.id && !$0.isDeleted }
         let policy = policies.first { $0.course?.id == course.id && !$0.isDeleted }
         let courseScale = scales.first { $0.course?.id == course.id && !$0.isDeleted }
         let result = CourseGradeCalculationEngine.calculate(CourseGradeSnapshotBuilder.makeInput(
@@ -396,17 +434,23 @@ enum InsightPriorityEngine {
             gradeScale: courseScale,
             forecast: forecasts.first { $0.course?.id == course.id && $0.isSelectedForGPAForecast && !$0.isDeleted }
         ))
+        let targetScore: Double
         switch result.targetFeasibility {
-        case .impossible: value += 360
+        case .impossible: targetScore = 360
         case .achievable:
             if let target = targetPercentage(policy, scale: courseScale),
                let current = result.calculatedCurrentPercentage {
-                value += max(0, NSDecimalNumber(decimal: target - current).doubleValue) * 5
+                targetScore = max(0, NSDecimalNumber(decimal: target - current).doubleValue) * 5
+            } else {
+                targetScore = 0
             }
-        case .manualReviewRequired: value += 180
-        case .noTarget, .alreadyReached: break
+        case .manualReviewRequired: targetScore = 180
+        case .noTarget, .alreadyReached: targetScore = 0
         }
-        return value
+        return CourseScoringContext(
+            unitScore: NSDecimalNumber(decimal: course.units).doubleValue * 12,
+            items: courseItems, categories: courseCategories, targetScore: targetScore
+        )
     }
 
     private static func itemImpact(

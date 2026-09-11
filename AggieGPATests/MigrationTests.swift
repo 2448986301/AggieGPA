@@ -1,10 +1,51 @@
 import Foundation
+import SQLite3
 import SwiftData
 import XCTest
 @testable import AggieGPA
 
 @MainActor
 final class MigrationTests: XCTestCase {
+    func testRecoveryBackupOfCurrentStoreNeverDowngradesTheLiveDatabase() throws {
+        let fixture = try makeTemporaryFixtureDirectory()
+        defer { try? FileManager.default.removeItem(at: fixture) }
+        let storeURL = fixture.appending(path: "AggieGPA.store")
+        let ids = try createV141Store(at: storeURL)
+        let originalRows = try databaseRows(at: storeURL)
+
+        try PersistentStoreService.createVerifiedV1RecoveryBackupIfNeeded(storeURL: storeURL)
+        XCTAssertEqual(try databaseRows(at: storeURL), originalRows, "Backup creation must preserve every live database row and its schema")
+        let configuration = ModelConfiguration("AggieGPA", schema: PersistentStoreService.v4Schema, url: storeURL)
+        let container = try ModelContainer(for: PersistentStoreService.v4Schema, migrationPlan: AggieGPAMigrationPlan.self, configurations: [configuration])
+        let context = ModelContext(container)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<CourseTemplate>()), 1)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<CourseReminderDefaults>()), 1)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<SiriAccessSettings>()), 1)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<SiriAccessSettings>()).first?.allowGPAResponses, true)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<PlannerScenario>()).first?.assumedGrades[ids.courseID], .a)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<CourseRecord>()).first?.grade, .aMinus)
+
+        let backups = try FileManager.default.contentsOfDirectory(at: fixture.appending(path: "MigrationBackups"), includingPropertiesForKeys: nil)
+        let decoded = try BackupService.decode(Data(contentsOf: XCTUnwrap(backups.first { $0.pathExtension == "json" })))
+        XCTAssertEqual(decoded.courseTemplates?.count, 1)
+        XCTAssertEqual(decoded.courseReminderDefaults?.count, 1)
+        XCTAssertEqual(decoded.siriSettings?.allowGPAResponses, true)
+        XCTAssertTrue(backups.contains { $0.pathExtension == "store" })
+        try PersistentStoreService.createVerifiedV1RecoveryBackupIfNeeded(storeURL: storeURL)
+        let repeated = try FileManager.default.contentsOfDirectory(at: fixture.appending(path: "MigrationBackups"), includingPropertiesForKeys: nil)
+        XCTAssertEqual(Set(backups.map(\.lastPathComponent)), Set(repeated.map(\.lastPathComponent)))
+    }
+
+    func testInvalidStoreCannotReceiveAVerifiedBackupMarker() throws {
+        let fixture = try makeTemporaryFixtureDirectory()
+        defer { try? FileManager.default.removeItem(at: fixture) }
+        let storeURL = fixture.appending(path: "AggieGPA.store")
+        let original = Data("Not a SQLite database".utf8)
+        try original.write(to: storeURL)
+        XCTAssertThrowsError(try PersistentStoreService.createVerifiedV1RecoveryBackupIfNeeded(storeURL: storeURL))
+        XCTAssertEqual(try Data(contentsOf: storeURL), original)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.appending(path: "MigrationBackups/v1-backup-verified.marker").path))
+    }
     func testV1DiskStoreMigratesThroughCurrentSchemaAndPreservesOfficialRecords() throws {
         let fixture = try makeTemporaryFixtureDirectory()
         defer { try? FileManager.default.removeItem(at: fixture) }
@@ -417,6 +458,50 @@ final class MigrationTests: XCTestCase {
         context.insert(preferences)
         try context.save()
         return ids
+    }
+
+    private func databaseRows(at url: URL) throws -> [String: Data] {
+        var pointer: OpaquePointer?
+        XCTAssertEqual(sqlite3_open_v2(url.path, &pointer, SQLITE_OPEN_READONLY, nil), SQLITE_OK)
+        let database = try XCTUnwrap(pointer)
+        defer { sqlite3_close(database) }
+        sqlite3_busy_timeout(database, 5000)
+        XCTAssertEqual(sqlite3_exec(database, "BEGIN", nil, nil, nil), SQLITE_OK)
+        defer { sqlite3_exec(database, "ROLLBACK", nil, nil, nil) }
+        var names: OpaquePointer?
+        XCTAssertEqual(sqlite3_prepare_v2(database, "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name", -1, &names, nil), SQLITE_OK)
+        defer { sqlite3_finalize(names) }
+        var tables = ["sqlite_master"]
+        var namesStep = sqlite3_step(names)
+        while namesStep == SQLITE_ROW {
+            tables.append(String(cString: sqlite3_column_text(names, 0)))
+            namesStep = sqlite3_step(names)
+        }
+        XCTAssertEqual(namesStep, SQLITE_DONE)
+        var result: [String: Data] = [:]
+        for table in tables {
+            let quoted = "\"" + table.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+            var statement: OpaquePointer?
+            XCTAssertEqual(sqlite3_prepare_v2(database, "SELECT * FROM \(quoted) ORDER BY rowid", -1, &statement, nil), SQLITE_OK)
+            defer { sqlite3_finalize(statement) }
+            var bytes = Data()
+            var step = sqlite3_step(statement)
+            while step == SQLITE_ROW {
+                for index in 0..<sqlite3_column_count(statement) {
+                    var type = sqlite3_column_type(statement, index)
+                    bytes.append(contentsOf: withUnsafeBytes(of: &type) { Array($0) })
+                    var count = sqlite3_column_bytes(statement, index)
+                    bytes.append(contentsOf: withUnsafeBytes(of: &count) { Array($0) })
+                    if let value = sqlite3_column_blob(statement, index), count > 0 {
+                        bytes.append(value.assumingMemoryBound(to: UInt8.self), count: Int(count))
+                    }
+                }
+                step = sqlite3_step(statement)
+            }
+            XCTAssertEqual(step, SQLITE_DONE)
+            result[table] = bytes
+        }
+        return result
     }
 
     private func makeTemporaryFixtureDirectory() throws -> URL {

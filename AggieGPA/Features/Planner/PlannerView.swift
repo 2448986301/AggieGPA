@@ -129,6 +129,7 @@ struct PlannerView: View {
                 .safeAreaPadding(.bottom, horizontalSizeClass == .compact ? 96 : DesignSystem.Spacing.large)
             }
             .navigationTitle("GPA")
+            .ipadProductivityToolbar()
             // Keep the title compact inside the tab destination. The system
             // owns the scroll-edge material: it stays clear at rest and only
             // becomes glass when content crosses the navigation edge.

@@ -81,6 +81,8 @@ struct AcademicAIActivityView: View {
     var allowsCancellation = false
     var onCancel: (() -> Void)?
     var onPressChanged: ((Bool) -> Void)?
+    var progressDetail: String?
+    var progressFraction: Double?
 
     // Expansion is a press affordance, not a second navigation state. The
     // long-press pressing callback keeps the larger surface tied to the
@@ -99,12 +101,16 @@ struct AcademicAIActivityView: View {
         state: AcademicAIActivityState,
         allowsCancellation: Bool = false,
         onCancel: (() -> Void)? = nil,
-        onPressChanged: ((Bool) -> Void)? = nil
+        onPressChanged: ((Bool) -> Void)? = nil,
+        progressDetail: String? = nil,
+        progressFraction: Double? = nil
     ) {
         self.state = state
         self.allowsCancellation = allowsCancellation
         self.onCancel = onCancel
         self.onPressChanged = onPressChanged
+        self.progressDetail = progressDetail
+        self.progressFraction = progressFraction
         _visibleActivityState = State(initialValue: state)
     }
 
@@ -139,6 +145,7 @@ struct AcademicAIActivityView: View {
             // It is not a tap action; the hint explains that the useful
             // affordance is press-and-hold expansion.
             .accessibilityLabel(Text(verbatim: localizedStatusText))
+            .accessibilityValue(Text(verbatim: progressDetail ?? ""))
             .accessibilityHint(Text(verbatim: AppLocalization.string("Press and hold for details", locale: locale)))
             .accessibilityAction(named: Text(verbatim: isPressing
                 ? AppLocalization.string("Hide Details", locale: locale)
@@ -270,7 +277,12 @@ struct AcademicAIActivityView: View {
                 effectiveReduceMotion: effectiveReduceMotion
             )
 
-            Text(verbatim: AppLocalization.string("AI Activity Detail", locale: locale))
+            if let progressFraction {
+                ProgressView(value: progressFraction)
+                    .tint(.accentColor)
+                    .accessibilityLabel(Text(verbatim: progressDetail ?? localizedStatusText))
+            }
+            Text(verbatim: progressDetail ?? AppLocalization.string("AI Activity Detail", locale: locale))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -334,6 +346,7 @@ struct AcademicAIActivityView: View {
         if dynamicTypeSize >= .accessibility1 {
             return allowsCancellation ? 350 : 318
         }
+        if progressDetail != nil { return allowsCancellation ? 280 : 252 }
         return allowsCancellation ? 232 : 204
     }
 
@@ -341,6 +354,7 @@ struct AcademicAIActivityView: View {
         if dynamicTypeSize >= .accessibility1 {
             return 250
         }
+        if progressDetail != nil { return 180 }
         return allowsCancellation ? 132 : 148
     }
 
@@ -356,7 +370,7 @@ struct AcademicAIActivityView: View {
         return orbWidth + textWidth + cancelWidth + (CGFloat(spacingCount) * DesignSystem.Spacing.small)
     }
 
-    private let compactCapsuleHeight: CGFloat = 60
+    private var compactCapsuleHeight: CGFloat { progressDetail == nil ? 60 : (dynamicTypeSize.isAccessibilitySize ? 100 : 72) }
     private let compactTransitionDistance: CGFloat = 46
     private let expandedHeight: CGFloat = 224
 
@@ -470,6 +484,7 @@ struct AcademicAIActivityView: View {
             .frame(width: 36, height: 36)
             .accessibilityHidden(true)
 
+            VStack(alignment: .leading, spacing: 3) {
             Text(verbatim: AppLocalization.string(activityState.localizationKey, locale: locale))
                 .font(.headline.weight(.semibold))
                 .lineLimit(1)
@@ -480,6 +495,15 @@ struct AcademicAIActivityView: View {
                 // phrases optically centered as one group with the orb and
                 // optional xmark.
                 .frame(maxWidth: compactTextMaxWidth, alignment: .leading)
+            if let progressDetail {
+                Text(verbatim: progressDetail)
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            }
 
             if allowsCancellation {
                 Image(systemName: "xmark")
@@ -664,6 +688,8 @@ struct AcademicAIActivityOverlay: View {
     let state: AcademicAIActivityState?
     let onCancel: () -> Void
     @Binding var isExpanded: Bool
+    var progressDetail: String? = nil
+    var progressFraction: Double? = nil
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -679,7 +705,9 @@ struct AcademicAIActivityOverlay: View {
                             // binding informs the feature without starting a
                             // second competing layout animation.
                             isExpanded = pressing
-                        }
+                        },
+                        progressDetail: progressDetail,
+                        progressFraction: progressFraction
                     )
                     Spacer(minLength: 0)
                 }
@@ -731,7 +759,10 @@ struct AcademicAIActivityReviewView: View {
                             AcademicAIActivityView(
                                 state: state,
                                 allowsCancellation: state == .reasoningSyllabus,
-                                onCancel: { }
+                                onCancel: { },
+                                progressDetail: ProcessInfo.processInfo.arguments.contains("--screenshot-ai-progress") && state == .reasoningSyllabus
+                                    ? String(format: AppLocalization.string("Reading image · %lld%%", locale: Locale(identifier: "zh-Hans")), Int64(50)) : nil,
+                                progressFraction: ProcessInfo.processInfo.arguments.contains("--screenshot-ai-progress") && state == .reasoningSyllabus ? 0.5 : nil
                             )
                                 .fixedSize(horizontal: true, vertical: false)
                                 .accessibilityIdentifier("aiActivity-\(state.rawValue)")

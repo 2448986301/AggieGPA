@@ -284,6 +284,8 @@ struct CourseRow: View {
     @Query(sort: \PlannerScenario.sortOrder, order: .reverse) private var savedPlans: [PlannerScenario]
     @Query private var allCourses: [CourseRecord]
     let course: CourseRecord
+    var compactLayout = false
+    private var usesStackedLayout: Bool { compactLayout || dynamicTypeSize.isAccessibilitySize }
     private var liveCourseModelIDs: Set<PersistentIdentifier> {
         Set(allCourses.filter { !$0.isDeleted }.map(\.persistentModelID))
     }
@@ -320,24 +322,98 @@ struct CourseRow: View {
         )
     }
     var body: some View {
+        // Resolve each model snapshot once per update, not once per text label.
+        let state = planningState
+        let result = gradeResult
         Group {
-            if dynamicTypeSize.isAccessibilitySize {
+            if compactLayout {
+                compactCourseRow(state: state, result: result)
+            } else if usesStackedLayout {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
                     courseIdentity
-                    courseGrade
+                    courseGrade(state: state, result: result)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } else {
                 HStack {
                     courseIdentity
                     Spacer(minLength: DesignSystem.Spacing.small)
-                    courseGrade
+                    courseGrade(state: state, result: result)
                         .frame(width: 168, alignment: .trailing)
                 }
             }
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("courseRow-\(course.courseCode)")
+    }
+
+    private func compactCourseRow(state: GPAPlanningCourseState?, result: CourseGradeCalculationResult) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            // Keep the grade attached to its course heading, not styled as a
+            // second heading. Larger text can wrap this single logical group.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(verbatim: course.courseCode)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: true, vertical: false)
+                    Spacer(minLength: 0)
+                    Text(verbatim: compactPrimaryGrade(state: state, result: result))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: course.courseCode).font(.headline).foregroundStyle(.primary)
+                    Text(verbatim: compactPrimaryGrade(state: state, result: result))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if !course.courseTitle.isEmpty {
+                Text(verbatim: course.courseTitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            courseMetadata
+            courseGrade(state: state, result: result, showPrimary: false)
+        }
+        .lineLimit(nil)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func compactPrimaryGrade(state: GPAPlanningCourseState?, result: CourseGradeCalculationResult) -> String {
+        guard course.grade.isPending else {
+            return AppLocalization.formatted("Final %@", locale: locale, course.grade.rawValue)
+        }
+        guard let current = state?.currentPercentage ?? result.calculatedCurrentPercentage,
+              let letter = state?.currentGrade?.rawValue ?? result.currentLetterGrade?.rawValue else {
+            return AppLocalization.string("Current —", locale: locale)
+        }
+        return AppLocalization.formatted("Current %@%% · %@", locale: locale, compact(current), letter)
+    }
+
+    private var courseMetadata: some View {
+        HStack(spacing: 6) { courseMetadataItems }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder
+    private var courseMetadataItems: some View {
+        Text(verbatim: AppCopy.units(course.units, locale: locale))
+            .fixedSize(horizontal: true, vertical: false)
+        if course.isMajorCourse {
+            Label("Major", systemImage: "star.fill")
+                .labelStyle(.titleAndIcon)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+        if course.isRepeatCourse {
+            Label("Repeat", systemImage: "arrow.triangle.2.circlepath")
+                .labelStyle(.titleAndIcon)
+                .fixedSize(horizontal: true, vertical: false)
+        }
     }
 
     private var courseIdentity: some View {
@@ -349,36 +425,22 @@ struct CourseRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
-            HStack {
-                Text(verbatim: AppCopy.units(course.units, locale: locale))
-                if course.isMajorCourse { Label("Major", systemImage: "star.fill") }
-                if course.isRepeatCourse { Label("Repeat", systemImage: "arrow.triangle.2.circlepath") }
-            }.font(.caption2).foregroundStyle(.secondary)
+            courseMetadata
         }
     }
 
-    private var courseGrade: some View {
-        VStack(alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .trailing) {
+    private func courseGrade(state: GPAPlanningCourseState?, result: CourseGradeCalculationResult, showPrimary: Bool = true) -> some View {
+        VStack(alignment: usesStackedLayout ? .leading : .trailing) {
             if course.grade.isPending {
-                if let current = planningState?.currentPercentage ?? gradeResult.calculatedCurrentPercentage,
-                   let currentLetter = planningState?.currentGrade?.rawValue ?? gradeResult.currentLetterGrade?.rawValue {
-                    Text(verbatim: String(
-                        format: AppLocalization.string("Current %@%% · %@", locale: locale),
-                        locale: locale,
-                        compact(current),
-                        currentLetter
-                    ))
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                } else {
-                    Text(verbatim: AppLocalization.string("Current —", locale: locale))
+                if showPrimary {
+                    Text(verbatim: compactPrimaryGrade(state: state, result: result))
                         .font(.headline)
                         .foregroundStyle(.primary)
                 }
-                if let projected = planningState?.projectedGrade {
-                    let projectedPercentage = planningState?.projectedPercentage.map { value in
+                if let projected = state?.projectedGrade {
+                    let projectedPercentage = state?.projectedPercentage.map { value in
                         let formatted = compact(value)
-                        return planningState?.projectedPercentageIsBoundary == true ? "≥\(formatted)%" : "\(formatted)%"
+                        return state?.projectedPercentageIsBoundary == true ? "≥\(formatted)%" : "\(formatted)%"
                     }
                     let projectedValue = [projectedPercentage, projected.rawValue]
                         .compactMap { $0 }
@@ -389,12 +451,16 @@ struct CourseRow: View {
                         projectedValue
                     ))
                         .font(.caption2)
-                        .foregroundStyle(DesignSystem.ColorToken.gold)
+                        // Sidebar selection already uses the accent color.
+                        // Semantic text stays readable on its selected surface.
+                        .foregroundStyle(compactLayout
+                            ? AnyShapeStyle(.secondary)
+                            : AnyShapeStyle(DesignSystem.ColorToken.gold))
                 } else {
                     Text(verbatim: String(
                         format: AppLocalization.string("%@%% graded", locale: locale),
                         locale: locale,
-                        compact(gradeResult.gradedWeight)
+                        compact(result.gradedWeight)
                     ))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -403,13 +469,11 @@ struct CourseRow: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             } else {
-                Text(verbatim: String(
-                    format: AppLocalization.string("Final %@", locale: locale),
-                    locale: locale,
-                    course.grade.rawValue
-                ))
-                    .font(.headline)
-                    .foregroundStyle(.primary)
+                if showPrimary {
+                    Text(verbatim: compactPrimaryGrade(state: state, result: result))
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                }
                 Text(course.isIncludedInGPA ? "Included" : "Excluded").font(.caption2).foregroundStyle(.secondary)
             }
         }

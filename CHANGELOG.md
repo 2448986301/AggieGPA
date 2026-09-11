@@ -1,3 +1,11 @@
+# Aggie GPA 1.0.1 — release candidate, build 25
+
+- Refined iPad navigation, search selection and compact course summaries.
+- Saved edits now report failures without discarding the draft.
+- Restored on-device visual syllabus analysis, source-page evidence and image-model progress.
+- Improved inference cancellation and bounded model-verification memory.
+- Preserves existing grades, local models and offline privacy; final physical acceptance is tracked in `Documentation/Release-1.0.1-Log.md`.
+
 # Aggie GPA 1.0
 
 The first complete release of Aggie GPA, a native iPhone and iPad academic planning app.

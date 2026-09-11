@@ -58,8 +58,44 @@ enum OnDeviceSyllabusParser {
         draft.runtimeMetrics = result.metrics
         draft.providerName = result.providerName
         draft.modelName = result.modelName
+        if let recognizedSource = result.recognizedSource {
+            draft.recognizedSource = recognizedSource
+        } else if mode == .localRules, document.pages.contains(where: { $0.imageData != nil }) {
+            draft.recognizedSource = try await recognizedSource(from: document)
+        }
         progress(draft.requiresReview ? .needsReview : .complete)
         return draft
+    }
+
+    private static func recognizedSource(
+        from document: SyllabusTextExtractor.Document
+    ) async throws -> SyllabusRecognizedSource? {
+        let pages = try await Task.detached(priority: .userInitiated) {
+            try Task.checkCancellation()
+            return document.pages.map { page in
+                let nativeText = page.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let recognizedText: String
+                if let imageData = page.imageData {
+                    recognizedText = SyllabusImageTextRecognizer.recognize(data: imageData)
+                } else {
+                    recognizedText = page.image.map { SyllabusImageTextRecognizer.recognize(image: $0) } ?? ""
+                }
+                let combined = [nativeText, recognizedText]
+                    .filter { !$0.isEmpty }
+                    .joined(separator: "\n")
+                return SyllabusTextExtractor.Page(
+                    number: page.number,
+                    text: combined.isEmpty ? nil : combined,
+                    image: nil
+                )
+            }
+        }.value
+        let sourceDocument = SyllabusTextExtractor.Document(pages: pages, source: document.source)
+        let source = SyllabusRecognizedSource(
+            text: SyllabusTextExtractor.storedText(from: sourceDocument),
+            pagesData: SyllabusTextExtractor.storedPageData(from: sourceDocument)
+        )
+        return source.hasContent ? source : nil
     }
 
     static func importDraft(from analysis: GradingAnalysis, source: SyllabusImportSource) -> SyllabusImportDraft {
