@@ -26,10 +26,10 @@
 ## Acceptance status
 
 - Version/build update: 1.0.1 (25), verified in both physical About screens.
-- Fresh device test build and simulator core regression: passed. Final Release archive pending.
-- Physical-device test-host cover-install and launch: passed; final Release ordinary launch pending.
+- Fresh device test build and simulator core regression: passed; final 244-test core run and three migration repetitions passed. Final Release archive/export passed.
+- Final exported Release app: cover-install and ordinary launch passed on both physical devices; all 22 database tables match each device's pre-install snapshot.
 - Physical interaction and hitch profiling: passed for the tested paths below. Absolute zero latency cannot be guaranteed.
-- Source commit/tag/archive/IPA checksum chain: pending.
+- Final archived source: `9fefdcf8959d4795c21d9a0357cc8b48e997c8c8`; IPA SHA-256 `afcf190b7845bcb99b037f9930c187a83f5a5c2d8624b1eba80bea8762c735f6`. Tag/publication closeout follows below.
 - GitHub publication: pending; old release preserved.
 
 ## Recovery implementation — subsequent work
@@ -119,3 +119,12 @@
 - Final core regression (`release101-final-data-safety-core-03.xcresult`): 244 executed, 5 conditional skips, zero failures. Earlier regression failures and the initial fixture-test compilation error are retained locally, not counted as passing.
 - Re-provisioned only the disposable Simulator copy and reran ordinary launch plus three rounds of GPA / Full Simulation scrolling / Siri navigation (`release101-preservation-navigation-fixed.xcresult`). Navigation passed. All academic, official-grade, assumed-grade, scenario, template and preference/privacy values matched the restored source. Only expected Siri visit timestamps, optimistic-lock counters and framework transaction-history metadata changed; no historical records were truncated. This is data-preservation evidence, not a proof of the historical write actor.
 - New runtime changes require a fresh source commit, Release archive, IPA checksum and final physical cover-install verification. The earlier `b39f1b6` artifact remains preserved as a historical pre-hardening artifact and will not be substituted for the final package.
+
+## Final package acceptance
+
+- Final runtime source is committed at `9fefdcf8959d4795c21d9a0357cc8b48e997c8c8`; the checkout was clean throughout the fresh Release archive. Later log-only commits do not change the archived app.
+- Fresh archive `AggieGPA-1.0.1-build25-final.xcarchive` and development export succeeded. Final IPA: `Release101-FinalExport/AggieGPA-1.0.1-build25.ipa`, 6,732,454 bytes; SHA-256 `afcf190b7845bcb99b037f9930c187a83f5a5c2d8624b1eba80bea8762c735f6`. App and embedded widget both report 1.0.1 (25); strict deep signature verification passed and the profile includes both acceptance devices.
+- Installed the app extracted from that exact IPA on iPhone and iPad, then ordinarily launched both without test/demo arguments. Both operations succeeded on each device. Fresh installed-app queries confirm 1.0.1 (25).
+- Both post-test and final post-install database comparisons pass: 22 tables per device, matching schema, successful integrity checks, and every stored value identical to that device's fresh pre-test snapshot. The already-authorized two-grade repair remains intact; no additional changes were made to personal data.
+- Final core: 244 executed, 5 conditional skips, zero failures. All five migration/backup tests passed three consecutive repetitions. Physical UI/hitch and AI measurements above remain evidence for unchanged UI/AI paths; the new changes are data isolation and backup preparation, not a new visual redesign.
+- Retained limitations: no unique historical actor/source for the two repaired writes; iPad RPAC-injected AI termination is not labeled passing; larger unverified models remain restricted. The normal-launch/navigation data-preservation regression and explicit test isolation checks passed. The final package is approved for the requested GitHub release with those limitations documented.
